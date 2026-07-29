@@ -10,6 +10,10 @@
 		AA000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000002 /* ContentView.swift */; };
 		AA000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA000004 /* Assets.xcassets */; };
 		AA000005 /* TrainyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000006 /* TrainyApp.swift */; };
+		AA000031 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000030 /* HomeView.swift */; };
+		AA000033 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000032 /* ProfileView.swift */; };
+		AA000035 /* PastTrainsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000034 /* PastTrainsView.swift */; };
+		AA000037 /* AddTrainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000036 /* AddTrainView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +21,10 @@
 		AA000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA000006 /* TrainyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainyApp.swift; sourceTree = "<group>"; };
 		AA000007 /* Trainy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Trainy.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA000030 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		AA000032 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		AA000034 /* PastTrainsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastTrainsView.swift; sourceTree = "<group>"; };
+		AA000036 /* AddTrainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTrainView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,19 +46,23 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		AA000010 /* Trainy */ = {
+		AA000022 /* Trainy */ = {
 			isa = PBXGroup;
 			children = (
 				AA000006 /* TrainyApp.swift */,
 				AA000002 /* ContentView.swift */,
+				AA000030 /* HomeView.swift */,
+				AA000032 /* ProfileView.swift */,
+				AA000034 /* PastTrainsView.swift */,
+				AA000036 /* AddTrainView.swift */,
 				AA000004 /* Assets.xcassets */,
 			);
 			sourceTree = "<group>";
 		};
-		AA000011 /* main group */ = {
+		AA000023 /* main group */ = {
 			isa = PBXGroup;
 			children = (
-				AA000010 /* Trainy */,
+				AA000022 /* Trainy */,
 				AA000009 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -58,13 +70,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		AA000012 /* Trainy */ = {
+		AA000024 /* Trainy */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AA000013 /* Build configuration list for PBXNativeTarget "Trainy" */;
+			buildConfigurationList = AA000025 /* Build configuration list for PBXNativeTarget "Trainy" */;
 			buildPhases = (
-				AA000014 /* Sources */,
+				AA000026 /* Sources */,
 				AA000008 /* Frameworks */,
-				AA000015 /* Resources */,
+				AA000027 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -79,19 +91,19 @@
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		AA000016 /* Project object */ = {
+		AA000028 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
-					AA000012 = {
+					AA000024 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
-			buildConfigurationList = AA000017 /* Build configuration list for PBXProject "Trainy" */;
+			buildConfigurationList = AA000029 /* Build configuration list for PBXProject "Trainy" */;
 			compatibilityVersion = "Xcode 15.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -99,18 +111,18 @@
 				en,
 				Base,
 			);
-			mainGroup = AA000011;
+			mainGroup = AA000023;
 			productRefGroup = AA000009 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				AA000012 /* Trainy */,
+				AA000024 /* Trainy */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		AA000015 /* Resources */ = {
+		AA000027 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -121,12 +133,16 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		AA000014 /* Sources */ = {
+		AA000026 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				AA000005 /* TrainyApp.swift in Sources */,
 				AA000001 /* ContentView.swift in Sources */,
+				AA000031 /* HomeView.swift in Sources */,
+				AA000033 /* ProfileView.swift in Sources */,
+				AA000035 /* PastTrainsView.swift in Sources */,
+				AA000037 /* AddTrainView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -310,7 +326,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		AA000013 /* Build configuration list for PBXNativeTarget "Trainy" */ = {
+		AA000025 /* Build configuration list for PBXNativeTarget "Trainy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA000020 /* Debug */,
@@ -319,7 +335,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AA000017 /* Build configuration list for PBXProject "Trainy" */ = {
+		AA000029 /* Build configuration list for PBXProject "Trainy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA000018 /* Debug */,
@@ -331,5 +347,5 @@
 /* End XCConfigurationList section */
 
 	};
-	rootObject = AA000016 /* Project object */;
+	rootObject = AA000028 /* Project object */;
 }
