@@ -1,12 +1,18 @@
-
 import SwiftUI
 
 // MARK: - Mock Data Models
 
-struct Journey {
-    let origin: Station
-    let destination: Station
-    let intermediate: Station
+struct TrainStation {
+    let code: String
+    let name: String
+    let scheduled: String
+    let actual: String
+}
+
+struct TrainJourney {
+    let origin: TrainStation
+    let intermediate: TrainStation
+    let destination: TrainStation
     let scheduledDeparture: String
     let predictedArrival: String
     let actualArrival: String
@@ -20,23 +26,15 @@ struct Journey {
     let inboundLateMinutes: Int
     let connectionRisk: String
     let connectionService: String
-    let connectionTime: String
     let transferMinutes: Int
     let congestionAvgDelay: Int
     let progressFraction: Double
 }
 
-struct Station {
-    let code: String
-    let name: String
-    let scheduled: String
-    let actual: String
-}
-
-let mockJourney = Journey(
-    origin: Station(code: "LPY", name: "Long Preston", scheduled: "11:00", actual: "11:00"),
-    intermediate: Station(code: "RUG", name: "Rugby", scheduled: "11:52", actual: "11:58"),
-    destination: Station(code: "EUS", name: "London Euston", scheduled: "12:45", actual: "13:01"),
+let mockJourney = TrainJourney(
+    origin: TrainStation(code: "LPY", name: "Long Preston", scheduled: "11:00", actual: "11:00"),
+    intermediate: TrainStation(code: "RUG", name: "Rugby", scheduled: "11:52", actual: "11:58"),
+    destination: TrainStation(code: "EUS", name: "London Euston", scheduled: "12:45", actual: "13:01"),
     scheduledDeparture: "11:00 LPY-EUS",
     predictedArrival: "13:01",
     actualArrival: "12:45",
@@ -50,11 +48,15 @@ let mockJourney = Journey(
     inboundLateMinutes: 14,
     connectionRisk: "LOW RISK",
     connectionService: "14:51 Southeastern Service",
-    connectionTime: "14:51",
     transferMinutes: 5,
     congestionAvgDelay: 11,
     progressFraction: 0.72
 )
+
+// MARK: - Bar chart data
+
+private let barHeights: [CGFloat] = [0.3, 0.5, 0.6, 0.8, 0.7, 0.9, 1.0, 0.85, 0.6, 0.4]
+private let timelineFractions: [CGFloat] = [0.0, 0.45, 1.0]
 
 // MARK: - Reusable Card Background
 
@@ -77,7 +79,8 @@ struct GlassCard<Content: View>: View {
 // MARK: - Status Header Card
 
 struct StatusHeaderCard: View {
-    let journey: Journey
+    let journey: TrainJourney
+
     var body: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 10) {
@@ -92,7 +95,7 @@ struct StatusHeaderCard: View {
                                 .foregroundColor(.orange)
                         }
                         Text("BASED ON INBOUND EQUIPMENT (\(journey.scheduledDeparture))")
-                            .font(.system(size: 11, weight: .semibold, design: .default))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.white.opacity(0.55))
                             .tracking(0.5)
                     }
@@ -113,7 +116,7 @@ struct StatusHeaderCard: View {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 8, height: 8)
-                        .shadow(color: .green, radius: 3)
+                        .shadow(color: Color.green, radius: 3)
                     Text("ON TIME (per departure board)")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.green)
@@ -131,10 +134,28 @@ struct StatusHeaderCard: View {
     }
 }
 
+// MARK: - Station Time View
+
+struct StationTimeView: View {
+    let station: TrainStation
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(station.scheduled)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(.white.opacity(0.45))
+                .strikethrough(station.scheduled != station.actual, color: Color.red.opacity(0.7))
+            Text(station.actual)
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundColor(station.scheduled == station.actual ? .green : .orange)
+        }
+    }
+}
+
 // MARK: - Dynamic Timeline Card
 
 struct TimelineCard: View {
-    let journey: Journey
+    let journey: TrainJourney
 
     var body: some View {
         GlassCard {
@@ -144,66 +165,58 @@ struct TimelineCard: View {
                     .foregroundColor(.white.opacity(0.5))
                     .tracking(1)
 
-                // Station times above
                 HStack {
-                    stationTimeView(station: journey.origin)
+                    StationTimeView(station: journey.origin)
                     Spacer()
-                    stationTimeView(station: journey.intermediate)
+                    StationTimeView(station: journey.intermediate)
                     Spacer()
-                    stationTimeView(station: journey.destination)
+                    StationTimeView(station: journey.destination)
                 }
 
-                // Timeline bar
                 GeometryReader { geo in
-                    let totalWidth = geo.size.width
-                    let seg1End = totalWidth * 0.45
-                    let seg2End = totalWidth
-                    let trainX = totalWidth * journey.progressFraction
+                    let w = geo.size.width
+                    let seg1End = w * 0.45
+                    let trainX = w * journey.progressFraction
 
                     ZStack(alignment: .leading) {
-                        // Background track
                         Capsule()
                             .fill(Color.white.opacity(0.12))
                             .frame(height: 5)
 
-                        // Green segment: LPY → RUG
                         Capsule()
                             .fill(Color.green)
                             .frame(width: seg1End, height: 5)
 
-                        // Gradient segment: RUG → EUS
                         LinearGradient(
-                            colors: [.green, .orange],
+                            colors: [Color.green, Color.orange],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                         .clipShape(Capsule())
-                        .frame(width: seg2End - seg1End, height: 5)
+                        .frame(width: w - seg1End, height: 5)
                         .offset(x: seg1End)
 
-                        // Station nodes
-                        ForEach([0.0, 0.45, 1.0], id: \.self) { fraction in
+                        ForEach(0..<3) { i in
+                            let fraction = timelineFractions[i]
                             Circle()
-                                .fill(fraction <= journey.progressFraction ? Color.green : Color.white.opacity(0.3))
+                                .fill(fraction <= CGFloat(journey.progressFraction) ? Color.green : Color.white.opacity(0.3))
                                 .frame(width: 12, height: 12)
                                 .overlay(Circle().stroke(Color.black.opacity(0.4), lineWidth: 1))
-                                .offset(x: totalWidth * fraction - 6)
+                                .offset(x: w * fraction - 6)
                         }
 
-                        // Train icon
                         Image(systemName: "tram.fill")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
                             .padding(6)
                             .background(Color.orange)
                             .clipShape(Circle())
-                            .shadow(color: .orange.opacity(0.6), radius: 6)
+                            .shadow(color: Color.orange.opacity(0.6), radius: 6)
                             .offset(x: trainX - 13, y: -22)
                     }
                 }
                 .frame(height: 40)
 
-                // Station codes below
                 HStack {
                     Text(journey.origin.code)
                         .font(.system(size: 13, weight: .black, design: .monospaced))
@@ -220,25 +233,13 @@ struct TimelineCard: View {
             }
         }
     }
-
-    @ViewBuilder
-    func stationTimeView(station: Station) -> some View {
-        VStack(spacing: 2) {
-            Text(station.scheduled)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(.white.opacity(0.45))
-                .strikethrough(station.scheduled != station.actual, color: .red.opacity(0.7))
-            Text(station.actual)
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundColor(station.scheduled == station.actual ? .green : .orange)
-        }
-    }
 }
 
 // MARK: - Congestion Card (Card A)
 
 struct CongestionCard: View {
-    let journey: Journey
+    let journey: TrainJourney
+
     var body: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 12) {
@@ -262,15 +263,17 @@ struct CongestionCard: View {
                     .foregroundColor(.white)
                     .lineSpacing(2)
 
-                // Mini chart placeholder
                 HStack(spacing: 4) {
-                    ForEach([0.3, 0.5, 0.6, 0.8, 0.7, 0.9, 1.0, 0.85, 0.6, 0.4], id: \.self) { h in
+                    ForEach(0..<barHeights.count, id: \.self) { i in
                         RoundedRectangle(cornerRadius: 3)
                             .fill(
-                                LinearGradient(colors: [.orange.opacity(0.4), .orange],
-                                               startPoint: .bottom, endPoint: .top)
+                                LinearGradient(
+                                    colors: [Color.orange.opacity(0.4), Color.orange],
+                                    startPoint: .bottom,
+                                    endPoint: .top
+                                )
                             )
-                            .frame(width: 14, height: 50 * h)
+                            .frame(width: 14, height: 50 * barHeights[i])
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -286,7 +289,9 @@ struct CongestionCard: View {
                             .font(.system(size: 20, weight: .black, design: .monospaced))
                             .foregroundColor(.orange)
                     }
-                    Divider().frame(height: 30).background(Color.white.opacity(0.1))
+                    Divider()
+                        .frame(height: 30)
+                        .background(Color.white.opacity(0.1))
                     VStack(alignment: .leading, spacing: 2) {
                         Text("AFFECTED SERVICES")
                             .font(.system(size: 9, weight: .bold))
@@ -305,11 +310,12 @@ struct CongestionCard: View {
 // MARK: - Rolling Stock Card (Card B)
 
 struct RollingStockCard: View {
-    let journey: Journey
+    let journey: TrainJourney
+
     var body: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label("EQUIPMENT PROFILE", systemImage: "train.side.front.car")
+                Label("EQUIPMENT PROFILE", systemImage: "tram.fill")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.white.opacity(0.45))
                     .tracking(1)
@@ -328,8 +334,11 @@ struct RollingStockCard: View {
                     Image(systemName: "tram.fill")
                         .font(.system(size: 36))
                         .foregroundStyle(
-                            LinearGradient(colors: [.white.opacity(0.9), .white.opacity(0.5)],
-                                           startPoint: .top, endPoint: .bottom)
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.9), Color.white.opacity(0.4)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
                 }
 
@@ -358,7 +367,8 @@ struct RollingStockCard: View {
 // MARK: - Connection Risk Card (Card C)
 
 struct ConnectionRiskCard: View {
-    let journey: Journey
+    let journey: TrainJourney
+
     var body: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 12) {
@@ -406,11 +416,11 @@ struct ConnectionRiskCard: View {
 // MARK: - Arrival Context Card
 
 struct ArrivalContextCard: View {
-    let journey: Journey
+    let journey: TrainJourney
+
     var body: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 14) {
-                // Platform prediction
                 VStack(alignment: .leading, spacing: 6) {
                     Label("PREDICTED PLATFORM", systemImage: "signpost.right.fill")
                         .font(.system(size: 10, weight: .bold))
@@ -421,8 +431,11 @@ struct ArrivalContextCard: View {
                         Text("\(journey.platform)")
                             .font(.system(size: 56, weight: .black, design: .rounded))
                             .foregroundStyle(
-                                LinearGradient(colors: [.white, .white.opacity(0.7)],
-                                               startPoint: .top, endPoint: .bottom)
+                                LinearGradient(
+                                    colors: [Color.white, Color.white.opacity(0.7)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
                             )
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(journey.platformProbability)%")
@@ -437,7 +450,6 @@ struct ArrivalContextCard: View {
 
                 Divider().background(Color.white.opacity(0.1))
 
-                // Delay Repay
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
@@ -461,11 +473,14 @@ struct ArrivalContextCard: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .background(
-                                LinearGradient(colors: [.yellow, .orange],
-                                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                                LinearGradient(
+                                    colors: [Color.yellow, Color.orange],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
                             .clipShape(Capsule())
-                            .shadow(color: .orange.opacity(0.5), radius: 8, y: 3)
+                            .shadow(color: Color.orange.opacity(0.5), radius: 8, y: 3)
                     }
                 }
                 .padding(12)
@@ -487,10 +502,11 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // Background
             LinearGradient(
-                colors: [Color(hue: 0.62, saturation: 0.3, brightness: 0.08),
-                         Color(hue: 0.0, saturation: 0.0, brightness: 0.05)],
+                colors: [
+                    Color(hue: 0.62, saturation: 0.3, brightness: 0.08),
+                    Color(hue: 0.0, saturation: 0.0, brightness: 0.05)
+                ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -498,7 +514,6 @@ struct ContentView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 14) {
-                    // Nav Header
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("LPY → EUS")
@@ -523,7 +538,6 @@ struct ContentView: View {
                     StatusHeaderCard(journey: journey)
                     TimelineCard(journey: journey)
 
-                    // Section header
                     HStack {
                         Text("PREDICTIVE INTELLIGENCE")
                             .font(.system(size: 10, weight: .bold))
@@ -536,7 +550,6 @@ struct ContentView: View {
                     RollingStockCard(journey: journey)
                     ConnectionRiskCard(journey: journey)
 
-                    // Section header
                     HStack {
                         Text("ARRIVAL CONTEXT")
                             .font(.system(size: 10, weight: .bold))
