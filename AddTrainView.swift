@@ -9,7 +9,9 @@ struct AddTrainView: View {
     @Binding var myTrains: [RTTServiceModel]
 
     @State private var originStation: UKStation?
+    @State private var destinationStation: UKStation?
     @State private var showingOriginPicker = false
+    @State private var showingDestinationPicker = false
     @State private var showingResults = false
     @State private var journeyDate = Date()
 
@@ -62,6 +64,43 @@ struct AddTrainView: View {
                                 StationPickerView(selectedStation: $originStation)
                             }
 
+                            Divider()
+                                .padding(.leading, 66)
+
+                            // To
+                            Button {
+                                showingDestinationPicker = true
+                            } label: {
+                                HStack(spacing: 14) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.orange.opacity(0.20))
+                                            .frame(width: 36, height: 36)
+                                        Circle()
+                                            .fill(Color.orange)
+                                            .frame(width: 10, height: 10)
+                                    }
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("TO")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                            .tracking(1)
+                                        Text(destinationStation?.name ?? "Select arriving station")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(destinationStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                            }
+                            .sheet(isPresented: $showingDestinationPicker) {
+                                StationPickerView(selectedStation: $destinationStation)
+                            }
+
+                            Divider()
+                                .padding(.leading, 66)
+
 
                             
                             // Date & Time Picker
@@ -95,7 +134,7 @@ struct AddTrainView: View {
 
                         // Search button
                         Button {
-                            guard originStation != nil else { return }
+                            guard originStation != nil && destinationStation != nil else { return }
                             showingResults = true
                         } label: {
                             HStack(spacing: 10) {
@@ -115,9 +154,9 @@ struct AddTrainView: View {
                                 )
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .shadow(color: (originStation != nil ? Color.appBlue : Color.gray).opacity(0.4), radius: 12, y: 4)
+                            .shadow(color: (originStation != nil && destinationStation != nil ? Color.appBlue : Color.gray).opacity(0.4), radius: 12, y: 4)
                         }
-                        .disabled(originStation == nil)
+                        .disabled(originStation == nil || destinationStation == nil)
                         
                         Spacer(minLength: 40)
                     }
@@ -135,8 +174,8 @@ struct AddTrainView: View {
                 }
             }
             .navigationDestination(isPresented: $showingResults) {
-                if let o = originStation {
-                    LiveDeparturesView(origin: o, date: journeyDate, myTrains: $myTrains, rootDismiss: dismiss)
+                if let o = originStation, let d = destinationStation {
+                    LiveDeparturesView(origin: o, destination: d, date: journeyDate, myTrains: $myTrains, rootDismiss: dismiss)
                 }
             }
         }
@@ -196,6 +235,7 @@ struct StationPickerView: View {
 
 struct LiveDeparturesView: View {
     let origin: UKStation
+    let destination: UKStation
     let date: Date
     @Binding var myTrains: [RTTServiceModel]
     let rootDismiss: DismissAction
@@ -237,7 +277,7 @@ struct LiveDeparturesView: View {
                     Image(systemName: "tram.fill")
                         .font(.system(size: 40))
                         .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                    Text("No departures found from \(origin.name) at this time.")
+                    Text("No trains found on this route at this time.")
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                         .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
@@ -273,7 +313,33 @@ struct LiveDeparturesView: View {
         do {
             let res = try await RTTService.shared.departures(from: origin.crs, on: date)
             await MainActor.run {
-                self.services = res.services ?? []
+                // Filter to direct trains only, setting user search intent
+                let filtered = (res.services ?? []).compactMap { service -> RTTServiceModel? in
+                    // Since we can't fetch calling points yet, we filter by final destination CRS
+                    guard service.destinationCRS.localizedCaseInsensitiveContains(destination.crs) || 
+                          service.destinationName.localizedCaseInsensitiveContains(destination.name) else {
+                        return nil
+                    }
+                    
+                    var mutableService = service
+                    mutableService.userSearchOriginCRS = origin.crs
+                    mutableService.userSearchDestinationCRS = destination.crs
+                    
+                    // We mock arrival time since intermediate points aren't returned by default
+                    // In a full implementation, we'd fetch this from the service details endpoint.
+                    let departureTimeStr = mutableService.scheduledDeparture
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "HH:mm"
+                    if let depTime = dateFormatter.date(from: departureTimeStr) {
+                        let mockArrivalTime = depTime.addingTimeInterval(3600) // +1 hour mock
+                        mutableService.userSearchDestinationArrivalTime = dateFormatter.string(from: mockArrivalTime)
+                    } else {
+                        mutableService.userSearchDestinationArrivalTime = "--:--"
+                    }
+                    
+                    return mutableService
+                }
+                self.services = filtered
                 self.isLoading = false
             }
         } catch {

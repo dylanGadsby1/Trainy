@@ -54,7 +54,7 @@ struct MyTrainCard: View {
             // Route
             HStack(alignment: .center, spacing: 0) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(train.originCRS.isEmpty ? "UNK" : train.originCRS)
+                    Text(train.userSearchOriginCRS ?? (train.originCRS.isEmpty ? "UNK" : train.originCRS))
                         .font(.system(size: 20, weight: .black, design: .monospaced))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                     Text(train.realtimeDeparture)
@@ -67,10 +67,10 @@ struct MyTrainCard: View {
                     .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS)
+                    Text(train.userSearchDestinationCRS ?? (train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS))
                         .font(.system(size: 20, weight: .black, design: .monospaced))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    Text(train.scheduledDeparture)
+                    Text(train.userSearchDestinationArrivalTime ?? train.scheduledDeparture)
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundColor(train.delayMinutes > 0 ? .orange : AdaptiveColor.secondary.resolve(in: colorScheme))
                 }
@@ -403,17 +403,8 @@ struct HomeView: View {
                 // Show departure pins for each known station
                 ForEach(Array(knownStationCoordinates.keys), id: \.self) { crs in
                     if let coord = knownStationCoordinates[crs] {
-                        Annotation(crs, coordinate: coord) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 28, height: 28)
-                                    .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
-                                Image(systemName: "tram.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color.appBlue)
-                            }
-                        }
+                        Marker(crs, systemImage: "tram.fill", coordinate: coord)
+                            .tint(.white)
                     }
                 }
             }

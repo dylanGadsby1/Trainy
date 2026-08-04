@@ -36,6 +36,11 @@ struct RTTServiceModel: Codable, Identifiable {
     let origin: [RTTEndpoint]?
     let destination: [RTTEndpoint]?
 
+    // Store user search intent
+    var userSearchOriginCRS: String?
+    var userSearchDestinationCRS: String?
+    var userSearchDestinationArrivalTime: String?
+
     // Derived helpers matching the old API
 
     var originCRS: String { 

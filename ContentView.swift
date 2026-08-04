@@ -764,6 +764,11 @@ struct ContentView: View {
 
     @State private var liveServices: [RTTAPIService] = []
     @State private var cameraDistance: Double = 500000
+    @State private var selectedStationCRS: String? = nil
+    
+    @State private var showingStationOptions = false
+    @State private var showingDeparturesBoard = false
+    @State private var selectedNonHighlightedStation: String? = nil
 
     var body: some View {
         // ── iOS 26 liquid glass pattern ───────────────────────────────────
@@ -776,25 +781,26 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             Tab("My Trains", systemImage: "tram.fill", value: 0) {
                 ZStack {
-                    Map(position: $cameraPosition) {
-                        let bookedStations = Set(liveServices.map { $0.originCRS })
+                    Map(position: $cameraPosition, selection: $selectedStationCRS) {
+                        let bookedOrigins = Set(liveServices.map { $0.userSearchOriginCRS ?? $0.originCRS })
+                        let selectedDestinations: Set<String> = {
+                            guard let selected = selectedStationCRS else { return [] }
+                            let destinations = liveServices
+                                .filter { ($0.userSearchOriginCRS ?? $0.originCRS) == selected }
+                                .map { $0.userSearchDestinationCRS ?? $0.destinationCRS }
+                            return Set(destinations)
+                        }()
+                        
+                        let highlightedStations = bookedOrigins.union(selectedDestinations)
 
                         ForEach(Array(knownStationCoordinates.keys), id: \.self) { crs in
-                            let isBooked   = bookedStations.contains(crs)
+                            let isHighlighted = highlightedStations.contains(crs)
                             let isZoomedIn = cameraDistance < 15000
 
-                            if (isBooked || isZoomedIn), let coord = knownStationCoordinates[crs] {
-                                Annotation(crs, coordinate: coord) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white)
-                                            .frame(width: 28, height: 28)
-                                            .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
-                                        Image(systemName: "tram.fill")
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundColor(Color.appBlue)
-                                    }
-                                }
+                            if (isHighlighted || isZoomedIn), let coord = knownStationCoordinates[crs] {
+                                Marker(crs, systemImage: "tram.fill", coordinate: coord)
+                                    .tint(isHighlighted ? Color.appBlue : Color.white)
+                                    .tag(crs)
                             }
                         }
 
@@ -815,25 +821,26 @@ struct ContentView: View {
 
             Tab("Past Trains", systemImage: "clock.arrow.circlepath", value: 1) {
                 ZStack {
-                    Map(position: $cameraPosition) {
-                        let bookedStations = Set(liveServices.map { $0.originCRS })
+                    Map(position: $cameraPosition, selection: $selectedStationCRS) {
+                        let bookedOrigins = Set(liveServices.map { $0.userSearchOriginCRS ?? $0.originCRS })
+                        let selectedDestinations: Set<String> = {
+                            guard let selected = selectedStationCRS else { return [] }
+                            let destinations = liveServices
+                                .filter { ($0.userSearchOriginCRS ?? $0.originCRS) == selected }
+                                .map { $0.userSearchDestinationCRS ?? $0.destinationCRS }
+                            return Set(destinations)
+                        }()
+                        
+                        let highlightedStations = bookedOrigins.union(selectedDestinations)
 
                         ForEach(Array(knownStationCoordinates.keys), id: \.self) { crs in
-                            let isBooked   = bookedStations.contains(crs)
+                            let isHighlighted = highlightedStations.contains(crs)
                             let isZoomedIn = cameraDistance < 15000
 
-                            if (isBooked || isZoomedIn), let coord = knownStationCoordinates[crs] {
-                                Annotation(crs, coordinate: coord) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white)
-                                            .frame(width: 28, height: 28)
-                                            .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
-                                        Image(systemName: "tram.fill")
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundColor(Color.appBlue)
-                                    }
-                                }
+                            if (isHighlighted || isZoomedIn), let coord = knownStationCoordinates[crs] {
+                                Marker(crs, systemImage: "tram.fill", coordinate: coord)
+                                    .tint(isHighlighted ? Color.appBlue : Color.white)
+                                    .tag(crs)
                             }
                         }
 
@@ -865,6 +872,36 @@ struct ContentView: View {
         .sheet(isPresented: $showingAddTrain) {
             AddTrainView(myTrains: $liveServices)
         }
+        .onChange(of: selectedStationCRS) { _, newValue in
+            guard let newValue = newValue else { return }
+            
+            let allMyStations = Set(liveServices.flatMap { [
+                $0.userSearchOriginCRS ?? $0.originCRS,
+                $0.userSearchDestinationCRS ?? $0.destinationCRS
+            ] })
+            
+            if !allMyStations.contains(newValue) {
+                selectedNonHighlightedStation = newValue
+                showingStationOptions = true
+            }
+        }
+        .confirmationDialog("Station Options", isPresented: $showingStationOptions, titleVisibility: .hidden) {
+            Button("See Departures Board") {
+                showingDeparturesBoard = true
+            }
+            Button("Cancel", role: .cancel) {
+                selectedStationCRS = nil
+                selectedNonHighlightedStation = nil
+            }
+        }
+        .sheet(isPresented: $showingDeparturesBoard, onDismiss: {
+            selectedStationCRS = nil
+            selectedNonHighlightedStation = nil
+        }) {
+            if let crs = selectedNonHighlightedStation {
+                DeparturesBoardView(crs: crs)
+            }
+        }
         .preferredColorScheme(themeManager.theme.colorScheme)
     }
 }
@@ -872,4 +909,204 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+}
+
+
+struct DeparturesBoardView: View {
+    let crs: String
+    
+    @State private var allServices: [RTTServiceModel] = []
+    @State private var displayedServices: [RTTServiceModel] = []
+    @State private var displayLimit: Int = 10
+    @State private var isLoading = true
+    @State private var errorMessage: String? = nil
+    
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var stationName: String {
+        ukStations.first { $0.crs == crs }?.name ?? crs
+    }
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        AdaptiveColor.bgTop.resolve(in: colorScheme),
+                        AdaptiveColor.bgBottom.resolve(in: colorScheme)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                if isLoading {
+                    ProgressView("Loading departures...")
+                        .tint(.appBlue)
+                } else if let errorMessage = errorMessage {
+                    VStack {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 40))
+                            .foregroundColor(.orange)
+                            .padding(.bottom, 8)
+                        Text("Failed to load")
+                            .font(.headline)
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                        Button("Retry") {
+                            Task {
+                                await loadData()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                } else if allServices.isEmpty {
+                    VStack {
+                        Image(systemName: "tram.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 8)
+                        Text("No upcoming departures")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(displayedServices) { service in
+                                DepartureServiceCard(service: service)
+                            }
+                            
+                            if displayedServices.count < allServices.count {
+                                Button(action: {
+                                    withAnimation {
+                                        displayLimit += 10
+                                        displayedServices = Array(allServices.prefix(displayLimit))
+                                    }
+                                }) {
+                                    Text("See More Trains +")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.appBlue)
+                                        .padding()
+                                        .frame(maxWidth: .infinity)
+                                        .background(GlassCard { Color.clear })
+                                }
+                                .padding(.top, 8)
+                            }
+                        }
+                        .padding(16)
+                    }
+                }
+            }
+            .navigationTitle("\(stationName) Departures")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+            .task {
+                await loadData()
+            }
+        }
+    }
+    
+    private func loadData() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            let response = try await RTTService.shared.departures(from: crs)
+            let services = response.services ?? []
+            allServices = services
+            displayedServices = Array(allServices.prefix(displayLimit))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+}
+
+struct DepartureServiceCard: View {
+    let service: RTTServiceModel
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(service.destinationName)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                        
+                        Text(service.atocName ?? "Unknown Operator")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(service.scheduledDeparture)
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                            .strikethrough(service.trainStatus != .onTime, color: .secondary)
+                        
+                        if service.trainStatus != .onTime {
+                            Text(service.realtimeDeparture)
+                                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                .foregroundColor(service.trainStatus == .cancelled ? .red : .orange)
+                        }
+                    }
+                }
+                
+                Divider().background(AdaptiveColor.divider.resolve(in: colorScheme))
+                
+                HStack {
+                    HStack(spacing: 4) {
+                        Text("Plat")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                        Text(service.platform)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                    }
+                    
+                    Spacer()
+                    
+                    Text(statusText)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(statusColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(statusColor.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+            }
+        }
+    }
+    
+    private var statusText: String {
+        switch service.trainStatus {
+        case .onTime: return "ON TIME"
+        case .delayed: return "DELAYED"
+        case .cancelled: return "CANCELLED"
+        case .arriving: return "ARRIVING"
+        }
+    }
+    
+    private var statusColor: Color {
+        switch service.trainStatus {
+        case .onTime: return .green
+        case .delayed: return .orange
+        case .cancelled: return .red
+        case .arriving: return .blue
+        }
+    }
 }
