@@ -770,6 +770,49 @@ struct ContentView: View {
     @State private var showingDeparturesBoard = false
     @State private var selectedNonHighlightedStation: String? = nil
 
+    private var highlightedStations: Set<String> {
+        let bookedOrigins = Set(liveServices.map { $0.userSearchOriginCRS ?? $0.originCRS })
+        let selectedDestinations: Set<String> = {
+            guard let selected = selectedStationCRS else { return [] }
+            let destinations = liveServices
+                .filter { ($0.userSearchOriginCRS ?? $0.originCRS) == selected }
+                .map { $0.userSearchDestinationCRS ?? $0.destinationCRS }
+            return Set(destinations)
+        }()
+        return bookedOrigins.union(selectedDestinations)
+    }
+
+    private var highlightedUKStations: [UKStation] {
+        let highlighted = highlightedStations
+        return ukStations.filter { highlighted.contains($0.crs) }
+    }
+    
+    private var visibleUnhighlightedUKStations: [UKStation] {
+        guard cameraDistance < 15000 else { return [] }
+        let highlighted = highlightedStations
+        return ukStations.filter { !highlighted.contains($0.crs) }
+    }
+
+    @MapContentBuilder
+    private var stationsMapContent: some MapContent {
+        ForEach(highlightedUKStations) { station in
+            Marker(station.crs, systemImage: "tram.fill", coordinate: station.coordinate)
+                .tint(Color.appBlue)
+                .tag(station.crs)
+        }
+
+        ForEach(visibleUnhighlightedUKStations) { station in
+            Marker(station.crs, systemImage: "tram.fill", coordinate: station.coordinate)
+                .tint(.white)
+                .tag(station.crs)
+        }
+
+        if routeCoordinates.count > 1 {
+            MapPolyline(coordinates: routeCoordinates)
+                .stroke(Color.appBlue, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+        }
+    }
+
     var body: some View {
         // ── iOS 26 liquid glass pattern ───────────────────────────────────
         // The Map lives *inside* the My Trains tab content, co-located with
@@ -782,32 +825,7 @@ struct ContentView: View {
             Tab("My Trains", systemImage: "tram.fill", value: 0) {
                 ZStack {
                     Map(position: $cameraPosition, selection: $selectedStationCRS) {
-                        let bookedOrigins = Set(liveServices.map { $0.userSearchOriginCRS ?? $0.originCRS })
-                        let selectedDestinations: Set<String> = {
-                            guard let selected = selectedStationCRS else { return [] }
-                            let destinations = liveServices
-                                .filter { ($0.userSearchOriginCRS ?? $0.originCRS) == selected }
-                                .map { $0.userSearchDestinationCRS ?? $0.destinationCRS }
-                            return Set(destinations)
-                        }()
-                        
-                        let highlightedStations = bookedOrigins.union(selectedDestinations)
-
-                        ForEach(Array(knownStationCoordinates.keys), id: \.self) { crs in
-                            let isHighlighted = highlightedStations.contains(crs)
-                            let isZoomedIn = cameraDistance < 15000
-
-                            if (isHighlighted || isZoomedIn), let coord = knownStationCoordinates[crs] {
-                                Marker(crs, systemImage: "tram.fill", coordinate: coord)
-                                    .tint(isHighlighted ? Color.appBlue : Color.white)
-                                    .tag(crs)
-                            }
-                        }
-
-                        if routeCoordinates.count > 1 {
-                            MapPolyline(coordinates: routeCoordinates)
-                                .stroke(Color.appBlue, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-                        }
+                        stationsMapContent
                     }
                     .mapStyle(.standard(elevation: .realistic))
                     .ignoresSafeArea()
@@ -822,32 +840,7 @@ struct ContentView: View {
             Tab("Past Trains", systemImage: "clock.arrow.circlepath", value: 1) {
                 ZStack {
                     Map(position: $cameraPosition, selection: $selectedStationCRS) {
-                        let bookedOrigins = Set(liveServices.map { $0.userSearchOriginCRS ?? $0.originCRS })
-                        let selectedDestinations: Set<String> = {
-                            guard let selected = selectedStationCRS else { return [] }
-                            let destinations = liveServices
-                                .filter { ($0.userSearchOriginCRS ?? $0.originCRS) == selected }
-                                .map { $0.userSearchDestinationCRS ?? $0.destinationCRS }
-                            return Set(destinations)
-                        }()
-                        
-                        let highlightedStations = bookedOrigins.union(selectedDestinations)
-
-                        ForEach(Array(knownStationCoordinates.keys), id: \.self) { crs in
-                            let isHighlighted = highlightedStations.contains(crs)
-                            let isZoomedIn = cameraDistance < 15000
-
-                            if (isHighlighted || isZoomedIn), let coord = knownStationCoordinates[crs] {
-                                Marker(crs, systemImage: "tram.fill", coordinate: coord)
-                                    .tint(isHighlighted ? Color.appBlue : Color.white)
-                                    .tag(crs)
-                            }
-                        }
-
-                        if routeCoordinates.count > 1 {
-                            MapPolyline(coordinates: routeCoordinates)
-                                .stroke(Color.appBlue, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-                        }
+                        stationsMapContent
                     }
                     .mapStyle(.standard(elevation: .realistic))
                     .ignoresSafeArea()
