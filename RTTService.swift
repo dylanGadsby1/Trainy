@@ -93,11 +93,13 @@ final class RTTService {
     // MARK: - Public API
     
     /// Departures from a station for today.
-    func departures(from crs: String) async throws -> RTTSearchResponse {
+    func departures(from crs: String, to destination: String? = nil) async throws -> RTTSearchResponse {
         var components = URLComponents(string: "\(baseURL)/gb-nr/location")!
-        components.queryItems = [
-            URLQueryItem(name: "location", value: crs.uppercased())
-        ]
+        var queryItems = [URLQueryItem(name: "location", value: crs.uppercased())]
+        if let dest = destination {
+            queryItems.append(URLQueryItem(name: "to", value: dest.uppercased()))
+        }
+        components.queryItems = queryItems
         guard let url = components.url else { throw RTTError.invalidResponse }
         return try await fetch(url)
     }
@@ -105,12 +107,16 @@ final class RTTService {
 
 
     /// Departures from a station for a specific date.
-    func departures(from crs: String, on date: Date) async throws -> RTTSearchResponse {
+    func departures(from crs: String, on date: Date, to destination: String? = nil) async throws -> RTTSearchResponse {
         var components = URLComponents(string: "\(baseURL)/gb-nr/location")!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "location", value: crs.uppercased()),
             URLQueryItem(name: "timeFrom", value: isoString(date))
         ]
+        if let dest = destination {
+            queryItems.append(URLQueryItem(name: "to", value: dest.uppercased()))
+        }
+        components.queryItems = queryItems
         guard let url = components.url else { throw RTTError.invalidResponse }
         return try await fetch(url)
     }

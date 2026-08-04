@@ -311,15 +311,10 @@ struct LiveDeparturesView: View {
         isLoading = true
         errorMessage = nil
         do {
-            let res = try await RTTService.shared.departures(from: origin.crs, on: date)
+            let res = try await RTTService.shared.departures(from: origin.crs, on: date, to: destination.crs)
             await MainActor.run {
-                // Filter to direct trains only, setting user search intent
-                let filtered = (res.services ?? []).compactMap { service -> RTTServiceModel? in
-                    // Since we can't fetch calling points yet, we filter by final destination CRS
-                    guard service.destinationCRS.localizedCaseInsensitiveContains(destination.crs) || 
-                          service.destinationName.localizedCaseInsensitiveContains(destination.name) else {
-                        return nil
-                    }
+                // The API now filters to trains calling at our destination for us, just map the user search intent
+                let filtered = (res.services ?? []).map { service -> RTTServiceModel in
                     
                     var mutableService = service
                     mutableService.userSearchOriginCRS = origin.crs
