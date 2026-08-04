@@ -742,14 +742,14 @@ struct SampleDashboardView: View {
     SampleDashboardView()
 }
 
-// MARK: - Root ContentView (Tab Bar)
+// MARK: - Root ContentView
 
 struct ContentView: View {
     @State private var selectedTab: Int = 0
     @State private var showingAddTrain = false
     @StateObject private var themeManager = ThemeManager()
 
-    // Shared map camera position so the map persists across tabs
+    /// Single persistent camera state — never recreated on tab switch.
     @State private var cameraPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 52.8, longitude: -1.6),
@@ -757,60 +757,118 @@ struct ContentView: View {
         )
     )
 
-    private var mapLayer: some View {
-        Map(position: $cameraPosition) {
-            ForEach(mapAnnotations) { annotation in
-                Annotation(annotation.name, coordinate: annotation.coordinate) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.appBlue)
-                            .frame(width: 28, height: 28)
-                            .shadow(color: Color.appBlue.opacity(0.5), radius: 6)
-                        Image(systemName: "tram.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                }
-            }
-        }
-        .mapStyle(.standard(elevation: .realistic))
-        .ignoresSafeArea()
-    }
+    @State private var selectedTrainId: UUID? = nil
+    @State private var routeCoordinates: [CLLocationCoordinate2D] = []
+    @State private var isLoadingRoute: Bool = false
+    @State private var routeCache: [UUID: [CLLocationCoordinate2D]] = [:]
+
+    @State private var liveServices: [RTTAPIService] = []
+    @State private var cameraDistance: Double = 500000
 
     var body: some View {
+        // ── iOS 26 liquid glass pattern ───────────────────────────────────
+        // The Map lives *inside* the My Trains tab content, co-located with
+        // the bottom sheet in a ZStack. This is exactly how Apple Maps works
+        // on iOS 26: the liquid glass tab bar floats natively over the tab
+        // content — no background-stripping tricks required.
+        // Camera state lives here in ContentView so the map position is
+        // preserved when the user switches tabs and comes back.
         TabView(selection: $selectedTab) {
             Tab("My Trains", systemImage: "tram.fill", value: 0) {
                 ZStack {
-                    mapLayer
-                    HomeSheetView()
+                    Map(position: $cameraPosition) {
+                        let bookedStations = Set(liveServices.map { $0.originCRS })
+
+                        ForEach(Array(knownStationCoordinates.keys), id: \.self) { crs in
+                            let isBooked   = bookedStations.contains(crs)
+                            let isZoomedIn = cameraDistance < 15000
+
+                            if (isBooked || isZoomedIn), let coord = knownStationCoordinates[crs] {
+                                Annotation(crs, coordinate: coord) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white)
+                                            .frame(width: 28, height: 28)
+                                            .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
+                                        Image(systemName: "tram.fill")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundColor(Color.appBlue)
+                                    }
+                                }
+                            }
+                        }
+
+                        if routeCoordinates.count > 1 {
+                            MapPolyline(coordinates: routeCoordinates)
+                                .stroke(Color.appBlue, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                        }
+                    }
+                    .mapStyle(.standard(elevation: .realistic))
+                    .ignoresSafeArea()
+                    .onMapCameraChange(frequency: .onEnd) { context in
+                        cameraDistance = context.camera.distance
+                    }
+
+                    HomeSheetView(liveServices: $liveServices)
                 }
-                .toolbarBackground(.visible, for: .tabBar)
             }
+
             Tab("Past Trains", systemImage: "clock.arrow.circlepath", value: 1) {
                 ZStack {
-                    mapLayer
+                    Map(position: $cameraPosition) {
+                        let bookedStations = Set(liveServices.map { $0.originCRS })
+
+                        ForEach(Array(knownStationCoordinates.keys), id: \.self) { crs in
+                            let isBooked   = bookedStations.contains(crs)
+                            let isZoomedIn = cameraDistance < 15000
+
+                            if (isBooked || isZoomedIn), let coord = knownStationCoordinates[crs] {
+                                Annotation(crs, coordinate: coord) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white)
+                                            .frame(width: 28, height: 28)
+                                            .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
+                                        Image(systemName: "tram.fill")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundColor(Color.appBlue)
+                                    }
+                                }
+                            }
+                        }
+
+                        if routeCoordinates.count > 1 {
+                            MapPolyline(coordinates: routeCoordinates)
+                                .stroke(Color.appBlue, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                        }
+                    }
+                    .mapStyle(.standard(elevation: .realistic))
+                    .ignoresSafeArea()
+
                     PastTrainsSheetView()
                 }
-                .toolbarBackground(.visible, for: .tabBar)
             }
+
             Tab("Add Train", systemImage: "plus", value: 2) {
-                ZStack {
-                    mapLayer
-                }
-            }
-        }
-        .onChange(of: selectedTab) { _, newValue in
-            if newValue == 2 {
-                selectedTab = 0
-                showingAddTrain = true
+                // Bounces back immediately — "Add Train" is a sheet, not a tab.
+                // DispatchQueue defers the mutation past the render cycle to avoid
+                // a 1-frame flash.
+                Color.clear
+                    .onAppear {
+                        DispatchQueue.main.async {
+                            selectedTab = 0
+                            showingAddTrain = true
+                        }
+                    }
             }
         }
         .sheet(isPresented: $showingAddTrain) {
-            AddTrainView()
+            AddTrainView(myTrains: $liveServices)
         }
         .preferredColorScheme(themeManager.theme.colorScheme)
     }
 }
+
 
 #Preview {
     ContentView()

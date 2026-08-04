@@ -1,22 +1,7 @@
 import SwiftUI
 import MapKit
 
-// MARK: - Mock Saved Train Models
-
-struct SavedTrain: Identifiable {
-    let id = UUID()
-    let originCode: String
-    let originName: String
-    let destinationCode: String
-    let destinationName: String
-    let operator_: String
-    let departureTime: String
-    let arrivalTime: String
-    let delayMinutes: Int
-    let status: TrainStatus
-    let progressFraction: Double
-    let platform: Int
-}
+// MARK: - Train Status Colors
 
 enum TrainStatus {
     case onTime, delayed, cancelled, arriving
@@ -40,70 +25,28 @@ enum TrainStatus {
     }
 }
 
-let mockSavedTrains: [SavedTrain] = [
-    SavedTrain(
-        originCode: "LPY", originName: "Long Preston",
-        destinationCode: "EUS", destinationName: "London Euston",
-        operator_: "Avanti West Coast",
-        departureTime: "11:00", arrivalTime: "13:01",
-        delayMinutes: 16, status: .delayed,
-        progressFraction: 0.72, platform: 12
-    ),
-    SavedTrain(
-        originCode: "MAN", originName: "Manchester Piccadilly",
-        destinationCode: "LDS", destinationName: "Leeds",
-        operator_: "Northern Rail",
-        departureTime: "14:30", arrivalTime: "15:15",
-        delayMinutes: 0, status: .onTime,
-        progressFraction: 0.30, platform: 3
-    ),
-    SavedTrain(
-        originCode: "EUS", originName: "London Euston",
-        destinationCode: "BHM", destinationName: "Birmingham New St",
-        operator_: "Avanti West Coast",
-        departureTime: "16:00", arrivalTime: "17:10",
-        delayMinutes: 0, status: .arriving,
-        progressFraction: 0.95, platform: 7
-    ),
-]
-
-// MARK: - Train Station Map Annotations
-
-struct TrainStationAnnotation: Identifiable {
-    let id = UUID()
-    let name: String
-    let coordinate: CLLocationCoordinate2D
-}
-
-let mapAnnotations: [TrainStationAnnotation] = [
-    TrainStationAnnotation(name: "London Euston",        coordinate: CLLocationCoordinate2D(latitude: 51.5284, longitude: -0.1331)),
-    TrainStationAnnotation(name: "Manchester Piccadilly", coordinate: CLLocationCoordinate2D(latitude: 53.4772, longitude: -2.2309)),
-    TrainStationAnnotation(name: "Birmingham New St",     coordinate: CLLocationCoordinate2D(latitude: 52.4778, longitude: -1.8997)),
-    TrainStationAnnotation(name: "Leeds",                 coordinate: CLLocationCoordinate2D(latitude: 53.7955, longitude: -1.5491)),
-    TrainStationAnnotation(name: "Long Preston",          coordinate: CLLocationCoordinate2D(latitude: 54.0004, longitude: -2.2407)),
-]
 
 // MARK: - My Train Card
 
 struct MyTrainCard: View {
-    let train: SavedTrain
+    let train: RTTAPIService
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Top: operator + status
             HStack {
-                Text(train.operator_)
+                Text(train.atocName ?? "Unknown")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                     .lineLimit(1)
                 Spacer()
-                Text(train.status.label)
+                Text(train.trainStatus.label)
                     .font(.system(size: 9, weight: .black))
-                    .foregroundColor(train.status.color)
+                    .foregroundColor(train.trainStatus.color)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
-                    .background(train.status.color.opacity(0.15))
+                    .background(train.trainStatus.color.opacity(0.15))
                     .clipShape(Capsule())
             }
             .padding(.bottom, 10)
@@ -111,10 +54,10 @@ struct MyTrainCard: View {
             // Route
             HStack(alignment: .center, spacing: 0) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(train.originCode)
+                    Text(train.originCRS.isEmpty ? "UNK" : train.originCRS)
                         .font(.system(size: 20, weight: .black, design: .monospaced))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    Text(train.departureTime)
+                    Text(train.realtimeDeparture)
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                 }
@@ -124,10 +67,10 @@ struct MyTrainCard: View {
                     .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(train.destinationCode)
+                    Text(train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS)
                         .font(.system(size: 20, weight: .black, design: .monospaced))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    Text(train.arrivalTime)
+                    Text(train.scheduledDeparture)
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundColor(train.delayMinutes > 0 ? .orange : AdaptiveColor.secondary.resolve(in: colorScheme))
                 }
@@ -143,20 +86,21 @@ struct MyTrainCard: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [train.status.color.opacity(0.7), train.status.color],
+                                colors: [train.trainStatus.color.opacity(0.7), train.trainStatus.color],
                                 startPoint: .leading, endPoint: .trailing
                             )
                         )
-                        .frame(width: geo.size.width * train.progressFraction, height: 4)
+                        // Mocking progress for live departure boards
+                        .frame(width: geo.size.width * 0.1, height: 4)
 
                     Image(systemName: "tram.fill")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.white)
                         .padding(4)
-                        .background(train.status.color)
+                        .background(train.trainStatus.color)
                         .clipShape(Circle())
-                        .shadow(color: train.status.color.opacity(0.5), radius: 4)
-                        .offset(x: max(0, geo.size.width * train.progressFraction - 11), y: -15)
+                        .shadow(color: train.trainStatus.color.opacity(0.5), radius: 4)
+                        .offset(x: max(0, geo.size.width * 0.1 - 11), y: -15)
                 }
             }
             .frame(height: 28)
@@ -189,7 +133,7 @@ struct MyTrainCard: View {
 // MARK: - Shared Bottom Sheet Container
 
 private enum SheetDetent {
-    case peek, mid, full
+    case compact, peek, mid, full
 }
 
 /// A generic draggable bottom sheet that floats above the map with side margins.
@@ -199,30 +143,48 @@ struct MapBottomSheet<Content: View>: View {
     let content: Content
     init(@ViewBuilder content: () -> Content) { self.content = content() }
 
-    @State private var currentDetent: SheetDetent = .peek
+    @State private var currentDetent: SheetDetent = .compact
     @State private var dragOffset: CGFloat = 0
 
     private let sideMargin: CGFloat = 10
-    private let cornerRadius: CGFloat = 28
+    private let cornerRadius: CGFloat = 38
+
+    // Rubber-band resistance factor — smaller = more resistance at extremes
+    private let rubberBandFactor: CGFloat = 0.35
 
     var body: some View {
         GeometryReader { geo in
             let screenH = geo.size.height
-            let peekH:   CGFloat = screenH * 0.48
-            let midH:    CGFloat = screenH * 0.72
-            let fullH:   CGFloat = screenH * 0.92
+            let compactH: CGFloat = screenH * 0.22
+            let peekH:    CGFloat = screenH * 0.38
+            let midH:     CGFloat = screenH * 0.62
+            let fullH:    CGFloat = screenH * 0.90
 
-            let target = detentHeight(currentDetent, peek: peekH, mid: midH, full: fullH)
-            let sheetH = min(fullH, max(peekH, target - dragOffset))
+            let target = detentHeight(currentDetent, compact: compactH, peek: peekH, mid: midH, full: fullH)
+
+            // Apply rubber-band resistance at the extremes
+            let rawH = target - dragOffset
+            let sheetH: CGFloat = {
+                if rawH > fullH {
+                    // Over-pulling upward: rubber-band
+                    let over = rawH - fullH
+                    return fullH + over * rubberBandFactor
+                } else if rawH < compactH {
+                    // Over-pulling downward: rubber-band
+                    let under = compactH - rawH
+                    return compactH - under * rubberBandFactor
+                }
+                return rawH
+            }()
 
             VStack(spacing: 0) {
                 Spacer()
 
                 VStack(spacing: 0) {
                     // Drag handle
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.primary.opacity(0.20))
-                        .frame(width: 40, height: 5)
+                    Capsule()
+                        .fill(Color.primary.opacity(0.18))
+                        .frame(width: 36, height: 4)
                         .padding(.top, 10)
                         .padding(.bottom, 8)
 
@@ -235,45 +197,86 @@ struct MapBottomSheet<Content: View>: View {
                     }
                     .scrollDisabled(currentDetent != .full)
                 }
-                .frame(height: sheetH)
+                .frame(height: max(compactH * 0.4, sheetH))
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(.regularMaterial)
-                        .shadow(color: Color.black.opacity(0.20), radius: 24, y: -6)
+                        .shadow(color: Color.black.opacity(0.22), radius: 28, y: -8)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 .padding(.horizontal, sideMargin)
+                .padding(.bottom, sideMargin)
                 .gesture(
-                    DragGesture()
-                        .onChanged { v in dragOffset = v.translation.height }
+                    DragGesture(minimumDistance: 4)
+                        .onChanged { v in
+                            withAnimation(.interactiveSpring(response: 0.22, dampingFraction: 0.86)) {
+                                dragOffset = v.translation.height
+                            }
+                        }
                         .onEnded { v in
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
+                            withAnimation(.spring(response: 0.32, dampingFraction: 0.70)) {
                                 dragOffset = 0
-                                currentDetent = nextDetent(currentDetent, velocity: v.predictedEndTranslation.height)
+                                currentDetent = nextDetent(
+                                    currentDetent,
+                                    translation: v.translation.height,
+                                    velocity: v.predictedEndTranslation.height
+                                )
                             }
                         }
                 )
-                .animation(.spring(response: 0.45, dampingFraction: 0.78), value: dragOffset)
             }
         }
         .ignoresSafeArea(edges: .bottom)
     }
 
-    private func detentHeight(_ d: SheetDetent, peek: CGFloat, mid: CGFloat, full: CGFloat) -> CGFloat {
+    private func detentHeight(_ d: SheetDetent, compact: CGFloat, peek: CGFloat, mid: CGFloat, full: CGFloat) -> CGFloat {
         switch d {
-        case .peek: return peek
-        case .mid:  return mid
-        case .full: return full
+        case .compact: return compact
+        case .peek:    return peek
+        case .mid:     return mid
+        case .full:    return full
         }
     }
 
-    private func nextDetent(_ current: SheetDetent, velocity: CGFloat) -> SheetDetent {
-        if velocity < -200 {
-            switch current { case .peek: return .mid; case .mid: return .full; case .full: return .full }
+    private func nextDetent(_ current: SheetDetent, translation: CGFloat, velocity: CGFloat) -> SheetDetent {
+        // Use predicted end translation for snapping decision
+        let gesture = velocity
+
+        // Swiping up (negative translation = growing)
+        if gesture < -100 {
+            switch current {
+            case .compact: return .peek
+            case .peek:    return .mid
+            case .mid:     return .full
+            case .full:    return .full
+            }
         }
-        if velocity > 200 {
-            switch current { case .peek: return .peek; case .mid: return .peek; case .full: return .mid }
+        // Swiping down
+        if gesture > 100 {
+            switch current {
+            case .compact: return .compact
+            case .peek:    return .compact
+            case .mid:     return .peek
+            case .full:    return .mid
+            }
+        }
+        // Small movement — snap based on drag distance threshold
+        if translation < -60 {
+            switch current {
+            case .compact: return .peek
+            case .peek:    return .mid
+            case .mid:     return .full
+            case .full:    return .full
+            }
+        }
+        if translation > 60 {
+            switch current {
+            case .compact: return .compact
+            case .peek:    return .compact
+            case .mid:     return .peek
+            case .full:    return .mid
+            }
         }
         return current
     }
@@ -284,6 +287,9 @@ struct MapBottomSheet<Content: View>: View {
 struct HomeSheetView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingProfile = false
+
+    @Binding var liveServices: [RTTAPIService]
+    @State private var isLoading = false
 
     var body: some View {
         MapBottomSheet {
@@ -303,17 +309,13 @@ struct HomeSheetView: View {
                     .font(.system(size: 11, weight: .black))
                     .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                     .tracking(1.5)
-                Text("Active journeys")
+                Text(liveServices.isEmpty ? "No Trains Added" : "My Departures")
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
             }
             Spacer()
             HStack(spacing: 10) {
-                Button(action: {}) {
-                    Text("See all")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.appBlue)
-                }
+
                 Button { showingProfile = true } label: {
                     ZStack {
                         Circle()
@@ -333,9 +335,19 @@ struct HomeSheetView: View {
         // Horizontal train cards
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
-                ForEach(mockSavedTrains) { train in
-                    MyTrainCard(train: train)
+                if liveServices.isEmpty {
+                    VStack {
+                        Text("No trains added yet.")
+                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .frame(width: 220, height: 148)
+                } else {
+                    ForEach(liveServices) { train in
+                        MyTrainCard(train: train)
+                    }
                 }
+
                 // "Add" card
                 VStack(spacing: 10) {
                     ZStack {
@@ -363,10 +375,13 @@ struct HomeSheetView: View {
         }
 
         // Quick stats
+        let activeCount = liveServices.count
+        let onTimeCount = liveServices.filter { $0.trainStatus == .onTime }.count
+
         HStack(spacing: 12) {
-            QuickStatTile(icon: "tram.fill",             label: "Active",  value: "1", color: .appBlue)
-            QuickStatTile(icon: "checkmark.circle.fill", label: "On Time", value: "2", color: .green)
-            QuickStatTile(icon: "clock.arrow.circlepath", label: "Today",  value: "3", color: Color(red: 0.35, green: 0.75, blue: 1.0))
+            QuickStatTile(icon: "tram.fill",             label: "Departures",  value: "\(activeCount)", color: .appBlue)
+            QuickStatTile(icon: "checkmark.circle.fill", label: "On Time",     value: "\(onTimeCount)", color: .green)
+            QuickStatTile(icon: "clock.arrow.circlepath", label: "Today",      value: "3", color: Color(red: 0.35, green: 0.75, blue: 1.0))
         }
         .padding(.horizontal, 20)
     }
@@ -385,16 +400,19 @@ struct HomeView: View {
     var body: some View {
         ZStack {
             Map(position: $cameraPosition) {
-                ForEach(mapAnnotations) { annotation in
-                    Annotation(annotation.name, coordinate: annotation.coordinate) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.appBlue)
-                                .frame(width: 28, height: 28)
-                                .shadow(color: Color.appBlue.opacity(0.5), radius: 6)
-                            Image(systemName: "tram.fill")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.white)
+                // Show departure pins for each known station
+                ForEach(Array(knownStationCoordinates.keys), id: \.self) { crs in
+                    if let coord = knownStationCoordinates[crs] {
+                        Annotation(crs, coordinate: coord) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.white)
+                                    .frame(width: 28, height: 28)
+                                    .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
+                                Image(systemName: "tram.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color.appBlue)
+                            }
                         }
                     }
                 }
@@ -402,7 +420,7 @@ struct HomeView: View {
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
 
-            HomeSheetView()
+            HomeSheetView(liveServices: .constant([]))
         }
     }
 }

@@ -5,17 +5,14 @@ import SwiftUI
 struct AddTrainView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-    @State private var origin = ""
-    @State private var destination = ""
-    @FocusState private var originFocused: Bool
 
-    private let quickRoutes: [(String, String, String, String)] = [
-        ("LPY", "Long Preston", "EUS", "London Euston"),
-        ("MAN", "Manchester Piccadilly", "LDS", "Leeds"),
-        ("EUS", "London Euston", "BHM", "Birmingham New St"),
-        ("LDS", "Leeds", "MAN", "Manchester Piccadilly"),
-    ]
+    @Binding var myTrains: [RTTServiceModel]
+
+    @State private var originStation: UKStation?
+    @State private var showingOriginPicker = false
+    @State private var showingResults = false
+    @State private var journeyDate = Date()
+
 
     var body: some View {
         NavigationStack {
@@ -32,76 +29,59 @@ struct AddTrainView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
-
                         // Route input card
                         VStack(spacing: 0) {
                             // From
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.green.opacity(0.20))
-                                        .frame(width: 36, height: 36)
-                                    Circle()
-                                        .fill(Color.green)
-                                        .frame(width: 10, height: 10)
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("FROM")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                        .tracking(1)
-                                    TextField("Origin station", text: $origin)
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                                        .focused($originFocused)
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-
-                            // Divider with swap button
-                            HStack {
-                                Rectangle()
-                                    .fill(AdaptiveColor.divider.resolve(in: colorScheme))
-                                    .frame(height: 1)
-                                    .padding(.leading, 52)
-                                Button {
-                                    let temp = origin
-                                    origin = destination
-                                    destination = temp
-                                } label: {
+                            Button {
+                                showingOriginPicker = true
+                            } label: {
+                                HStack(spacing: 14) {
                                     ZStack {
                                         Circle()
-                                            .fill(.ultraThinMaterial)
-                                            .frame(width: 32, height: 32)
-                                            .shadow(color: Color.black.opacity(0.1), radius: 4)
-                                        Image(systemName: "arrow.up.arrow.down")
-                                            .font(.system(size: 13, weight: .bold))
-                                            .foregroundColor(.appBlue)
+                                            .fill(Color.green.opacity(0.20))
+                                            .frame(width: 36, height: 36)
+                                        Circle()
+                                            .fill(Color.green)
+                                            .frame(width: 10, height: 10)
                                     }
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("FROM")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                            .tracking(1)
+                                        Text(originStation?.name ?? "Select origin station")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(originStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
+                                    }
+                                    Spacer()
                                 }
-                                .padding(.trailing, 16)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                            }
+                            .sheet(isPresented: $showingOriginPicker) {
+                                StationPickerView(selectedStation: $originStation)
                             }
 
-                            // To
+
+                            
+                            // Date & Time Picker
                             HStack(spacing: 14) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(Color.appBlue.opacity(0.20))
+                                        .fill(Color.orange.opacity(0.20))
                                         .frame(width: 36, height: 36)
-                                    Image(systemName: "mappin.fill")
+                                    Image(systemName: "calendar")
                                         .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.appBlue)
+                                        .foregroundColor(.orange)
                                 }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("TO")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                        .tracking(1)
-                                    TextField("Destination station", text: $destination)
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                                }
+                                DatePicker(
+                                    "Journey Time",
+                                    selection: $journeyDate,
+                                    displayedComponents: [.date, .hourAndMinute]
+                                )
+                                .labelsHidden()
+                                .environment(\.colorScheme, colorScheme) // ensure proper coloring
+                                Spacer()
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
@@ -115,7 +95,8 @@ struct AddTrainView: View {
 
                         // Search button
                         Button {
-                            // Future: navigate to train list
+                            guard originStation != nil else { return }
+                            showingResults = true
                         } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: "magnifyingglass")
@@ -128,79 +109,16 @@ struct AddTrainView: View {
                             .padding(.vertical, 16)
                             .background(
                                 LinearGradient(
-                                    colors: [Color.appBlue, Color.appBlueBright],
+                                    colors: originStation != nil ? [Color.appBlue, Color.appBlueBright] : [Color.gray, Color.gray.opacity(0.7)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .shadow(color: Color.appBlue.opacity(0.4), radius: 12, y: 4)
+                            .shadow(color: (originStation != nil ? Color.appBlue : Color.gray).opacity(0.4), radius: 12, y: 4)
                         }
-
-                        // Quick routes
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("QUICK ROUTES")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                .tracking(1.2)
-                                .padding(.leading, 4)
-
-                            VStack(spacing: 0) {
-                                ForEach(Array(quickRoutes.enumerated()), id: \.offset) { index, route in
-                                    Button {
-                                        origin = route.1
-                                        destination = route.3
-                                    } label: {
-                                        HStack(spacing: 14) {
-                                            ZStack {
-                                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                                    .fill(Color.appBlue.opacity(0.12))
-                                                    .frame(width: 36, height: 36)
-                                                Image(systemName: "clock.arrow.circlepath")
-                                                    .font(.system(size: 15, weight: .semibold))
-                                                    .foregroundColor(.appBlue)
-                                            }
-                                            VStack(alignment: .leading, spacing: 3) {
-                                                HStack(spacing: 6) {
-                                                    Text(route.0)
-                                                        .font(.system(size: 14, weight: .black, design: .monospaced))
-                                                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                                                    Image(systemName: "arrow.right")
-                                                        .font(.system(size: 10, weight: .semibold))
-                                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                                    Text(route.2)
-                                                        .font(.system(size: 14, weight: .black, design: .monospaced))
-                                                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                                                }
-                                                Text("\(route.1) → \(route.3)")
-                                                    .font(.system(size: 11, weight: .medium))
-                                                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                                                    .lineLimit(1)
-                                            }
-                                            Spacer()
-                                            Image(systemName: "plus.circle.fill")
-                                                .font(.system(size: 20))
-                                                .foregroundColor(Color.appBlue.opacity(0.6))
-                                        }
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 12)
-                                    }
-
-                                    if index < quickRoutes.count - 1 {
-                                        Divider()
-                                            .padding(.leading, 52)
-                                            .background(AdaptiveColor.divider.resolve(in: colorScheme))
-                                    }
-                                }
-                            }
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
-                            )
-                        }
-
+                        .disabled(originStation == nil)
+                        
                         Spacer(minLength: 40)
                     }
                     .padding(.horizontal, 20)
@@ -216,10 +134,158 @@ struct AddTrainView: View {
                         .foregroundColor(.appBlue)
                 }
             }
+            .navigationDestination(isPresented: $showingResults) {
+                if let o = originStation {
+                    LiveDeparturesView(origin: o, date: journeyDate, myTrains: $myTrains, rootDismiss: dismiss)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Station Picker View
+
+struct StationPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @Binding var selectedStation: UKStation?
+    @State private var searchText = ""
+
+    var filteredStations: [UKStation] {
+        if searchText.isEmpty {
+            return ukStations
+        } else {
+            return ukStations.filter {
+                $0.name.localizedCaseInsensitiveContains(searchText) ||
+                $0.crs.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(filteredStations) { station in
+                Button {
+                    selectedStation = station
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(station.name)
+                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                        Spacer()
+                        Text(station.crs)
+                            .font(.system(.subheadline, design: .monospaced, weight: .bold))
+                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .searchable(text: $searchText, prompt: "Search by station name or CRS...")
+            .navigationTitle("Select Station")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Close") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Live Departures Results View
+
+struct LiveDeparturesView: View {
+    let origin: UKStation
+    let date: Date
+    @Binding var myTrains: [RTTServiceModel]
+    let rootDismiss: DismissAction
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var services: [RTTAPIService] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    AdaptiveColor.bgTop.resolve(in: colorScheme),
+                    AdaptiveColor.bgBottom.resolve(in: colorScheme)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            if isLoading {
+                ProgressView("Searching live departures...")
+            } else if let errorMessage = errorMessage {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.orange)
+                    Text(errorMessage)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    Button("Retry") {
+                        Task { await fetchDepartures() }
+                    }
+                    .padding()
+                }
+            } else if services.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "tram.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                    Text("No departures found from \(origin.name) at this time.")
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                }
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(services) { service in
+                            Button {
+                                if !myTrains.contains(where: { $0.id == service.id }) {
+                                    myTrains.append(service)
+                                }
+                                rootDismiss()
+                            } label: {
+                                MyTrainCard(train: service)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 20)
+                }
+            }
+        }
+        .navigationTitle("Departures from \(origin.crs)")
+        .task {
+            await fetchDepartures()
+        }
+    }
+
+    private func fetchDepartures() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            let res = try await RTTService.shared.departures(from: origin.crs, on: date)
+            await MainActor.run {
+                self.services = res.services ?? []
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Failed to load live data. \(error.localizedDescription)"
+                self.isLoading = false
+            }
         }
     }
 }
 
 #Preview {
-    AddTrainView()
+    AddTrainView(myTrains: .constant([]))
 }
+

@@ -1,0 +1,2558 @@
+{
+  "systemStatus": {
+    "realtimeNetworkRail": "OK",
+    "rttCore": "OK"
+  },
+  "query": {
+    "location": {
+      "namespace": "gb-nr",
+      "description": "London Euston",
+      "shortCodes": [
+        "EUS"
+      ],
+      "longCodes": [
+        "EUSTON"
+      ]
+    },
+    "timeFrom": "2026-08-02T18:10:03+01:00",
+    "timeTo": "2026-08-02T19:10:03+01:00",
+    "detailed": false
+  },
+  "services": [
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:10:00",
+          "scheduleAdvertised": "2026-08-02T18:10:00",
+          "realtimeForecast": "2026-08-02T18:15:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "13",
+          "forecast": "13"
+        },
+        "numberOfVehicles": 9,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33250:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33250",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1A51"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Manchester Piccadilly",
+            "longCodes": [
+              "MNCRPIC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T15:55:00",
+            "scheduleAdvertised": "2026-08-02T15:55:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:10:00",
+            "scheduleAdvertised": "2026-08-02T18:10:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:12:00",
+          "scheduleAdvertised": "2026-08-02T18:12:00",
+          "realtimeForecast": "2026-08-02T18:12:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false,
+        "status": "AT_PLATFORM"
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "2",
+          "actual": "5"
+        },
+        "line": {
+          "planned": "X"
+        },
+        "numberOfVehicles": 9,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33318:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33318",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1H36"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:12:00",
+            "scheduleAdvertised": "2026-08-02T18:12:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Manchester Piccadilly",
+            "longCodes": [
+              "MNCRPIC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T20:19:00",
+            "scheduleAdvertised": "2026-08-02T20:19:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:15:00",
+          "scheduleAdvertised": "2026-08-02T18:15:00",
+          "realtimeForecast": "2026-08-02T18:15:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false,
+        "status": "AT_PLATFORM"
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "9",
+          "actual": "9"
+        },
+        "line": {
+          "planned": "C"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:L22733:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "L22733",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LO",
+          "name": "London Overground"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2D50"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:15:00",
+            "scheduleAdvertised": "2026-08-02T18:15:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Watford Junction",
+            "longCodes": [
+              "WATFJDC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:02:00",
+            "scheduleAdvertised": "2026-08-02T19:03:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:15:00",
+          "scheduleAdvertised": "2026-08-02T18:15:00",
+          "realtimeForecast": "2026-08-02T18:15:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false,
+        "status": "AT_PLATFORM"
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "4",
+          "actual": "4"
+        },
+        "line": {
+          "planned": "X"
+        },
+        "numberOfVehicles": 5,
+        "allocationIndex": 0,
+        "stockBranding": "Evero"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33041:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33041",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "9G38"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:15:00",
+            "scheduleAdvertised": "2026-08-02T18:15:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Birmingham New Street",
+            "longCodes": [
+              "BHAMNWS"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:48:00",
+            "scheduleAdvertised": "2026-08-02T19:48:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:15:00",
+          "scheduleAdvertised": "2026-08-02T18:15:00",
+          "realtimeForecast": "2026-08-02T18:13:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "11",
+          "forecast": "11"
+        },
+        "numberOfVehicles": 12,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:Y80854:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "Y80854",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1Y34"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Birmingham New Street",
+            "longCodes": [
+              "BHAMNWS"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T16:06:00",
+            "scheduleAdvertised": "2026-08-02T16:06:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:15:00",
+            "scheduleAdvertised": "2026-08-02T18:15:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:18:00",
+          "scheduleAdvertised": "2026-08-02T18:18:00",
+          "realtimeForecast": "2026-08-02T18:43:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "5",
+          "forecast": "5"
+        },
+        "numberOfVehicles": 11,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33275:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33275",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1M14"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Glasgow Central",
+            "longCodes": [
+              "GLGC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T13:35:00",
+            "scheduleAdvertised": "2026-08-02T13:35:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:18:00",
+            "scheduleAdvertised": "2026-08-02T18:18:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:19:00",
+          "scheduleAdvertised": "2026-08-02T18:20:00",
+          "realtimeForecast": "2026-08-02T18:20:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "9",
+          "forecast": "9"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:L22464:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "L22464",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LO",
+          "name": "London Overground"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2C49"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Watford Junction",
+            "longCodes": [
+              "WATFJDC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T17:30:00",
+            "scheduleAdvertised": "2026-08-02T17:30:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:19:00",
+            "scheduleAdvertised": "2026-08-02T18:20:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:22:00",
+          "scheduleAdvertised": "2026-08-02T18:21:00",
+          "realtimeForecast": "2026-08-02T18:22:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false,
+        "status": "AT_PLATFORM"
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "8",
+          "actual": "8"
+        },
+        "line": {
+          "planned": "C"
+        },
+        "numberOfVehicles": 10,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W70387:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W70387",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2K43"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:22:00",
+            "scheduleAdvertised": "2026-08-02T18:21:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Milton Keynes Central",
+            "longCodes": [
+              "MKNSCEN"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:29:00",
+            "scheduleAdvertised": "2026-08-02T19:29:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:22:00",
+          "scheduleAdvertised": "2026-08-02T18:22:00",
+          "realtimeForecast": "2026-08-02T18:22:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "7",
+          "forecast": "7"
+        },
+        "line": {
+          "planned": "X"
+        },
+        "numberOfVehicles": 12,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:Y80892:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "Y80892",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1Y47"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:22:00",
+            "scheduleAdvertised": "2026-08-02T18:22:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Birmingham New Street",
+            "longCodes": [
+              "BHAMNWS"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T20:44:00",
+            "scheduleAdvertised": "2026-08-02T20:44:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:25:00",
+          "scheduleAdvertised": "2026-08-02T18:25:00",
+          "realtimeNoReport": false,
+          "isCancelled": true,
+          "cancellationReasonCode": "TG"
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CANCELLED",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "8",
+          "forecast": "8"
+        },
+        "numberOfVehicles": 10,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:C17889:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "C17889",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1U38"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Crewe",
+            "longCodes": [
+              "CREWE"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T16:13:00",
+            "scheduleAdvertised": "2026-08-02T16:13:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Milton Keynes Central",
+            "longCodes": [
+              "MKNSCEN"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T17:48:00",
+            "scheduleAdvertised": "2026-08-02T17:48:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:28:00",
+          "scheduleAdvertised": "2026-08-02T18:28:00",
+          "realtimeForecast": "2026-08-02T18:28:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "7",
+          "forecast": "7"
+        },
+        "numberOfVehicles": 9,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33167:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33167",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1A52"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Manchester Piccadilly",
+            "longCodes": [
+              "MNCRPIC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T16:15:00",
+            "scheduleAdvertised": "2026-08-02T16:15:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:28:00",
+            "scheduleAdvertised": "2026-08-02T18:28:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:28:00",
+          "scheduleAdvertised": "2026-08-02T18:28:00",
+          "realtimeForecast": "2026-08-02T18:27:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "12",
+          "forecast": "12"
+        },
+        "numberOfVehicles": 10,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W70355:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W70355",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2K34"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Milton Keynes Central",
+            "longCodes": [
+              "MKNSCEN"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T17:22:00",
+            "scheduleAdvertised": "2026-08-02T17:22:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:28:00",
+            "scheduleAdvertised": "2026-08-02T18:28:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:29:00",
+          "scheduleAdvertised": "2026-08-02T18:29:00",
+          "realtimeForecast": "2026-08-02T18:29:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false,
+        "status": "AT_PLATFORM"
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "16",
+          "actual": "14"
+        },
+        "line": {
+          "planned": "E"
+        },
+        "numberOfVehicles": 11,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33290:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33290",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1S95"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:29:00",
+            "scheduleAdvertised": "2026-08-02T18:29:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Glasgow Central",
+            "longCodes": [
+              "GLGC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T23:08:00",
+            "scheduleAdvertised": "2026-08-02T23:08:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:30:00",
+          "scheduleAdvertised": "2026-08-02T18:30:00",
+          "realtimeForecast": "2026-08-02T18:30:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "9",
+          "forecast": "9"
+        },
+        "line": {
+          "planned": "C"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:L22739:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "L22739",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LO",
+          "name": "London Overground"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2D51"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:30:00",
+            "scheduleAdvertised": "2026-08-02T18:30:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Watford Junction",
+            "longCodes": [
+              "WATFJDC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:18:00",
+            "scheduleAdvertised": "2026-08-02T19:18:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:31:00",
+          "scheduleAdvertised": "2026-08-02T18:31:00",
+          "realtimeForecast": "2026-08-02T18:31:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "4",
+          "forecast": "4"
+        },
+        "numberOfVehicles": 9,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:C01290:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "C01290",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1A53"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Liverpool Lime Street",
+            "longCodes": [
+              "LVRPLSH"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T16:08:00",
+            "scheduleAdvertised": "2026-08-02T16:08:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:31:00",
+            "scheduleAdvertised": "2026-08-02T18:31:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:32:00",
+          "scheduleAdvertised": "2026-08-02T18:32:00",
+          "realtimeForecast": "2026-08-02T18:32:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false,
+        "status": "AT_PLATFORM"
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "14",
+          "actual": "16"
+        },
+        "line": {
+          "planned": "E"
+        },
+        "numberOfVehicles": 9,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33187:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33187",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1H73"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:32:00",
+            "scheduleAdvertised": "2026-08-02T18:32:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Manchester Piccadilly",
+            "longCodes": [
+              "MNCRPIC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T20:44:00",
+            "scheduleAdvertised": "2026-08-02T20:44:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:34:00",
+          "scheduleAdvertised": "2026-08-02T18:35:00",
+          "realtimeForecast": "2026-08-02T18:34:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "9",
+          "forecast": "9"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:L22467:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "L22467",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LO",
+          "name": "London Overground"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2C50"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Watford Junction",
+            "longCodes": [
+              "WATFJDC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T17:45:00",
+            "scheduleAdvertised": "2026-08-02T17:45:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:34:00",
+            "scheduleAdvertised": "2026-08-02T18:35:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:36:00",
+          "scheduleAdvertised": "2026-08-02T18:36:00",
+          "realtimeForecast": "2026-08-02T18:39:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "14",
+          "forecast": "14"
+        },
+        "numberOfVehicles": 5,
+        "allocationIndex": 0,
+        "stockBranding": "Evero"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33265:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33265",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1A54"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Chester",
+            "longCodes": [
+              "CHST"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T16:31:00",
+            "scheduleAdvertised": "2026-08-02T16:31:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:36:00",
+            "scheduleAdvertised": "2026-08-02T18:36:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:39:00",
+          "scheduleAdvertised": "2026-08-02T18:39:00",
+          "realtimeForecast": "2026-08-02T18:44:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "3",
+          "forecast": "3"
+        },
+        "numberOfVehicles": 11,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33219:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33219",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "9M56"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Edinburgh",
+            "longCodes": [
+              "EDINBUR"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T12:51:00",
+            "scheduleAdvertised": "2026-08-02T12:51:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:39:00",
+            "scheduleAdvertised": "2026-08-02T18:39:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:39:00",
+          "scheduleAdvertised": "2026-08-02T18:39:00",
+          "realtimeForecast": "2026-08-02T18:39:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "13",
+          "forecast": "13"
+        },
+        "line": {
+          "planned": "E"
+        },
+        "numberOfVehicles": 9,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33247:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33247",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "9K39"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:39:00",
+            "scheduleAdvertised": "2026-08-02T18:39:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Crewe",
+            "longCodes": [
+              "CREWE"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T21:07:00",
+            "scheduleAdvertised": "2026-08-02T21:07:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:42:00",
+          "scheduleAdvertised": "2026-08-02T18:42:00",
+          "realtimeForecast": "2026-08-02T18:42:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false,
+        "status": "AT_PLATFORM"
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "6",
+          "actual": "6"
+        },
+        "line": {
+          "planned": "X"
+        },
+        "numberOfVehicles": 7,
+        "allocationIndex": 0,
+        "stockBranding": "Evero"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33045:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33045",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1F34"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:42:00",
+            "scheduleAdvertised": "2026-08-02T18:42:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Liverpool Lime Street",
+            "longCodes": [
+              "LVRPLSH"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T21:04:00",
+            "scheduleAdvertised": "2026-08-02T21:04:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:43:00",
+          "scheduleAdvertised": "2026-08-02T18:43:00",
+          "realtimeForecast": "2026-08-02T18:48:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "15",
+          "forecast": "15"
+        },
+        "numberOfVehicles": 11,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33075:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33075",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1A55"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Manchester Piccadilly",
+            "longCodes": [
+              "MNCRPIC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T16:35:00",
+            "scheduleAdvertised": "2026-08-02T16:35:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:43:00",
+            "scheduleAdvertised": "2026-08-02T18:43:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:45:00",
+          "scheduleAdvertised": "2026-08-02T18:45:00",
+          "realtimeForecast": "2026-08-02T18:45:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "12",
+          "forecast": "12"
+        },
+        "line": {
+          "planned": "E"
+        },
+        "numberOfVehicles": 10,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:C17886:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "C17886",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1U47"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:45:00",
+            "scheduleAdvertised": "2026-08-02T18:45:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Crewe",
+            "longCodes": [
+              "CREWE"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T20:54:00",
+            "scheduleAdvertised": "2026-08-02T20:54:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:45:00",
+          "scheduleAdvertised": "2026-08-02T18:45:00",
+          "realtimeForecast": "2026-08-02T18:45:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "9",
+          "forecast": "9"
+        },
+        "line": {
+          "planned": "C"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:L22744:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "L22744",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LO",
+          "name": "London Overground"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2D52"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:45:00",
+            "scheduleAdvertised": "2026-08-02T18:45:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Watford Junction",
+            "longCodes": [
+              "WATFJDC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:32:00",
+            "scheduleAdvertised": "2026-08-02T19:33:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:49:00",
+          "scheduleAdvertised": "2026-08-02T18:50:00",
+          "realtimeForecast": "2026-08-02T18:49:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "9",
+          "forecast": "9"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:P02446:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "P02446",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LO",
+          "name": "London Overground"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2C51"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Watford Junction",
+            "longCodes": [
+              "WATFJDC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:00:00",
+            "scheduleAdvertised": "2026-08-02T18:00:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:49:00",
+            "scheduleAdvertised": "2026-08-02T18:50:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:50:00",
+          "scheduleAdvertised": "2026-08-02T18:50:00",
+          "realtimeForecast": "2026-08-02T18:51:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "12",
+          "forecast": "12"
+        },
+        "numberOfVehicles": 12,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:Y80860:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "Y80860",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1Y36"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Birmingham New Street",
+            "longCodes": [
+              "BHAMNWS"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T16:33:00",
+            "scheduleAdvertised": "2026-08-02T16:33:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:50:00",
+            "scheduleAdvertised": "2026-08-02T18:50:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:52:00",
+          "scheduleAdvertised": "2026-08-02T18:52:00",
+          "realtimeForecast": "2026-08-02T18:52:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "5",
+          "forecast": "5"
+        },
+        "line": {
+          "planned": "X"
+        },
+        "numberOfVehicles": 11,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33146:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33146",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1H38"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:52:00",
+            "scheduleAdvertised": "2026-08-02T18:52:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Manchester Piccadilly",
+            "longCodes": [
+              "MNCRPIC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T21:06:00",
+            "scheduleAdvertised": "2026-08-02T21:06:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:52:00",
+          "scheduleAdvertised": "2026-08-02T18:52:00",
+          "realtimeNoReport": false,
+          "isCancelled": true,
+          "cancellationReasonCode": "TG"
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CANCELLED",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "8",
+          "forecast": "8"
+        },
+        "line": {
+          "planned": "C"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W70393:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W70393",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2K45"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Bletchley",
+            "longCodes": [
+              "BLTCHLY"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:53:00",
+            "scheduleAdvertised": "2026-08-02T19:53:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Milton Keynes Central",
+            "longCodes": [
+              "MKNSCEN"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:59:00",
+            "scheduleAdvertised": "2026-08-02T19:59:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:55:00",
+          "scheduleAdvertised": "2026-08-02T18:55:00",
+          "realtimeForecast": "2026-08-02T18:58:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "6",
+          "forecast": "6"
+        },
+        "numberOfVehicles": 7,
+        "allocationIndex": 0,
+        "stockBranding": "Evero"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33226:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33226",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1B55"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Birmingham New Street",
+            "longCodes": [
+              "BHAMNWS"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T17:21:00",
+            "scheduleAdvertised": "2026-08-02T17:21:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:55:00",
+            "scheduleAdvertised": "2026-08-02T18:55:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T18:56:00",
+          "scheduleAdvertised": "2026-08-02T18:56:00",
+          "realtimeForecast": "2026-08-02T18:56:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false,
+        "status": "AT_PLATFORM"
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "11",
+          "actual": "7"
+        },
+        "line": {
+          "planned": "E"
+        },
+        "numberOfVehicles": 12,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:Y80896:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "Y80896",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1Y49"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:56:00",
+            "scheduleAdvertised": "2026-08-02T18:56:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Birmingham New Street",
+            "longCodes": [
+              "BHAMNWS"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T21:13:00",
+            "scheduleAdvertised": "2026-08-02T21:13:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T18:58:00",
+          "scheduleAdvertised": "2026-08-02T18:58:00",
+          "realtimeForecast": "2026-08-02T18:57:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "8",
+          "forecast": "8"
+        },
+        "numberOfVehicles": 8,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W70361:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W70361",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LM",
+          "name": "London Northwestern Railway"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2K36"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Milton Keynes Central",
+            "longCodes": [
+              "MKNSCEN"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T17:52:00",
+            "scheduleAdvertised": "2026-08-02T17:52:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:58:00",
+            "scheduleAdvertised": "2026-08-02T18:58:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T19:00:00",
+          "scheduleAdvertised": "2026-08-02T19:00:00",
+          "realtimeForecast": "2026-08-02T19:00:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "9",
+          "forecast": "9"
+        },
+        "line": {
+          "planned": "C"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:C11026:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "C11026",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LO",
+          "name": "London Overground"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2D53"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:00:00",
+            "scheduleAdvertised": "2026-08-02T19:00:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Watford Junction",
+            "longCodes": [
+              "WATFJDC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:47:00",
+            "scheduleAdvertised": "2026-08-02T19:48:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T19:01:00",
+          "scheduleAdvertised": "2026-08-02T19:01:00",
+          "realtimeForecast": "2026-08-02T19:03:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "5",
+          "forecast": "5"
+        },
+        "numberOfVehicles": 6,
+        "allocationIndex": 0
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:C00576:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "C00576",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LF",
+          "name": "Lumo (West Coast)"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1M01"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Stirling",
+            "longCodes": [
+              "STIRLNG"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T13:20:00",
+            "scheduleAdvertised": "2026-08-02T13:20:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:01:00",
+            "scheduleAdvertised": "2026-08-02T19:01:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T19:01:00",
+          "scheduleAdvertised": "2026-08-02T19:01:00",
+          "realtimeForecast": "2026-08-02T19:01:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "14",
+          "forecast": "14"
+        },
+        "line": {
+          "planned": "E"
+        },
+        "numberOfVehicles": 5,
+        "allocationIndex": 0,
+        "stockBranding": "Evero"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33317:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33317",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1D93"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:01:00",
+            "scheduleAdvertised": "2026-08-02T19:01:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Holyhead",
+            "longCodes": [
+              "HLYH"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T22:48:00",
+            "scheduleAdvertised": "2026-08-02T22:48:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T19:04:00",
+          "scheduleAdvertised": "2026-08-02T19:04:00",
+          "realtimeForecast": "2026-08-02T19:04:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "4",
+          "forecast": "4"
+        },
+        "line": {
+          "planned": "X"
+        },
+        "numberOfVehicles": 9,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:C01310:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "C01310",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1F35"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:04:00",
+            "scheduleAdvertised": "2026-08-02T19:04:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Liverpool Lime Street",
+            "longCodes": [
+              "LVRPLSH"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T21:29:00",
+            "scheduleAdvertised": "2026-08-02T21:29:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T19:04:00",
+          "scheduleAdvertised": "2026-08-02T19:05:00",
+          "realtimeForecast": "2026-08-02T19:04:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "9",
+          "forecast": "9"
+        }
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:P02448:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "P02448",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "LO",
+          "name": "London Overground"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "2C52"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Watford Junction",
+            "longCodes": [
+              "WATFJDC"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T18:15:00",
+            "scheduleAdvertised": "2026-08-02T18:15:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:04:00",
+            "scheduleAdvertised": "2026-08-02T19:05:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T19:05:00",
+          "scheduleAdvertised": "2026-08-02T19:05:00",
+          "realtimeForecast": "2026-08-02T19:04:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "14",
+          "forecast": "14"
+        },
+        "numberOfVehicles": 7,
+        "allocationIndex": 0,
+        "stockBranding": "Evero"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33199:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33199",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1A56"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Liverpool Lime Street",
+            "longCodes": [
+              "LVRPLSH"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T16:43:00",
+            "scheduleAdvertised": "2026-08-02T16:43:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:05:00",
+            "scheduleAdvertised": "2026-08-02T19:05:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "arrival": {
+          "scheduleInternal": "2026-08-02T19:08:00",
+          "scheduleAdvertised": "2026-08-02T19:08:00",
+          "realtimeForecast": "2026-08-02T19:07:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_SET_DOWN",
+        "realtimeCallType": "ADVERTISED_SET_DOWN",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "13",
+          "forecast": "13"
+        },
+        "numberOfVehicles": 11,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33153:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33153",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "1B56"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "Birmingham New Street",
+            "longCodes": [
+              "BHAMNWS"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T17:47:00",
+            "scheduleAdvertised": "2026-08-02T17:47:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:08:00",
+            "scheduleAdvertised": "2026-08-02T19:08:00"
+          }
+        }
+      ]
+    },
+    {
+      "temporalData": {
+        "departure": {
+          "scheduleInternal": "2026-08-02T19:09:00",
+          "scheduleAdvertised": "2026-08-02T19:09:00",
+          "realtimeForecast": "2026-08-02T19:09:00",
+          "isCancelled": false
+        },
+        "scheduledCallType": "ADVERTISED_PICK_UP",
+        "realtimeCallType": "ADVERTISED_PICK_UP",
+        "displayAs": "CALL",
+        "isInterpolated": false
+      },
+      "locationMetadata": {
+        "platform": {
+          "planned": "7",
+          "forecast": "7"
+        },
+        "line": {
+          "planned": "X"
+        },
+        "numberOfVehicles": 9,
+        "allocationIndex": 0,
+        "stockBranding": "Pendolino"
+      },
+      "scheduleMetadata": {
+        "uniqueIdentity": "gb-nr:W33323:2026-08-02",
+        "namespace": "gb-nr",
+        "identity": "W33323",
+        "departureDate": "2026-08-02",
+        "operator": {
+          "code": "VT",
+          "name": "Avanti West Coast"
+        },
+        "modeType": "TRAIN",
+        "inPassengerService": true,
+        "trainReportingIdentity": "9G40"
+      },
+      "origin": [
+        {
+          "location": {
+            "description": "London Euston",
+            "longCodes": [
+              "EUSTON"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T19:09:00",
+            "scheduleAdvertised": "2026-08-02T19:09:00"
+          }
+        }
+      ],
+      "destination": [
+        {
+          "location": {
+            "description": "Wolverhampton",
+            "longCodes": [
+              "WVRMPTN"
+            ]
+          },
+          "temporalData": {
+            "scheduleInternal": "2026-08-02T20:57:00",
+            "scheduleAdvertised": "2026-08-02T20:58:00"
+          }
+        }
+      ]
+    }
+  ],
+  "reasons": [
+    {
+      "type": "CANCEL",
+      "code": "TG",
+      "system": "TRUST",
+      "shortText": "issue with train crew",
+      "longText": "an issue with the train crew"
+    }
+  ]
+}
