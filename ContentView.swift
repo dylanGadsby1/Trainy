@@ -742,11 +742,25 @@ struct SampleDashboardView: View {
     SampleDashboardView()
 }
 
+// MARK: - UITabBarController: Transparent Tab Content Backgrounds
+// SwiftUI's TabView wraps each Tab's content in a UIHostingController.
+// Those hosting controllers have opaque white/black UIView backgrounds by
+// default, which covers the universal Map sitting behind the TabView.
+// We can't override @objc methods on UIHostingController directly because it
+// is a generic class. Instead we reach each child via its parent
+// UITabBarController — which is concrete and allows @objc overrides.
+extension UITabBarController {
+    open override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        viewControllers?.forEach { $0.view.backgroundColor = .clear }
+    }
+}
+
 // MARK: - Root ContentView
 
 struct ContentView: View {
     @State private var selectedTab: Int = 0
-    @State private var showingAddTrain = false
+    @State private var globalSheetDetent: SheetDetent = .compact
     @StateObject private var themeManager = ThemeManager()
 
     /// Single persistent camera state — never recreated on tab switch.
@@ -833,7 +847,7 @@ struct ContentView: View {
                         cameraDistance = context.camera.distance
                     }
 
-                    HomeSheetView(liveServices: $liveServices)
+                    HomeSheetView(liveServices: $liveServices, currentDetent: $globalSheetDetent)
                 }
             }
 
@@ -845,25 +859,21 @@ struct ContentView: View {
                     .mapStyle(.standard(elevation: .realistic))
                     .ignoresSafeArea()
 
-                    PastTrainsSheetView()
+                    PastTrainsSheetView(currentDetent: $globalSheetDetent)
                 }
             }
 
             Tab("Add Train", systemImage: "plus", value: 2) {
-                // Bounces back immediately — "Add Train" is a sheet, not a tab.
-                // DispatchQueue defers the mutation past the render cycle to avoid
-                // a 1-frame flash.
-                Color.clear
-                    .onAppear {
-                        DispatchQueue.main.async {
-                            selectedTab = 0
-                            showingAddTrain = true
-                        }
+                ZStack {
+                    Map(position: $cameraPosition, selection: $selectedStationCRS) {
+                        stationsMapContent
                     }
+                    .mapStyle(.standard(elevation: .realistic))
+                    .ignoresSafeArea()
+
+                    AddTrainSheetView(myTrains: $liveServices, selectedTab: $selectedTab, currentDetent: $globalSheetDetent)
+                }
             }
-        }
-        .sheet(isPresented: $showingAddTrain) {
-            AddTrainView(myTrains: $liveServices)
         }
         .onChange(of: selectedStationCRS) { _, newValue in
             guard let newValue = newValue else { return }

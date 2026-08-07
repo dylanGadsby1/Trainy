@@ -132,7 +132,7 @@ struct MyTrainCard: View {
 
 // MARK: - Shared Bottom Sheet Container
 
-private enum SheetDetent {
+enum SheetDetent {
     case compact, peek, mid, full
 }
 
@@ -141,9 +141,12 @@ struct MapBottomSheet<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
+    init(detent: Binding<SheetDetent>, @ViewBuilder content: () -> Content) { 
+        self._currentDetent = detent
+        self.content = content() 
+    }
 
-    @State private var currentDetent: SheetDetent = .compact
+    @Binding var currentDetent: SheetDetent
     @State private var dragOffset: CGFloat = 0
 
     private let sideMargin: CGFloat = 10
@@ -289,10 +292,11 @@ struct HomeSheetView: View {
     @State private var showingProfile = false
 
     @Binding var liveServices: [RTTAPIService]
+    @Binding var currentDetent: SheetDetent
     @State private var isLoading = false
 
     var body: some View {
-        MapBottomSheet {
+        MapBottomSheet(detent: $currentDetent) {
             homeContent
         }
         .sheet(isPresented: $showingProfile) {
@@ -396,6 +400,7 @@ struct HomeView: View {
             span: MKCoordinateSpan(latitudeDelta: 5.5, longitudeDelta: 5.5)
         )
     )
+    @State private var currentDetent: SheetDetent = .compact
 
     var body: some View {
         ZStack {
@@ -411,7 +416,7 @@ struct HomeView: View {
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
 
-            HomeSheetView(liveServices: .constant([]))
+            HomeSheetView(liveServices: .constant([]), currentDetent: $currentDetent)
         }
     }
 }

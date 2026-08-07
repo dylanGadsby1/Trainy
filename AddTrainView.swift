@@ -1,12 +1,23 @@
 import SwiftUI
 
-// MARK: - Add Train View
+// MARK: - Add Train Sheet View
 
-struct AddTrainView: View {
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dismiss) private var dismiss
-
+struct AddTrainSheetView: View {
     @Binding var myTrains: [RTTServiceModel]
+    @Binding var selectedTab: Int
+    @Binding var currentDetent: SheetDetent
+    
+    var body: some View {
+        MapBottomSheet(detent: $currentDetent) {
+            AddTrainSheetContent(myTrains: $myTrains, selectedTab: $selectedTab)
+        }
+    }
+}
+
+struct AddTrainSheetContent: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Binding var myTrains: [RTTServiceModel]
+    @Binding var selectedTab: Int
 
     @State private var originStation: UKStation?
     @State private var destinationStation: UKStation?
@@ -15,170 +26,176 @@ struct AddTrainView: View {
     @State private var showingResults = false
     @State private var journeyDate = Date()
 
-
     var body: some View {
-        NavigationStack {
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        AdaptiveColor.bgTop.resolve(in: colorScheme),
-                        AdaptiveColor.bgBottom.resolve(in: colorScheme)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+        VStack(alignment: .leading, spacing: 2) {
+            Text("NEW JOURNEY")
+                .font(.system(size: 11, weight: .black))
+                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                .tracking(1.5)
+            Text("Add Train")
+                .font(.system(size: 22, weight: .black, design: .rounded))
+                .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
 
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Route input card
-                        VStack(spacing: 0) {
-                            // From
-                            Button {
-                                showingOriginPicker = true
-                            } label: {
-                                HStack(spacing: 14) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.green.opacity(0.20))
-                                            .frame(width: 36, height: 36)
-                                        Circle()
-                                            .fill(Color.green)
-                                            .frame(width: 10, height: 10)
-                                    }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("FROM")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                            .tracking(1)
-                                        Text(originStation?.name ?? "Select origin station")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(originStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
-                                    }
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                            }
-                            .sheet(isPresented: $showingOriginPicker) {
-                                StationPickerView(selectedStation: $originStation)
-                            }
-
-                            Divider()
-                                .padding(.leading, 66)
-
-                            // To
-                            Button {
-                                showingDestinationPicker = true
-                            } label: {
-                                HStack(spacing: 14) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.orange.opacity(0.20))
-                                            .frame(width: 36, height: 36)
-                                        Circle()
-                                            .fill(Color.orange)
-                                            .frame(width: 10, height: 10)
-                                    }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("TO")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                            .tracking(1)
-                                        Text(destinationStation?.name ?? "Select arriving station")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(destinationStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
-                                    }
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                            }
-                            .sheet(isPresented: $showingDestinationPicker) {
-                                StationPickerView(selectedStation: $destinationStation)
-                            }
-
-                            Divider()
-                                .padding(.leading, 66)
-
-
-                            
-                            // Date & Time Picker
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(Color.orange.opacity(0.20))
-                                        .frame(width: 36, height: 36)
-                                    Image(systemName: "calendar")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.orange)
-                                }
-                                DatePicker(
-                                    "Journey Time",
-                                    selection: $journeyDate,
-                                    displayedComponents: [.date, .hourAndMinute]
-                                )
-                                .labelsHidden()
-                                .environment(\.colorScheme, colorScheme) // ensure proper coloring
-                                Spacer()
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
+        VStack(spacing: 24) {
+            // Route input card
+            VStack(spacing: 0) {
+                // From
+                Button {
+                    showingOriginPicker = true
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.20))
+                                .frame(width: 36, height: 36)
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 10, height: 10)
                         }
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
-                        )
-
-                        // Search button
-                        Button {
-                            guard originStation != nil && destinationStation != nil else { return }
-                            showingResults = true
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 16, weight: .bold))
-                                Text("Search Trains")
-                                    .font(.system(size: 16, weight: .black))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                LinearGradient(
-                                    colors: originStation != nil ? [Color.appBlue, Color.appBlueBright] : [Color.gray, Color.gray.opacity(0.7)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .shadow(color: (originStation != nil && destinationStation != nil ? Color.appBlue : Color.gray).opacity(0.4), radius: 12, y: 4)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("FROM")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                .tracking(1)
+                            Text(originStation?.name ?? "Select origin station")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(originStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
                         }
-                        .disabled(originStation == nil || destinationStation == nil)
-                        
-                        Spacer(minLength: 40)
+                        Spacer()
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
                 }
-            }
-            .navigationTitle("Add Train")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.appBlue)
+                .sheet(isPresented: $showingOriginPicker) {
+                    StationPickerView(selectedStation: $originStation)
                 }
+
+                Divider()
+                    .padding(.leading, 66)
+
+                // To
+                Button {
+                    showingDestinationPicker = true
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.orange.opacity(0.20))
+                                .frame(width: 36, height: 36)
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: 10, height: 10)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("TO")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                .tracking(1)
+                            Text(destinationStation?.name ?? "Select arriving station")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(destinationStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                }
+                .sheet(isPresented: $showingDestinationPicker) {
+                    StationPickerView(selectedStation: $destinationStation)
+                }
+
+                Divider()
+                    .padding(.leading, 66)
+
+                // Date & Time Picker
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.orange.opacity(0.20))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "calendar")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.orange)
+                    }
+                    DatePicker(
+                        "Journey Time",
+                        selection: $journeyDate,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .labelsHidden()
+                    .environment(\.colorScheme, colorScheme) // ensure proper coloring
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
             }
-            .navigationDestination(isPresented: $showingResults) {
-                if let o = originStation, let d = destinationStation {
-                    LiveDeparturesView(origin: o, destination: d, date: journeyDate, myTrains: $myTrains, rootDismiss: dismiss)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
+            )
+
+            // Search button
+            Button {
+                guard originStation != nil && destinationStation != nil else { return }
+                showingResults = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Search Trains")
+                        .font(.system(size: 16, weight: .black))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        colors: originStation != nil ? [Color.appBlue, Color.appBlueBright] : [Color.gray, Color.gray.opacity(0.7)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: (originStation != nil && destinationStation != nil ? Color.appBlue : Color.gray).opacity(0.4), radius: 12, y: 4)
+            }
+            .disabled(originStation == nil || destinationStation == nil)
+            
+            Spacer(minLength: 40)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .sheet(isPresented: $showingResults) {
+            if let o = originStation, let d = destinationStation {
+                NavigationStack {
+                    LiveDeparturesView(origin: o, destination: d, date: journeyDate, myTrains: $myTrains, selectedTab: $selectedTab)
                 }
             }
         }
+    }
+}
+
+// MARK: - Recent Station Searches Manager
+
+class RecentStationSearches {
+    private static let key = "recentStationCRSCodes"
+    private static let maxCount = 15
+
+    static func load() -> [UKStation] {
+        let codes = UserDefaults.standard.stringArray(forKey: key) ?? []
+        return codes.compactMap { crs in ukStations.first { $0.crs == crs } }
+    }
+
+    static func record(_ station: UKStation) {
+        var codes = UserDefaults.standard.stringArray(forKey: key) ?? []
+        codes.removeAll { $0 == station.crs }
+        codes.insert(station.crs, at: 0)
+        if codes.count > maxCount { codes = Array(codes.prefix(maxCount)) }
+        UserDefaults.standard.set(codes, forKey: key)
     }
 }
 
@@ -189,43 +206,99 @@ struct StationPickerView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Binding var selectedStation: UKStation?
     @State private var searchText = ""
+    @State private var recentStations: [UKStation] = []
 
     var filteredStations: [UKStation] {
-        if searchText.isEmpty {
-            return ukStations
-        } else {
-            return ukStations.filter {
-                $0.name.localizedCaseInsensitiveContains(searchText) ||
-                $0.crs.localizedCaseInsensitiveContains(searchText)
-            }
+        guard !searchText.isEmpty else { return [] }
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        return ukStations.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.crs.localizedCaseInsensitiveContains(query)
         }
     }
 
     var body: some View {
         NavigationStack {
-            List(filteredStations) { station in
-                Button {
-                    selectedStation = station
-                    dismiss()
-                } label: {
-                    HStack {
-                        Text(station.name)
-                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                        Spacer()
-                        Text(station.crs)
-                            .font(.system(.subheadline, design: .monospaced, weight: .bold))
-                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+            List {
+                if searchText.isEmpty {
+                    if recentStations.isEmpty {
+                        // Empty state — no searches yet
+                        Section {
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 8) {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .font(.system(size: 32))
+                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                    Text("No recent searches")
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                                    Text("Start typing to find a station")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 40)
+                            .listRowBackground(Color.clear)
+                        }
+                    } else {
+                        Section(header: Text("Recent Searches")) {
+                            ForEach(recentStations) { station in
+                                stationRow(station)
+                            }
+                        }
+                    }
+                } else {
+                    if filteredStations.isEmpty {
+                        Section {
+                            HStack {
+                                Spacer()
+                                Text("No stations found")
+                                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                Spacer()
+                            }
+                            .padding(.vertical, 20)
+                            .listRowBackground(Color.clear)
+                        }
+                    } else {
+                        Section(header: Text("Results")) {
+                            ForEach(filteredStations) { station in
+                                stationRow(station)
+                            }
+                        }
                     }
                 }
             }
             .listStyle(.plain)
-            .searchable(text: $searchText, prompt: "Search by station name or CRS...")
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search by station name or CRS...")
             .navigationTitle("Select Station")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Close") { dismiss() }
                 }
+            }
+            .onAppear {
+                recentStations = RecentStationSearches.load()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func stationRow(_ station: UKStation) -> some View {
+        Button {
+            RecentStationSearches.record(station)
+            selectedStation = station
+            dismiss()
+        } label: {
+            HStack {
+                Text(station.name)
+                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                Spacer()
+                Text(station.crs)
+                    .font(.system(.subheadline, design: .monospaced, weight: .bold))
+                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
             }
         }
     }
@@ -238,9 +311,11 @@ struct LiveDeparturesView: View {
     let destination: UKStation
     let date: Date
     @Binding var myTrains: [RTTServiceModel]
-    let rootDismiss: DismissAction
+    @Binding var selectedTab: Int
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
+
     @State private var services: [RTTAPIService] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -290,7 +365,8 @@ struct LiveDeparturesView: View {
                                 if !myTrains.contains(where: { $0.id == service.id }) {
                                     myTrains.append(service)
                                 }
-                                rootDismiss()
+                                dismiss()
+                                selectedTab = 0
                             } label: {
                                 MyTrainCard(train: service)
                             }
@@ -302,6 +378,16 @@ struct LiveDeparturesView: View {
             }
         }
         .navigationTitle("Departures from \(origin.crs)")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Cancel") {
+                    dismiss()
+                }
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.appBlue)
+            }
+        }
         .task {
             await fetchDepartures()
         }
@@ -347,6 +433,6 @@ struct LiveDeparturesView: View {
 }
 
 #Preview {
-    AddTrainView(myTrains: .constant([]))
+    AddTrainSheetView(myTrains: .constant([]), selectedTab: .constant(2), currentDetent: .constant(.compact))
 }
 

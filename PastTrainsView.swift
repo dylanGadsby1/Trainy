@@ -159,8 +159,10 @@ struct PastJourneyRow: View {
 // MARK: - Past Trains Sheet (used by ContentView tab over the map)
 
 struct PastTrainsSheetView: View {
+    @Binding var currentDetent: SheetDetent
+    
     var body: some View {
-        MapBottomSheet {
+        MapBottomSheet(detent: $currentDetent) {
             PastTrainsSheetContent()
         }
     }
