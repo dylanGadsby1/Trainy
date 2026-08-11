@@ -55,10 +55,10 @@ struct MyTrainCard: View {
             HStack(alignment: .center, spacing: 0) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(train.userSearchOriginCRS ?? (train.originCRS.isEmpty ? "UNK" : train.originCRS))
-                        .font(.system(size: 20, weight: .black, design: .monospaced))
+                        .font(.system(size: 20, weight: .black))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                     Text(train.realtimeDeparture)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                 }
                 Spacer()
@@ -68,10 +68,10 @@ struct MyTrainCard: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(train.userSearchDestinationCRS ?? (train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS))
-                        .font(.system(size: 20, weight: .black, design: .monospaced))
+                        .font(.system(size: 20, weight: .black))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                     Text(train.userSearchDestinationArrivalTime ?? train.scheduledDeparture)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(train.delayMinutes > 0 ? .orange : AdaptiveColor.secondary.resolve(in: colorScheme))
                 }
             }
@@ -84,12 +84,7 @@ struct MyTrainCard: View {
                         .fill(AdaptiveColor.track.resolve(in: colorScheme))
                         .frame(height: 4)
                     Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [train.trainStatus.color.opacity(0.7), train.trainStatus.color],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
+                        .fill(train.trainStatus.color)
                         // Mocking progress for live departure boards
                         .frame(width: geo.size.width * 0.1, height: 4)
 
@@ -99,7 +94,6 @@ struct MyTrainCard: View {
                         .padding(4)
                         .background(train.trainStatus.color)
                         .clipShape(Circle())
-                        .shadow(color: train.trainStatus.color.opacity(0.5), radius: 4)
                         .offset(x: max(0, geo.size.width * 0.1 - 11), y: -15)
                 }
             }
@@ -120,13 +114,13 @@ struct MyTrainCard: View {
         }
         .padding(16)
         .frame(width: 220)
-        .background(.ultraThinMaterial)
+        .background(Color(red: 1, green: 1, blue: 1))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
+        .shadow(color: Color.appleBlack.opacity(0.06), radius: 8, y: 2)
     }
 }
 
@@ -204,8 +198,7 @@ struct MapBottomSheet<Content: View>: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.regularMaterial)
-                        .shadow(color: Color.black.opacity(0.22), radius: 28, y: -8)
+                        .fill(Color(red: 1, green: 1, blue: 1))
                 )
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 .padding(.horizontal, sideMargin)
@@ -293,7 +286,7 @@ struct HomeSheetView: View {
 
     @Binding var liveServices: [RTTAPIService]
     @Binding var currentDetent: SheetDetent
-    @State private var isLoading = false
+    @Binding var selectedTab: Int
 
     var body: some View {
         MapBottomSheet(detent: $currentDetent) {
@@ -314,7 +307,7 @@ struct HomeSheetView: View {
                     .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                     .tracking(1.5)
                 Text(liveServices.isEmpty ? "No Trains Added" : "My Departures")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .font(.system(size: 22, weight: .black))
                     .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
             }
             Spacer()
@@ -323,9 +316,8 @@ struct HomeSheetView: View {
                 Button { showingProfile = true } label: {
                     ZStack {
                         Circle()
-                            .fill(.ultraThinMaterial)
+                            .fill(Color(red: 1, green: 1, blue: 1))
                             .frame(width: 38, height: 38)
-                            .shadow(color: Color.black.opacity(0.12), radius: 6)
                         Image(systemName: "person.fill")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
@@ -339,41 +331,41 @@ struct HomeSheetView: View {
         // Horizontal train cards
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
-                if liveServices.isEmpty {
-                    VStack {
-                        Text("No trains added yet.")
-                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                            .font(.system(size: 14, weight: .medium))
-                    }
-                    .frame(width: 220, height: 148)
-                } else {
-                    ForEach(liveServices) { train in
-                        MyTrainCard(train: train)
-                    }
+                // Live train cards
+                ForEach(liveServices) { train in
+                    MyTrainCard(train: train)
                 }
 
-                // "Add" card
-                VStack(spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.appBlue.opacity(0.15))
-                            .frame(width: 48, height: 48)
-                        Image(systemName: "plus")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.appBlue)
+                // Add card — always last, to the right of trains
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                        selectedTab = 2
+                        currentDetent = .full
                     }
-                    Text("Add Train")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.appBlue)
+                } label: {
+                    VStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.appleBlack.opacity(0.08))
+                                .frame(width: 48, height: 48)
+                            Image(systemName: "plus")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(Color.appleBlack)
+                        }
+                        Text("Add Train")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(Color.appleBlack)
+                    }
+                    .frame(width: 120, height: 148)
+                    .background(Color(red: 1, green: 1, blue: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .strokeBorder(Color.appleBlack.opacity(0.18),
+                                          style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                    )
                 }
-                .frame(width: 120, height: 148)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .strokeBorder(Color.appBlue.opacity(0.30),
-                                      style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                )
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
         }
@@ -401,6 +393,7 @@ struct HomeView: View {
         )
     )
     @State private var currentDetent: SheetDetent = .compact
+    @State private var selectedTab: Int = 0
 
     var body: some View {
         ZStack {
@@ -416,7 +409,7 @@ struct HomeView: View {
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
 
-            HomeSheetView(liveServices: .constant([]), currentDetent: $currentDetent)
+            HomeSheetView(liveServices: .constant([]), currentDetent: $currentDetent, selectedTab: $selectedTab)
         }
     }
 }
@@ -439,7 +432,7 @@ struct QuickStatTile: View {
                 Spacer()
             }
             Text(value)
-                .font(.system(size: 28, weight: .black, design: .rounded))
+                .font(.system(size: 28, weight: .black))
                 .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
             Text(label)
                 .font(.system(size: 11, weight: .semibold))
@@ -447,7 +440,7 @@ struct QuickStatTile: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial)
+        .background(Color(red: 1, green: 1, blue: 1))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)

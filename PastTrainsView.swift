@@ -16,14 +16,7 @@ struct PastTrainsView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    AdaptiveColor.bgTop.resolve(in: colorScheme),
-                    AdaptiveColor.bgBottom.resolve(in: colorScheme)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            Color(red: 1, green: 1, blue: 1)
             .ignoresSafeArea()
 
             ScrollView {
@@ -36,14 +29,14 @@ struct PastTrainsView: View {
                                 .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                                 .tracking(1.5)
                             Text("Journey History")
-                                .font(.system(size: 26, weight: .black, design: .rounded))
+                                .font(.system(size: 26, weight: .black))
                                 .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                         }
                         Spacer()
                         // Summary stat
                         VStack(alignment: .trailing, spacing: 2) {
                             Text("6")
-                                .font(.system(size: 26, weight: .black, design: .rounded))
+                                .font(.system(size: 26, weight: .black))
                                 .foregroundColor(.appBlue)
                             Text("This month")
                                 .font(.system(size: 11, weight: .medium))
@@ -97,13 +90,13 @@ struct PastJourneyRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(originCode)
-                        .font(.system(size: 17, weight: .black, design: .monospaced))
+                        .font(.system(size: 17, weight: .black))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                     Image(systemName: "arrow.right")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                     Text(destinationCode)
-                        .font(.system(size: 17, weight: .black, design: .monospaced))
+                        .font(.system(size: 17, weight: .black))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                 }
                 HStack(spacing: 6) {
@@ -124,7 +117,7 @@ struct PastJourneyRow: View {
             VStack(alignment: .trailing, spacing: 4) {
                 if delayMinutes > 0 {
                     Text("+\(delayMinutes)m")
-                        .font(.system(size: 15, weight: .black, design: .monospaced))
+                        .font(.system(size: 15, weight: .black))
                         .foregroundColor(statusColor)
                     Text("DELAYED")
                         .font(.system(size: 9, weight: .bold))
@@ -147,7 +140,7 @@ struct PastJourneyRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
+        .background(Color(red: 1, green: 1, blue: 1))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -189,13 +182,13 @@ private struct PastTrainsSheetContent: View {
                     .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                     .tracking(1.5)
                 Text("Journey History")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .font(.system(size: 22, weight: .black))
                     .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text("6")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .font(.system(size: 22, weight: .black))
                     .foregroundColor(.appBlue)
                 Text("This month")
                     .font(.system(size: 11, weight: .medium))

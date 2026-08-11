@@ -33,7 +33,7 @@ struct AddTrainSheetContent: View {
                 .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                 .tracking(1.5)
             Text("Add Train")
-                .font(.system(size: 22, weight: .black, design: .rounded))
+                .font(.system(size: 22, weight: .black))
                 .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
         }
         .padding(.horizontal, 20)
@@ -132,7 +132,7 @@ struct AddTrainSheetContent: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
             }
-            .background(.ultraThinMaterial)
+            .background(Color(red: 1, green: 1, blue: 1))
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -154,14 +154,11 @@ struct AddTrainSheetContent: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
-                    LinearGradient(
-                        colors: originStation != nil ? [Color.appBlue, Color.appBlueBright] : [Color.gray, Color.gray.opacity(0.7)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+                    (originStation != nil && destinationStation != nil)
+                        ? Color.appleBlack
+                        : Color.appleBlack.opacity(0.25)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(color: (originStation != nil && destinationStation != nil ? Color.appBlue : Color.gray).opacity(0.4), radius: 12, y: 4)
             }
             .disabled(originStation == nil || destinationStation == nil)
             
@@ -297,7 +294,7 @@ struct StationPickerView: View {
                     .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                 Spacer()
                 Text(station.crs)
-                    .font(.system(.subheadline, design: .monospaced, weight: .bold))
+                    .font(.system(.subheadline, weight: .bold))
                     .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
             }
         }
@@ -322,14 +319,7 @@ struct LiveDeparturesView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    AdaptiveColor.bgTop.resolve(in: colorScheme),
-                    AdaptiveColor.bgBottom.resolve(in: colorScheme)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            Color(red: 1, green: 1, blue: 1)
             .ignoresSafeArea()
 
             if isLoading {
@@ -385,7 +375,7 @@ struct LiveDeparturesView: View {
                     dismiss()
                 }
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.appBlue)
+                .foregroundColor(Color.appleBlack)
             }
         }
         .task {

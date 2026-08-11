@@ -1,42 +1,7 @@
 import SwiftUI
 import MapKit
 
-// MARK: - Theme Manager
 
-enum AppTheme: String, CaseIterable {
-    case light  = "light"
-    case dark   = "dark"
-    case system = "system"
-
-    var label: String {
-        switch self {
-        case .light:  return "Light"
-        case .dark:   return "Dark"
-        case .system: return "Automatic"
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .light:  return "sun.max.fill"
-        case .dark:   return "moon.fill"
-        case .system: return "circle.lefthalf.filled"
-        }
-    }
-
-    /// The value passed to .preferredColorScheme(_:). nil means follow the system.
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .light:  return .light
-        case .dark:   return .dark
-        case .system: return nil
-        }
-    }
-}
-
-class ThemeManager: ObservableObject {
-    @AppStorage("appTheme") var theme: AppTheme = .light
-}
 
 // MARK: - Adaptive Colour Helpers
 
@@ -50,66 +15,68 @@ struct AdaptiveColor {
     }
 }
 
-// MARK: - App Brand Blue
+// MARK: - App Brand Colour (Apple #1D1D1F)
 
-/// The primary brand colour – a deep navy blue.
+/// Apple's canonical near-black — used everywhere instead of arbitrary navy or pure black.
 extension Color {
-    static let appBlue      = Color(red: 0.05, green: 0.18, blue: 0.42)   // ~#0D2E6B
-    static let appBlueBright = Color(red: 0.20, green: 0.45, blue: 0.85)  // lighter variant for gradients
+    static let appleBlack    = Color(red: 29/255, green: 29/255, blue: 31/255)  // #1D1D1F
+    // Keep these names so existing call-sites compile unchanged
+    static let appBlue       = Color.appleBlack
+    static let appBlueBright = Color.appleBlack
 }
 
 extension AdaptiveColor {
-    // Background gradient colours – navy-tinted in both modes
-    static let bgTop    = AdaptiveColor(light: Color(red: 0.90, green: 0.93, blue: 0.98),
+    // Background gradient — clean white in light mode
+    static let bgTop    = AdaptiveColor(light: Color(red: 0.97, green: 0.97, blue: 0.97),
                                         dark:  Color(red: 0.03, green: 0.07, blue: 0.16))
-    static let bgBottom = AdaptiveColor(light: Color(red: 0.83, green: 0.88, blue: 0.96),
+    static let bgBottom = AdaptiveColor(light: Color(red: 1.0,  green: 1.0,  blue: 1.0),
                                         dark:  Color(red: 0.01, green: 0.03, blue: 0.09))
 
-    // Card surface  / stroke
-    static let cardStroke = AdaptiveColor(light: Color.black.opacity(0.06),
+    // Card surface / stroke
+    static let cardStroke = AdaptiveColor(light: Color.appleBlack.opacity(0.08),
                                           dark:  Color.white.opacity(0.08))
 
-    // Primary text
-    static let primary = AdaptiveColor(light: Color(white: 0.08),
+    // Primary text — Apple #1D1D1F
+    static let primary = AdaptiveColor(light: Color.appleBlack,
                                        dark:  Color.white)
 
     // Secondary / muted text
-    static let secondary = AdaptiveColor(light: Color(white: 0.35),
+    static let secondary = AdaptiveColor(light: Color.appleBlack.opacity(0.45),
                                          dark:  Color.white.opacity(0.50))
 
-    static let tertiary  = AdaptiveColor(light: Color(white: 0.50),
+    static let tertiary  = AdaptiveColor(light: Color.appleBlack.opacity(0.30),
                                          dark:  Color.white.opacity(0.35))
 
     // Divider
-    static let divider = AdaptiveColor(light: Color.black.opacity(0.08),
+    static let divider = AdaptiveColor(light: Color.appleBlack.opacity(0.08),
                                        dark:  Color.white.opacity(0.10))
 
     // Subtle fills
-    static let subtleFill = AdaptiveColor(light: Color.black.opacity(0.04),
+    static let subtleFill = AdaptiveColor(light: Color.appleBlack.opacity(0.04),
                                           dark:  Color.white.opacity(0.05))
 
     // Timeline track
-    static let track = AdaptiveColor(light: Color.black.opacity(0.10),
+    static let track = AdaptiveColor(light: Color.appleBlack.opacity(0.10),
                                      dark:  Color.white.opacity(0.12))
 
     // Station dot (unvisited)
-    static let dotUnvisited = AdaptiveColor(light: Color.black.opacity(0.20),
+    static let dotUnvisited = AdaptiveColor(light: Color.appleBlack.opacity(0.20),
                                             dark:  Color.white.opacity(0.30))
 
     // Station code text
-    static let stationCode = AdaptiveColor(light: Color(white: 0.12),
+    static let stationCode = AdaptiveColor(light: Color.appleBlack,
                                            dark:  Color.white)
 
     // Rolling stock icon gradient
-    static let equipmentIconTop    = AdaptiveColor(light: Color.black.opacity(0.70),
+    static let equipmentIconTop    = AdaptiveColor(light: Color.appleBlack.opacity(0.70),
                                                    dark:  Color.white.opacity(0.90))
-    static let equipmentIconBottom = AdaptiveColor(light: Color.black.opacity(0.30),
+    static let equipmentIconBottom = AdaptiveColor(light: Color.appleBlack.opacity(0.30),
                                                    dark:  Color.white.opacity(0.40))
 
     // Platform number gradient
-    static let platformTop    = AdaptiveColor(light: Color(white: 0.10),
+    static let platformTop    = AdaptiveColor(light: Color.appleBlack,
                                               dark:  Color.white)
-    static let platformBottom = AdaptiveColor(light: Color(white: 0.35),
+    static let platformBottom = AdaptiveColor(light: Color.appleBlack.opacity(0.45),
                                               dark:  Color.white.opacity(0.70))
 }
 
@@ -181,7 +148,7 @@ struct GlassCard<Content: View>: View {
     var body: some View {
         content
             .padding(16)
-            .background(.ultraThinMaterial)
+            .background(Color(red: 1, green: 1, blue: 1))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -190,34 +157,7 @@ struct GlassCard<Content: View>: View {
     }
 }
 
-// MARK: - Theme Toggle Button
 
-struct ThemeToggleButton: View {
-    @ObservedObject var themeManager: ThemeManager
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        Menu {
-            ForEach(AppTheme.allCases, id: \.self) { theme in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        themeManager.theme = theme
-                    }
-                } label: {
-                    Label(theme.label, systemImage: theme.icon)
-                }
-                .disabled(themeManager.theme == theme)
-            }
-        } label: {
-            Image(systemName: themeManager.theme.icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                .padding(10)
-                .background(.ultraThinMaterial)
-                .clipShape(Circle())
-        }
-    }
-}
 
 // MARK: - Status Header Card
 
@@ -235,7 +175,7 @@ struct StatusHeaderCard: View {
                                 .font(.system(size: 22, weight: .bold))
                                 .foregroundColor(.appBlue)
                             Text("\(journey.delayMinutes)M DELAY PREDICTED")
-                                .font(.system(size: 24, weight: .black, design: .rounded))
+                                .font(.system(size: 24, weight: .black))
                                 .foregroundColor(.appBlue)
                         }
                         Text("BASED ON INBOUND EQUIPMENT (\(journey.scheduledDeparture))")
@@ -260,7 +200,6 @@ struct StatusHeaderCard: View {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 8, height: 8)
-                        .shadow(color: Color.green, radius: 3)
                     Text("ON TIME (per departure board)")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.green)
@@ -287,11 +226,11 @@ struct StationTimeView: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(station.scheduled)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                 .strikethrough(station.scheduled != station.actual, color: Color.red.opacity(0.7))
             Text(station.actual)
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundColor(station.scheduled == station.actual ? .green : .orange)
         }
     }
@@ -333,14 +272,10 @@ struct TimelineCard: View {
                             .fill(Color.green)
                             .frame(width: seg1End, height: 5)
 
-                        LinearGradient(
-                            colors: [Color.green, Color.appBlue],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                        .clipShape(Capsule())
-                        .frame(width: w - seg1End, height: 5)
-                        .offset(x: seg1End)
+                        Capsule()
+                            .fill(Color.appleBlack.opacity(0.12))
+                            .frame(width: w - seg1End, height: 5)
+                            .offset(x: seg1End)
 
                         ForEach(0..<3) { i in
                             let fraction = timelineFractions[i]
@@ -349,7 +284,7 @@ struct TimelineCard: View {
                                       ? Color.green
                                       : AdaptiveColor.dotUnvisited.resolve(in: colorScheme))
                                 .frame(width: 12, height: 12)
-                                .overlay(Circle().stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                .overlay(Circle().stroke(Color.appleBlack.opacity(0.15), lineWidth: 1))
                                 .offset(x: w * fraction - 6)
                         }
 
@@ -357,9 +292,8 @@ struct TimelineCard: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
                             .padding(6)
-                            .background(Color.appBlue)
+                            .background(Color.appleBlack)
                             .clipShape(Circle())
-                            .shadow(color: Color.appBlue.opacity(0.6), radius: 6)
                             .offset(x: trainX - 13, y: -22)
                     }
                 }
@@ -367,15 +301,15 @@ struct TimelineCard: View {
 
                 HStack {
                     Text(journey.origin.code)
-                        .font(.system(size: 13, weight: .black, design: .monospaced))
+                        .font(.system(size: 13, weight: .black))
                         .foregroundColor(AdaptiveColor.stationCode.resolve(in: colorScheme))
                     Spacer()
                     Text(journey.intermediate.code)
-                        .font(.system(size: 13, weight: .black, design: .monospaced))
+                        .font(.system(size: 13, weight: .black))
                         .foregroundColor(AdaptiveColor.stationCode.resolve(in: colorScheme))
                     Spacer()
                     Text(journey.destination.code)
-                        .font(.system(size: 13, weight: .black, design: .monospaced))
+                        .font(.system(size: 13, weight: .black))
                         .foregroundColor(AdaptiveColor.stationCode.resolve(in: colorScheme))
                 }
             }
@@ -408,20 +342,14 @@ struct CongestionCard: View {
                 }
 
                 Text("CONGESTION AT\nRUGBY JUNCTION")
-                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .font(.system(size: 18, weight: .black))
                     .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                     .lineSpacing(2)
 
                 HStack(spacing: 4) {
                     ForEach(0..<barHeights.count, id: \.self) { i in
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.appBlue.opacity(0.4), Color.appBlue],
-                                    startPoint: .bottom,
-                                    endPoint: .top
-                                )
-                            )
+                            .fill(Color.appleBlack.opacity(0.12 + 0.08 * barHeights[i]))
                             .frame(width: 14, height: 50 * barHeights[i])
                     }
                 }
@@ -435,7 +363,7 @@ struct CongestionCard: View {
                             .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                             .tracking(0.5)
                         Text("+\(journey.congestionAvgDelay)m")
-                            .font(.system(size: 20, weight: .black, design: .monospaced))
+                            .font(.system(size: 20, weight: .black))
                             .foregroundColor(.appBlue)
                     }
                     Divider()
@@ -473,26 +401,17 @@ struct RollingStockCard: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Unit: \(journey.trainUnit)")
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                         Text("\(journey.trainType)\n(\(journey.trainCars) CARS)")
-                            .font(.system(size: 16, weight: .black, design: .rounded))
+                            .font(.system(size: 16, weight: .black))
                             .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                             .lineSpacing(2)
                     }
                     Spacer()
                     Image(systemName: "tram.fill")
                         .font(.system(size: 36))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    AdaptiveColor.equipmentIconTop.resolve(in: colorScheme),
-                                    AdaptiveColor.equipmentIconBottom.resolve(in: colorScheme)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
+                        .foregroundColor(AdaptiveColor.equipmentIconTop.resolve(in: colorScheme))
                 }
 
                 Divider().background(AdaptiveColor.divider.resolve(in: colorScheme))
@@ -505,7 +424,7 @@ struct RollingStockCard: View {
                             .tracking(0.5)
                         Spacer()
                         Text("+\(journey.inboundLateMinutes)m late")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.appBlue)
                     }
                     ProgressView(value: Double(journey.inboundLateMinutes), total: 30.0)
@@ -542,7 +461,7 @@ struct ConnectionRiskCard: View {
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         Text(journey.connectionRisk)
-                            .font(.system(size: 20, weight: .black, design: .rounded))
+                            .font(.system(size: 20, weight: .black))
                             .foregroundColor(.green)
                         Text(journey.connectionService)
                             .font(.system(size: 12, weight: .semibold))
@@ -584,20 +503,11 @@ struct ArrivalContextCard: View {
 
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text("\(journey.platform)")
-                            .font(.system(size: 56, weight: .black, design: .rounded))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [
-                                        AdaptiveColor.platformTop.resolve(in: colorScheme),
-                                        AdaptiveColor.platformBottom.resolve(in: colorScheme)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
+                            .font(.system(size: 56, weight: .black))
+                            .foregroundColor(AdaptiveColor.platformTop.resolve(in: colorScheme))
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(journey.platformProbability)%")
-                                .font(.system(size: 22, weight: .black, design: .rounded))
+                                .font(.system(size: 22, weight: .black))
                                 .foregroundColor(.green)
                             Text("Probability")
                                 .font(.system(size: 11, weight: .semibold))
@@ -627,18 +537,11 @@ struct ArrivalContextCard: View {
                     Button(action: {}) {
                         Text("CLAIM NOW")
                             .font(.system(size: 13, weight: .black))
-                            .foregroundColor(.black)
+                            .foregroundColor(Color.appleBlack)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.yellow, Color.yellow.opacity(0.7)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .background(Color.yellow)
                             .clipShape(Capsule())
-                            .shadow(color: Color.yellow.opacity(0.5), radius: 8, y: 3)
                     }
                 }
                 .padding(12)
@@ -656,21 +559,13 @@ struct ArrivalContextCard: View {
 // MARK: - Sample Dashboard View
 
 struct SampleDashboardView: View {
-    @StateObject private var themeManager = ThemeManager()
     @Environment(\.colorScheme) private var colorScheme
 
     let journey = mockJourney
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    AdaptiveColor.bgTop.resolve(in: colorScheme),
-                    AdaptiveColor.bgBottom.resolve(in: colorScheme)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            Color(red: 1, green: 1, blue: 1)
             .ignoresSafeArea()
 
             ScrollView(.vertical, showsIndicators: false) {
@@ -679,7 +574,7 @@ struct SampleDashboardView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("LPY → EUS")
-                                .font(.system(size: 22, weight: .black, design: .rounded))
+                                .font(.system(size: 22, weight: .black))
                                 .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                             Text("Tue 29 Jul · Avanti West Coast")
                                 .font(.system(size: 12, weight: .medium))
@@ -688,16 +583,13 @@ struct SampleDashboardView: View {
                         Spacer()
 
                         HStack(spacing: 10) {
-                            // Theme toggle
-                            ThemeToggleButton(themeManager: themeManager)
-
                             // Bell button
                             Button(action: {}) {
                                 Image(systemName: "bell.badge.fill")
                                     .font(.system(size: 18))
                                     .foregroundColor(.appBlue)
                                     .padding(10)
-                                    .background(.ultraThinMaterial)
+                                    .background(Color(red: 1, green: 1, blue: 1))
                                     .clipShape(Circle())
                             }
                         }
@@ -734,7 +626,6 @@ struct SampleDashboardView: View {
                 .padding(.horizontal, 16)
             }
         }
-        .preferredColorScheme(themeManager.theme.colorScheme)
     }
 }
 
@@ -761,7 +652,6 @@ extension UITabBarController {
 struct ContentView: View {
     @State private var selectedTab: Int = 0
     @State private var globalSheetDetent: SheetDetent = .compact
-    @StateObject private var themeManager = ThemeManager()
 
     /// Single persistent camera state — never recreated on tab switch.
     @State private var cameraPosition: MapCameraPosition = .region(
@@ -847,7 +737,7 @@ struct ContentView: View {
                         cameraDistance = context.camera.distance
                     }
 
-                    HomeSheetView(liveServices: $liveServices, currentDetent: $globalSheetDetent)
+                    HomeSheetView(liveServices: $liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
                 }
             }
 
@@ -905,7 +795,6 @@ struct ContentView: View {
                 DeparturesBoardView(crs: crs)
             }
         }
-        .preferredColorScheme(themeManager.theme.colorScheme)
     }
 }
 
@@ -934,14 +823,7 @@ struct DeparturesBoardView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [
-                        AdaptiveColor.bgTop.resolve(in: colorScheme),
-                        AdaptiveColor.bgBottom.resolve(in: colorScheme)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color(red: 1, green: 1, blue: 1)
                 .ignoresSafeArea()
                 
                 if isLoading {
@@ -1045,7 +927,7 @@ struct DepartureServiceCard: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(service.destinationName)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                         
                         Text(service.atocName ?? "Unknown Operator")
@@ -1057,13 +939,13 @@ struct DepartureServiceCard: View {
                     
                     VStack(alignment: .trailing, spacing: 4) {
                         Text(service.scheduledDeparture)
-                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                             .strikethrough(service.trainStatus != .onTime, color: .secondary)
                         
                         if service.trainStatus != .onTime {
                             Text(service.realtimeDeparture)
-                                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(service.trainStatus == .cancelled ? .red : .orange)
                         }
                     }
