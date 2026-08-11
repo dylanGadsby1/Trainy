@@ -647,19 +647,54 @@ extension UITabBarController {
     }
 }
 
+// MARK: - Map Toggle Button
+
+struct MapToggleButton: View {
+    @AppStorage("isSatelliteMap") private var isSatelliteMap: Bool = true
+    
+    var body: some View {
+        VStack {
+            HStack {
+                Spacer()
+                Button {
+                    withAnimation {
+                        isSatelliteMap.toggle()
+                    }
+                } label: {
+                    Image(systemName: isSatelliteMap ? "map" : "globe.americas.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                }
+                .padding(.trailing, 16)
+                .padding(.top, 8)
+            }
+            Spacer()
+        }
+    }
+}
+
 // MARK: - Root ContentView
 
 struct ContentView: View {
+    @AppStorage("isSatelliteMap") private var isSatelliteMap: Bool = true
+    
     @State private var selectedTab: Int = 0
     @State private var globalSheetDetent: SheetDetent = .compact
 
     /// Single persistent camera state — never recreated on tab switch.
-    @State private var cameraPosition: MapCameraPosition = .region(
-        MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 52.8, longitude: -1.6),
-            span: MKCoordinateSpan(latitudeDelta: 5.5, longitudeDelta: 5.5)
+    @State private var cameraPosition: MapCameraPosition = .camera(
+        MapCamera(
+            centerCoordinate: CLLocationCoordinate2D(latitude: 52.8, longitude: -1.6),
+            distance: 1_500_000,
+            heading: 0,
+            pitch: 0
         )
     )
+    @State private var currentCamera: MapCamera? = nil
 
     @State private var selectedTrainId: UUID? = nil
     @State private var routeCoordinates: [CLLocationCoordinate2D] = []
@@ -731,11 +766,14 @@ struct ContentView: View {
                     Map(position: $cameraPosition, selection: $selectedStationCRS) {
                         stationsMapContent
                     }
-                    .mapStyle(.standard(elevation: .realistic))
+                    .mapStyle(isSatelliteMap ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
                     .ignoresSafeArea()
                     .onMapCameraChange(frequency: .onEnd) { context in
                         cameraDistance = context.camera.distance
+                        currentCamera = context.camera
                     }
+                    
+                    MapToggleButton()
 
                     HomeSheetView(liveServices: $liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
                 }
@@ -746,8 +784,14 @@ struct ContentView: View {
                     Map(position: $cameraPosition, selection: $selectedStationCRS) {
                         stationsMapContent
                     }
-                    .mapStyle(.standard(elevation: .realistic))
+                    .mapStyle(isSatelliteMap ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
                     .ignoresSafeArea()
+                    .onMapCameraChange(frequency: .onEnd) { context in
+                        cameraDistance = context.camera.distance
+                        currentCamera = context.camera
+                    }
+                    
+                    MapToggleButton()
 
                     PastTrainsSheetView(currentDetent: $globalSheetDetent)
                 }
@@ -758,11 +802,22 @@ struct ContentView: View {
                     Map(position: $cameraPosition, selection: $selectedStationCRS) {
                         stationsMapContent
                     }
-                    .mapStyle(.standard(elevation: .realistic))
+                    .mapStyle(isSatelliteMap ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
                     .ignoresSafeArea()
+                    .onMapCameraChange(frequency: .onEnd) { context in
+                        cameraDistance = context.camera.distance
+                        currentCamera = context.camera
+                    }
+                    
+                    MapToggleButton()
 
                     AddTrainSheetView(myTrains: $liveServices, selectedTab: $selectedTab, currentDetent: $globalSheetDetent)
                 }
+            }
+        }
+        .onChange(of: selectedTab) { _, _ in
+            if let cam = currentCamera {
+                cameraPosition = .camera(cam)
             }
         }
         .onChange(of: selectedStationCRS) { _, newValue in
