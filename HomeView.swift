@@ -196,12 +196,11 @@ struct MapBottomSheet<Content: View>: View {
                 .frame(height: max(compactH * 0.4, sheetH))
                 .frame(maxWidth: .infinity)
                 .background(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    UnevenRoundedRectangle(topLeadingRadius: cornerRadius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: cornerRadius, style: .continuous)
                         .fill(Color(red: 1, green: 1, blue: 1))
                 )
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: cornerRadius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: cornerRadius, style: .continuous))
                 .padding(.horizontal, sideMargin)
-                .padding(.bottom, sideMargin)
                 .gesture(
                     DragGesture(minimumDistance: 4)
                         .onChanged { v in
