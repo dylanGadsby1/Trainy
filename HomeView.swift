@@ -113,7 +113,6 @@ struct MyTrainCard: View {
             }
         }
         .padding(16)
-        .frame(width: 220)
         .background(Color(red: 1, green: 1, blue: 1))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
@@ -334,6 +333,7 @@ struct HomeSheetView: View {
                 // Live train cards
                 ForEach(liveServices) { train in
                     MyTrainCard(train: train)
+                        .frame(width: 220)
                 }
 
                 // Add card — always last, to the right of trains
