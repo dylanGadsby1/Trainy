@@ -95,9 +95,9 @@ final class RTTService {
     /// Departures from a station for today.
     func departures(from crs: String, to destination: String? = nil) async throws -> RTTSearchResponse {
         var components = URLComponents(string: "\(baseURL)/gb-nr/location")!
-        var queryItems = [URLQueryItem(name: "location", value: crs.uppercased())]
+        var queryItems = [URLQueryItem(name: "code", value: crs.uppercased())]
         if let dest = destination {
-            queryItems.append(URLQueryItem(name: "to", value: dest.uppercased()))
+            queryItems.append(URLQueryItem(name: "filterTo", value: dest.uppercased()))
         }
         components.queryItems = queryItems
         guard let url = components.url else { throw RTTError.invalidResponse }
@@ -107,21 +107,26 @@ final class RTTService {
 
 
     /// Departures from a station for a specific date.
-    func departures(from crs: String, on date: Date, to destination: String? = nil) async throws -> RTTSearchResponse {
+    func departures(from origin: String, on date: Date, to destination: String) async throws -> RTTSearchResponse {
         var components = URLComponents(string: "\(baseURL)/gb-nr/location")!
-        var queryItems = [
-            URLQueryItem(name: "location", value: crs.uppercased()),
-            URLQueryItem(name: "timeFrom", value: isoString(date))
+        components.queryItems = [
+            URLQueryItem(name: "code", value: origin),
+            URLQueryItem(name: "filterTo", value: destination),
+            URLQueryItem(name: "detailed", value: "true")
         ]
-        if let dest = destination {
-            queryItems.append(URLQueryItem(name: "to", value: dest.uppercased()))
-        }
-        components.queryItems = queryItems
         guard let url = components.url else { throw RTTError.invalidResponse }
         return try await fetch(url)
     }
 
 
+
+    /// Service details for a specific train and date.
+    func serviceDetails(identity: String, date: String) async throws -> RTTServiceDetailResponse {
+        guard let url = URL(string: "\(baseURL)/gb-nr/service?identity=\(identity)&departureDate=\(date)") else {
+            throw RTTError.invalidResponse
+        }
+        return try await fetch(url)
+    }
 
     // MARK: - Helpers
 

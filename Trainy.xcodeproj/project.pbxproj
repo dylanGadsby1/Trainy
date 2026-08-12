@@ -9,30 +9,32 @@
 /* Begin PBXBuildFile section */
 		45B24B1EA4FC824505A9A5C7 /* RTTService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05DD45C3A4FC38119FB9EB6D /* RTTService.swift */; };
 		8AD4447DB914C555DFD11808 /* RTTModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A2A4E50914AFB27A912A03D /* RTTModels.swift */; };
-		'AA000001' = {isa = PBXBuildFile; fileRef = AA000002; };
-		'AA000003' = {isa = PBXBuildFile; fileRef = AA000004; };
-		'AA000005' = {isa = PBXBuildFile; fileRef = AA000006; };
-		'AA000031' = {isa = PBXBuildFile; fileRef = AA000030; };
-		'AA000033' = {isa = PBXBuildFile; fileRef = AA000032; };
-		'AA000035' = {isa = PBXBuildFile; fileRef = AA000034; };
-		'AA000037' = {isa = PBXBuildFile; fileRef = AA000036; };
+		9907490B16FC0F72C05C4B5F /* SavedTrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26E699D0F6C02761F6095F21 /* SavedTrain.swift */; };
+		AA000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000002 /* ContentView.swift */; };
+		AA000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA000004 /* Assets.xcassets */; };
+		AA000005 /* TrainyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000006 /* TrainyApp.swift */; };
+		AA000031 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000030 /* HomeView.swift */; };
+		AA000033 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000032 /* ProfileView.swift */; };
+		AA000035 /* PastTrainsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000034 /* PastTrainsView.swift */; };
+		AA000037 /* AddTrainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000036 /* AddTrainView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		05DD45C3A4FC38119FB9EB6D /* RTTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RTTService.swift; path = RTTService.swift; sourceTree = SOURCE_ROOT; };
 		0A2A4E50914AFB27A912A03D /* RTTModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RTTModels.swift; path = RTTModels.swift; sourceTree = SOURCE_ROOT; };
-		'AA000002' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		'AA000004' = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		'AA000006' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainyApp.swift; sourceTree = "<group>"; };
-		'AA000007' = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Trainy.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		'AA000030' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
-		'AA000032' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		'AA000034' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastTrainsView.swift; sourceTree = "<group>"; };
-		'AA000036' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTrainView.swift; sourceTree = "<group>"; };
+		26E699D0F6C02761F6095F21 /* SavedTrain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SavedTrain.swift; sourceTree = "<group>"; };
+		AA000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AA000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA000006 /* TrainyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainyApp.swift; sourceTree = "<group>"; };
+		AA000007 /* Trainy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Trainy.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA000030 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		AA000032 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		AA000034 /* PastTrainsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastTrainsView.swift; sourceTree = "<group>"; };
+		AA000036 /* AddTrainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTrainView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		'AA000008' = {
+		AA000008 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -42,47 +44,48 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		'AA000009' = {
+		AA000009 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AA000007,
+				AA000007 /* Trainy.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		'AA000022' = {
+		AA000022 /*  */ = {
 			isa = PBXGroup;
 			children = (
-				AA000006,
-				AA000002,
-				AA000030,
-				AA000032,
-				AA000034,
-				AA000036,
-				AA000004,
+				AA000006 /* TrainyApp.swift */,
+				AA000002 /* ContentView.swift */,
+				AA000030 /* HomeView.swift */,
+				AA000032 /* ProfileView.swift */,
+				AA000034 /* PastTrainsView.swift */,
+				AA000036 /* AddTrainView.swift */,
+				AA000004 /* Assets.xcassets */,
 			);
 			sourceTree = "<group>";
 		};
-		'AA000023' = {
+		AA000023 = {
 			isa = PBXGroup;
 			children = (
-				AA000022,
-				AA000009,
+				AA000022 /*  */,
+				AA000009 /* Products */,
 				0A2A4E50914AFB27A912A03D /* RTTModels.swift */,
 				05DD45C3A4FC38119FB9EB6D /* RTTService.swift */,
+				26E699D0F6C02761F6095F21 /* SavedTrain.swift */,
 			);
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		'AA000024' = {
+		AA000024 /* Trainy */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AA000025;
+			buildConfigurationList = AA000025 /* Build configuration list for PBXNativeTarget "Trainy" */;
 			buildPhases = (
-				AA000026,
-				AA000008,
-				AA000027,
+				AA000026 /* Sources */,
+				AA000008 /* Frameworks */,
+				AA000027 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -91,13 +94,13 @@
 			name = Trainy;
 			productInstallPath = "$(HOME)/Applications";
 			productName = Trainy;
-			productReference = AA000007;
+			productReference = AA000007 /* Trainy.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		'AA000028' = {
+		AA000028 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
@@ -109,7 +112,7 @@
 					};
 				};
 			};
-			buildConfigurationList = AA000029;
+			buildConfigurationList = AA000029 /* Build configuration list for PBXProject "Trainy" */;
 			compatibilityVersion = "Xcode 15.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -118,46 +121,47 @@
 				Base,
 			);
 			mainGroup = AA000023;
-			productRefGroup = AA000009;
+			productRefGroup = AA000009 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				AA000024,
+				AA000024 /* Trainy */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		'AA000027' = {
+		AA000027 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AA000003,
+				AA000003 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		'AA000026' = {
+		AA000026 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AA000005,
-				AA000001,
-				AA000031,
-				AA000033,
-				AA000035,
-				AA000037,
+				AA000005 /* TrainyApp.swift in Sources */,
+				AA000001 /* ContentView.swift in Sources */,
+				AA000031 /* HomeView.swift in Sources */,
+				AA000033 /* ProfileView.swift in Sources */,
+				AA000035 /* PastTrainsView.swift in Sources */,
+				AA000037 /* AddTrainView.swift in Sources */,
 				8AD4447DB914C555DFD11808 /* RTTModels.swift in Sources */,
 				45B24B1EA4FC824505A9A5C7 /* RTTService.swift in Sources */,
+				9907490B16FC0F72C05C4B5F /* SavedTrain.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		'AA000018' = {
+		AA000018 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -221,7 +225,7 @@
 			};
 			name = Debug;
 		};
-		'AA000019' = {
+		AA000019 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -277,7 +281,7 @@
 			};
 			name = Release;
 		};
-		'AA000020' = {
+		AA000020 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -306,7 +310,7 @@
 			};
 			name = Debug;
 		};
-		'AA000021' = {
+		AA000021 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -338,25 +342,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		'AA000025' = {
+		AA000025 /* Build configuration list for PBXNativeTarget "Trainy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				AA000020,
-				AA000021,
+				AA000020 /* Debug */,
+				AA000021 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		'AA000029' = {
+		AA000029 /* Build configuration list for PBXProject "Trainy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				AA000018,
-				AA000019,
+				AA000018 /* Debug */,
+				AA000019 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = AA000028;
+	rootObject = AA000028 /* Project object */;
 }

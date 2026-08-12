@@ -1,22 +1,21 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - Add Train Sheet View
 
 struct AddTrainSheetView: View {
-    @Binding var myTrains: [RTTServiceModel]
     @Binding var selectedTab: Int
     @Binding var currentDetent: SheetDetent
     
     var body: some View {
         MapBottomSheet(detent: $currentDetent) {
-            AddTrainSheetContent(myTrains: $myTrains, selectedTab: $selectedTab)
+            AddTrainSheetContent(selectedTab: $selectedTab)
         }
     }
 }
 
 struct AddTrainSheetContent: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Binding var myTrains: [RTTServiceModel]
     @Binding var selectedTab: Int
 
     @State private var originStation: UKStation?
@@ -33,7 +32,6 @@ struct AddTrainSheetContent: View {
                     origin: o,
                     destination: d,
                     date: journeyDate,
-                    myTrains: $myTrains,
                     selectedTab: $selectedTab,
                     showingResults: $showingResults
                 )
@@ -320,11 +318,12 @@ struct LiveDeparturesFeed: View {
     let origin: UKStation
     let destination: UKStation
     let date: Date
-    @Binding var myTrains: [RTTServiceModel]
     @Binding var selectedTab: Int
     @Binding var showingResults: Bool
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
+    @Query private var savedTrains: [SavedTrain]
 
     @State private var services: [RTTAPIService] = []
     @State private var isLoading = true
@@ -399,8 +398,12 @@ struct LiveDeparturesFeed: View {
                 LazyVStack(spacing: 16) {
                     ForEach(services) { service in
                         Button {
-                            if !myTrains.contains(where: { $0.id == service.id }) {
-                                myTrains.append(service)
+                            if !savedTrains.contains(where: { $0.id == service.id }) {
+                                if let data = try? JSONEncoder().encode(service) {
+                                    let newSavedTrain = SavedTrain(id: service.id, serviceData: data)
+                                    modelContext.insert(newSavedTrain)
+                                    try? modelContext.save()
+                                }
                             }
                             withAnimation {
                                 showingResults = false
@@ -425,29 +428,81 @@ struct LiveDeparturesFeed: View {
         errorMessage = nil
         do {
             let res = try await RTTService.shared.departures(from: origin.crs, on: date, to: destination.crs)
-            await MainActor.run {
-                // The API now filters to trains calling at our destination for us, just map the user search intent
-                let filtered = (res.services ?? []).map { service -> RTTServiceModel in
-                    
-                    var mutableService = service
-                    mutableService.userSearchOriginCRS = origin.crs
-                    mutableService.userSearchDestinationCRS = destination.crs
-                    
-                    // We mock arrival time since intermediate points aren't returned by default
-                    // In a full implementation, we'd fetch this from the service details endpoint.
-                    let departureTimeStr = mutableService.scheduledDeparture
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "HH:mm"
-                    if let depTime = dateFormatter.date(from: departureTimeStr) {
-                        let mockArrivalTime = depTime.addingTimeInterval(3600) // +1 hour mock
-                        mutableService.userSearchDestinationArrivalTime = dateFormatter.string(from: mockArrivalTime)
-                    } else {
-                        mutableService.userSearchDestinationArrivalTime = "--:--"
+            let rawServices = res.services ?? []
+            let limitedServices = Array(rawServices.prefix(5))
+            
+            let detailedServices = try await withThrowingTaskGroup(of: RTTServiceModel?.self) { group in
+                for service in limitedServices {
+                    group.addTask {
+                        var mutableService = service
+                        mutableService.userSearchOriginCRS = origin.crs
+                        mutableService.userSearchDestinationCRS = destination.crs
+                        
+                        guard let identity = service.scheduleMetadata?.identity,
+                              let runDate = service.scheduleMetadata?.departureDate else {
+                            // Fallback mock
+                            let departureTimeStr = mutableService.scheduledDeparture
+                            let dateFormatter = DateFormatter()
+                            dateFormatter.dateFormat = "HH:mm"
+                            if let depTime = dateFormatter.date(from: departureTimeStr) {
+                                let mockArrivalTime = depTime.addingTimeInterval(3600)
+                                mutableService.userSearchDestinationArrivalTime = dateFormatter.string(from: mockArrivalTime)
+                            } else {
+                                mutableService.userSearchDestinationArrivalTime = "--:--"
+                            }
+                            return mutableService
+                        }
+                        
+                        do {
+                            let details = try await RTTService.shared.serviceDetails(identity: identity, date: runDate)
+                            if let calls = details.service?.locations,
+                               let destCall = calls.first(where: { $0.location?.shortCodes?.contains(destination.crs) == true }) {
+                                
+                                let arrival = destCall.temporalData?.arrival
+                                let actual = arrival?.realtimeActual
+                                let forecast = arrival?.realtimeForecast
+                                let scheduled = arrival?.scheduleAdvertised
+                                
+                                let bestTime = actual ?? forecast ?? scheduled ?? ""
+                                if bestTime.count >= 19 {
+                                    let timePart = bestTime.split(separator: "T").last ?? ""
+                                    if timePart.count >= 5 {
+                                        mutableService.userSearchDestinationArrivalTime = String(timePart.prefix(5))
+                                    } else {
+                                        mutableService.userSearchDestinationArrivalTime = "--:--"
+                                    }
+                                } else {
+                                    mutableService.userSearchDestinationArrivalTime = "--:--"
+                                }
+                                
+                                if let sched = scheduled, sched.count >= 19 {
+                                    let timePart = sched.split(separator: "T").last ?? ""
+                                    if timePart.count >= 5 {
+                                        mutableService.userSearchDestinationScheduledArrivalTime = String(timePart.prefix(5))
+                                    }
+                                }
+                            } else {
+                                mutableService.userSearchDestinationArrivalTime = "--:--"
+                            }
+                        } catch {
+                            mutableService.userSearchDestinationArrivalTime = "--:--"
+                        }
+                        
+                        return mutableService
                     }
-                    
-                    return mutableService
                 }
-                self.services = filtered
+                
+                var results = [RTTServiceModel]()
+                for try await result in group {
+                    if let s = result { results.append(s) }
+                }
+                // Restore order by scheduled departure string (HH:mm)
+                results.sort { $0.scheduledDeparture < $1.scheduledDeparture }
+                return results
+            }
+            
+            await MainActor.run {
+                self.services = detailedServices
                 self.isLoading = false
             }
         } catch {
@@ -455,11 +510,12 @@ struct LiveDeparturesFeed: View {
                 self.errorMessage = "Failed to load live data. \(error.localizedDescription)"
                 self.isLoading = false
             }
+
         }
     }
 }
 
 #Preview {
-    AddTrainSheetView(myTrains: .constant([]), selectedTab: .constant(2), currentDetent: .constant(.compact))
+    AddTrainSheetView(selectedTab: .constant(2), currentDetent: .constant(.compact))
 }
 

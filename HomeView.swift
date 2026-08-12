@@ -57,9 +57,18 @@ struct MyTrainCard: View {
                     Text(train.userSearchOriginCRS ?? (train.originCRS.isEmpty ? "UNK" : train.originCRS))
                         .font(.system(size: 20, weight: .black))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    Text(train.realtimeDeparture)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                    HStack(alignment: .lastTextBaseline, spacing: 6) {
+                        Text(train.scheduledDeparture)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(train.delayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .strikethrough(train.delayMinutes > 0)
+                        
+                        if train.delayMinutes > 0 {
+                            Text(train.realtimeDeparture)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.orange)
+                        }
+                    }
                 }
                 Spacer()
                 Image(systemName: "arrow.right")
@@ -70,9 +79,18 @@ struct MyTrainCard: View {
                     Text(train.userSearchDestinationCRS ?? (train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS))
                         .font(.system(size: 20, weight: .black))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    Text(train.userSearchDestinationArrivalTime ?? train.scheduledDeparture)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(train.delayMinutes > 0 ? .orange : AdaptiveColor.secondary.resolve(in: colorScheme))
+                    HStack(alignment: .lastTextBaseline, spacing: 6) {
+                        if train.delayMinutes > 0 {
+                            Text(train.userSearchDestinationArrivalTime ?? train.realtimeDeparture)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.orange)
+                        }
+                        
+                        Text(train.userSearchDestinationScheduledArrivalTime ?? train.userSearchDestinationArrivalTime ?? train.scheduledDeparture)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(train.delayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .strikethrough(train.delayMinutes > 0)
+                    }
                 }
             }
             .padding(.bottom, 12)
@@ -281,8 +299,9 @@ struct MapBottomSheet<Content: View>: View {
 struct HomeSheetView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingProfile = false
+    @State private var selectedTrain: RTTAPIService?
 
-    @Binding var liveServices: [RTTAPIService]
+    var liveServices: [RTTAPIService]
     @Binding var currentDetent: SheetDetent
     @Binding var selectedTab: Int
 
@@ -292,6 +311,9 @@ struct HomeSheetView: View {
         }
         .sheet(isPresented: $showingProfile) {
             ProfileView()
+        }
+        .sheet(item: $selectedTrain) { train in
+            JourneyDashboardView(journey: train.toTrainJourney())
         }
     }
 
@@ -331,8 +353,13 @@ struct HomeSheetView: View {
             HStack(spacing: 14) {
                 // Live train cards
                 ForEach(liveServices) { train in
-                    MyTrainCard(train: train)
-                        .frame(width: 220)
+                    Button {
+                        selectedTrain = train
+                    } label: {
+                        MyTrainCard(train: train)
+                            .frame(width: 220)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 // Add card — always last, to the right of trains
@@ -408,7 +435,7 @@ struct HomeView: View {
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
 
-            HomeSheetView(liveServices: .constant([]), currentDetent: $currentDetent, selectedTab: $selectedTab)
+            HomeSheetView(liveServices: [], currentDetent: $currentDetent, selectedTab: $selectedTab)
         }
     }
 }

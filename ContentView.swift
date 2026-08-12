@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import SwiftData
 
 
 
@@ -556,12 +557,12 @@ struct ArrivalContextCard: View {
     }
 }
 
-// MARK: - Sample Dashboard View
+// MARK: - Journey Dashboard View
 
-struct SampleDashboardView: View {
+struct JourneyDashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
 
-    let journey = mockJourney
+    let journey: TrainJourney
 
     var body: some View {
         ZStack {
@@ -630,7 +631,42 @@ struct SampleDashboardView: View {
 }
 
 #Preview {
-    SampleDashboardView()
+    JourneyDashboardView(journey: mockJourney)
+}
+
+extension RTTAPIService {
+    func toTrainJourney() -> TrainJourney {
+        let originCode = userSearchOriginCRS ?? (originCRS.isEmpty ? "UNK" : originCRS)
+        let destCode = userSearchDestinationCRS ?? (destinationCRS.isEmpty ? "UNK" : destinationCRS)
+        
+        let originStation = TrainStation(code: originCode, name: originCode, scheduled: scheduledDeparture, actual: realtimeDeparture)
+        let destStation = TrainStation(code: destCode, name: destCode, scheduled: userSearchDestinationArrivalTime ?? scheduledDeparture, actual: userSearchDestinationArrivalTime ?? scheduledDeparture)
+        let intermediateStation = TrainStation(code: "INT", name: "Intermediate", scheduled: "--:--", actual: "--:--")
+        
+        let parsedPlatform = Int(platform) ?? Int.random(in: 1...12)
+        
+        return TrainJourney(
+            origin: originStation,
+            intermediate: intermediateStation,
+            destination: destStation,
+            scheduledDeparture: "\(scheduledDeparture) \(originCode)-\(destCode)",
+            predictedArrival: userSearchDestinationArrivalTime ?? scheduledDeparture,
+            actualArrival: userSearchDestinationArrivalTime ?? scheduledDeparture,
+            delayMinutes: delayMinutes,
+            confidence: Int.random(in: 80...99),
+            platform: parsedPlatform,
+            platformProbability: Int.random(in: 75...99),
+            trainUnit: ["390151", "802001", "350101", "158701"].randomElement()!,
+            trainType: atocName ?? "Unknown Service",
+            trainCars: [4, 5, 8, 9, 11].randomElement()!,
+            inboundLateMinutes: max(0, delayMinutes - Int.random(in: 1...5)),
+            connectionRisk: delayMinutes > 5 ? "ELEVATED RISK" : "LOW RISK",
+            connectionService: "Various Connections",
+            transferMinutes: Int.random(in: 3...15),
+            congestionAvgDelay: Int.random(in: 2...12),
+            progressFraction: 0.15
+        )
+    }
 }
 
 // MARK: - UITabBarController: Transparent Tab Content Backgrounds
@@ -701,7 +737,13 @@ struct ContentView: View {
     @State private var isLoadingRoute: Bool = false
     @State private var routeCache: [UUID: [CLLocationCoordinate2D]] = [:]
 
-    @State private var liveServices: [RTTAPIService] = []
+    @Query(filter: #Predicate<SavedTrain> { $0.isPast == false }) private var mySavedTrains: [SavedTrain]
+    @Environment(\.modelContext) private var modelContext
+    
+    private var liveServices: [RTTAPIService] {
+        mySavedTrains.compactMap { $0.service }
+    }
+
     @State private var cameraDistance: Double = 500000
     @State private var selectedStationCRS: String? = nil
     
@@ -775,7 +817,10 @@ struct ContentView: View {
                     
                     MapToggleButton()
 
-                    HomeSheetView(liveServices: $liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
+                    HomeSheetView(liveServices: liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
+                }
+                .onAppear {
+                    checkPastTrains()
                 }
             }
 
@@ -811,7 +856,7 @@ struct ContentView: View {
                     
                     MapToggleButton()
 
-                    AddTrainSheetView(myTrains: $liveServices, selectedTab: $selectedTab, currentDetent: $globalSheetDetent)
+                    AddTrainSheetView(selectedTab: $selectedTab, currentDetent: $globalSheetDetent)
                 }
             }
         }
@@ -850,6 +895,15 @@ struct ContentView: View {
                 DeparturesBoardView(crs: crs)
             }
         }
+    }
+    private func checkPastTrains() {
+        let now = Date()
+        for train in mySavedTrains {
+            if now.timeIntervalSince(train.addedAt) > 4 * 3600 {
+                train.isPast = true
+            }
+        }
+        try? modelContext.save()
     }
 }
 

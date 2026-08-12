@@ -133,7 +133,7 @@ struct ProfileView: View {
             }
         }
         .sheet(isPresented: $showingSample) {
-            SampleDashboardView()
+            JourneyDashboardView(journey: mockJourney)
         }
     }
 }

@@ -40,6 +40,7 @@ struct RTTServiceModel: Codable, Identifiable {
     var userSearchOriginCRS: String?
     var userSearchDestinationCRS: String?
     var userSearchDestinationArrivalTime: String?
+    var userSearchDestinationScheduledArrivalTime: String?
 
     // Derived helpers matching the old API
 
@@ -151,10 +152,14 @@ struct RTTPlatformNode: Codable {
 struct RTTScheduleMetadata: Codable {
     let uniqueIdentity: String?
     let operatorName: RTTOperator?
+    let identity: String?
+    let departureDate: String?
     
     enum CodingKeys: String, CodingKey {
         case uniqueIdentity
         case operatorName = "operator"
+        case identity
+        case departureDate
     }
 }
 
@@ -207,7 +212,21 @@ let ukStations: [UKStation] = {
 }()
 
 
-/// Dictionary mapping CRS codes directly to geographic coordinates for map pins
 let knownStationCoordinates: [String: CLLocationCoordinate2D] = Dictionary(
     uniqueKeysWithValues: ukStations.map { ($0.crs, $0.coordinate) }
 )
+
+// MARK: - Service Detail Models
+
+struct RTTServiceDetailResponse: Codable {
+    let service: RTTServiceDetailInner?
+}
+
+struct RTTServiceDetailInner: Codable {
+    let locations: [RTTCall]?
+}
+
+struct RTTCall: Codable {
+    let location: RTTLocationNode?
+    let temporalData: RTTTemporalData?
+}

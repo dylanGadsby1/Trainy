@@ -1,18 +1,11 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - Past Trains View
 
 struct PastTrainsView: View {
     @Environment(\.colorScheme) private var colorScheme
-
-    private let pastJourneys: [(String, String, String, String, Int, Color)] = [
-        ("EUS", "LPY", "Mon 28 Jul", "Avanti West Coast", 0, .green),
-        ("LDS", "MAN", "Mon 28 Jul", "Northern Rail", 8, .orange),
-        ("BHM", "EUS", "Sat 26 Jul", "Avanti West Coast", 0, .green),
-        ("MAN", "LDS", "Fri 25 Jul", "Northern Rail", 3, .orange),
-        ("EUS", "BHM", "Thu 24 Jul", "Avanti West Coast", 0, .green),
-        ("LPY", "EUS", "Wed 23 Jul", "Avanti West Coast", 22, Color(red: 0.95, green: 0.25, blue: 0.25)),
-    ]
+    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
 
     var body: some View {
         ZStack {
@@ -49,15 +42,17 @@ struct PastTrainsView: View {
 
                     // Journey list
                     VStack(spacing: 10) {
-                        ForEach(Array(pastJourneys.enumerated()), id: \.offset) { _, journey in
-                            PastJourneyRow(
-                                originCode: journey.0,
-                                destinationCode: journey.1,
-                                date: journey.2,
-                                operator_: journey.3,
-                                delayMinutes: journey.4,
-                                statusColor: journey.5
-                            )
+                        ForEach(pastTrains) { savedTrain in
+                            if let service = savedTrain.service {
+                                PastJourneyRow(
+                                    originCode: service.userSearchOriginCRS ?? service.originCRS,
+                                    destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                                    date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                                    operator_: service.atocName ?? "Unknown",
+                                    delayMinutes: service.delayMinutes,
+                                    statusColor: service.trainStatus.color
+                                )
+                            }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -163,15 +158,7 @@ struct PastTrainsSheetView: View {
 
 private struct PastTrainsSheetContent: View {
     @Environment(\.colorScheme) private var colorScheme
-
-    private let pastJourneys: [(String, String, String, String, Int, Color)] = [
-        ("EUS", "LPY", "Mon 28 Jul", "Avanti West Coast", 0, .green),
-        ("LDS", "MAN", "Mon 28 Jul", "Northern Rail", 8, .orange),
-        ("BHM", "EUS", "Sat 26 Jul", "Avanti West Coast", 0, .green),
-        ("MAN", "LDS", "Fri 25 Jul", "Northern Rail", 3, .orange),
-        ("EUS", "BHM", "Thu 24 Jul", "Avanti West Coast", 0, .green),
-        ("LPY", "EUS", "Wed 23 Jul", "Avanti West Coast", 22, Color(red: 0.95, green: 0.25, blue: 0.25)),
-    ]
+    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
 
     var body: some View {
         // Header
@@ -200,15 +187,17 @@ private struct PastTrainsSheetContent: View {
 
         // Journey list
         VStack(spacing: 10) {
-            ForEach(Array(pastJourneys.enumerated()), id: \.offset) { _, journey in
-                PastJourneyRow(
-                    originCode: journey.0,
-                    destinationCode: journey.1,
-                    date: journey.2,
-                    operator_: journey.3,
-                    delayMinutes: journey.4,
-                    statusColor: journey.5
-                )
+            ForEach(pastTrains) { savedTrain in
+                if let service = savedTrain.service {
+                    PastJourneyRow(
+                        originCode: service.userSearchOriginCRS ?? service.originCRS,
+                        destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                        date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                        operator_: service.atocName ?? "Unknown",
+                        delayMinutes: service.delayMinutes,
+                        statusColor: service.trainStatus.color
+                    )
+                }
             }
         }
         .padding(.horizontal, 20)
