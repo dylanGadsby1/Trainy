@@ -298,7 +298,7 @@ struct MapBottomSheet<Content: View>: View {
 
 struct HomeSheetView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showingProfile = false
+
     @State private var selectedTrain: RTTAPIService?
 
     var liveServices: [RTTAPIService]
@@ -308,9 +308,6 @@ struct HomeSheetView: View {
     var body: some View {
         MapBottomSheet(detent: $currentDetent) {
             homeContent
-        }
-        .sheet(isPresented: $showingProfile) {
-            ProfileView()
         }
         .sheet(item: $selectedTrain) { train in
             JourneyDashboardView(journey: train.toTrainJourney())
@@ -332,17 +329,7 @@ struct HomeSheetView: View {
             }
             Spacer()
             HStack(spacing: 10) {
-
-                Button { showingProfile = true } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color(red: 1, green: 1, blue: 1))
-                            .frame(width: 38, height: 38)
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    }
-                }
+                // Profile button moved to top left of Map
             }
         }
         .padding(.horizontal, 20)

@@ -713,6 +713,34 @@ struct MapToggleButton: View {
     }
 }
 
+// MARK: - Profile Toggle Button
+
+struct ProfileToggleButton: View {
+    @Binding var showingProfile: Bool
+    
+    var body: some View {
+        VStack {
+            HStack {
+                Button {
+                    showingProfile = true
+                } label: {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                }
+                .padding(.leading, 16)
+                .padding(.top, 8)
+                Spacer()
+            }
+            Spacer()
+        }
+    }
+}
+
 // MARK: - Root ContentView
 
 struct ContentView: View {
@@ -720,6 +748,7 @@ struct ContentView: View {
     
     @State private var selectedTab: Int = 0
     @State private var globalSheetDetent: SheetDetent = .compact
+    @State private var showingProfile: Bool = false
 
     /// Single persistent camera state — never recreated on tab switch.
     @State private var cameraPosition: MapCameraPosition = .camera(
@@ -816,8 +845,12 @@ struct ContentView: View {
                     }
                     
                     MapToggleButton()
+                    ProfileToggleButton(showingProfile: $showingProfile)
 
                     HomeSheetView(liveServices: liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
+                }
+                .sheet(isPresented: $showingProfile) {
+                    ProfileView()
                 }
                 .onAppear {
                     checkPastTrains()
