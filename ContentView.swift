@@ -849,9 +849,6 @@ struct ContentView: View {
 
                     HomeSheetView(liveServices: liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
                 }
-                .sheet(isPresented: $showingProfile) {
-                    ProfileView()
-                }
                 .onAppear {
                     checkPastTrains()
                 }
@@ -870,6 +867,7 @@ struct ContentView: View {
                     }
                     
                     MapToggleButton()
+                    ProfileToggleButton(showingProfile: $showingProfile)
 
                     PastTrainsSheetView(currentDetent: $globalSheetDetent)
                 }
@@ -888,10 +886,14 @@ struct ContentView: View {
                     }
                     
                     MapToggleButton()
+                    ProfileToggleButton(showingProfile: $showingProfile)
 
                     AddTrainSheetView(selectedTab: $selectedTab, currentDetent: $globalSheetDetent)
                 }
             }
+        }
+        .sheet(isPresented: $showingProfile) {
+            ProfileView()
         }
         .onChange(of: selectedTab) { _, _ in
             if let cam = currentCamera {
