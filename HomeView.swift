@@ -147,6 +147,13 @@ enum SheetDetent {
     case compact, peek, mid, full
 }
 
+struct ScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 /// A generic draggable bottom sheet that floats above the map with side margins.
 struct MapBottomSheet<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -159,6 +166,9 @@ struct MapBottomSheet<Content: View>: View {
 
     @Binding var currentDetent: SheetDetent
     @State private var dragOffset: CGFloat = 0
+    @State private var scrollOffset: CGFloat = 0
+    @State private var isDraggingSheet: Bool = false
+    @State private var sheetDragStartHeight: CGFloat = 0
 
     private let sideMargin: CGFloat = 10
     private let cornerRadius: CGFloat = 38
@@ -191,6 +201,61 @@ struct MapBottomSheet<Content: View>: View {
                 return rawH
             }()
 
+            let handleDragGesture = DragGesture(minimumDistance: 4)
+                .onChanged { v in
+                    withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.65)) {
+                        dragOffset = v.translation.height
+                    }
+                }
+                .onEnded { v in
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
+                        dragOffset = 0
+                        currentDetent = nextDetent(
+                            currentDetent,
+                            translation: v.translation.height,
+                            velocity: v.predictedEndTranslation.height
+                        )
+                    }
+                }
+
+            let sheetDragGesture = DragGesture(minimumDistance: 4)
+                .onChanged { v in
+                    guard currentDetent == .full else { return }
+                    if scrollOffset >= -1 && v.translation.height > 0 {
+                        if !isDraggingSheet {
+                            isDraggingSheet = true
+                            sheetDragStartHeight = v.translation.height
+                        }
+                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
+                        if effectiveTranslation > 0 {
+                            withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.65)) {
+                                dragOffset = effectiveTranslation
+                            }
+                        }
+                    } else if isDraggingSheet {
+                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
+                        withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.65)) {
+                            dragOffset = max(0, effectiveTranslation)
+                        }
+                    }
+                }
+                .onEnded { v in
+                    guard currentDetent == .full else { return }
+                    if isDraggingSheet {
+                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
+                            dragOffset = 0
+                            currentDetent = nextDetent(
+                                currentDetent,
+                                translation: effectiveTranslation,
+                                velocity: v.predictedEndTranslation.height
+                            )
+                        }
+                    }
+                    isDraggingSheet = false
+                    sheetDragStartHeight = 0
+                }
+
             VStack(spacing: 0) {
                 Spacer()
 
@@ -201,14 +266,27 @@ struct MapBottomSheet<Content: View>: View {
                         .frame(width: 36, height: 4)
                         .padding(.top, 10)
                         .padding(.bottom, 8)
+                        .contentShape(Rectangle()) // Make it easily draggable
+                        .gesture(handleDragGesture)
 
                     // Content — scrollable only when fully expanded
                     ScrollView(.vertical, showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 20) {
-                            content
+                        ZStack(alignment: .top) {
+                            GeometryReader { proxy in
+                                Color.clear.preference(key: ScrollOffsetKey.self, value: proxy.frame(in: .named("bottomSheetScroll")).minY)
+                            }.frame(height: 0)
+                            
+                            VStack(alignment: .leading, spacing: 20) {
+                                content
+                            }
+                            .padding(.bottom, 40)
                         }
-                        .padding(.bottom, 40)
                     }
+                    .coordinateSpace(name: "bottomSheetScroll")
+                    .onPreferenceChange(ScrollOffsetKey.self) { value in
+                        scrollOffset = value
+                    }
+                    .simultaneousGesture(sheetDragGesture, including: currentDetent == .full ? .all : .none)
                     .scrollDisabled(currentDetent != .full)
                 }
                 .frame(height: max(compactH * 0.4, sheetH))
@@ -219,24 +297,7 @@ struct MapBottomSheet<Content: View>: View {
                 )
                 .clipShape(UnevenRoundedRectangle(topLeadingRadius: cornerRadius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: cornerRadius, style: .continuous))
                 .padding(.horizontal, sideMargin)
-                .gesture(
-                    DragGesture(minimumDistance: 4)
-                        .onChanged { v in
-                            withAnimation(.interactiveSpring(response: 0.22, dampingFraction: 0.86)) {
-                                dragOffset = v.translation.height
-                            }
-                        }
-                        .onEnded { v in
-                            withAnimation(.spring(response: 0.32, dampingFraction: 0.70)) {
-                                dragOffset = 0
-                                currentDetent = nextDetent(
-                                    currentDetent,
-                                    translation: v.translation.height,
-                                    velocity: v.predictedEndTranslation.height
-                                )
-                            }
-                        }
-                )
+                .gesture(handleDragGesture, including: currentDetent == .full ? .subviews : .all)
             }
         }
         .ignoresSafeArea(edges: .bottom)
@@ -351,7 +412,7 @@ struct HomeSheetView: View {
 
                 // Add card — always last, to the right of trains
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
                         selectedTab = 2
                         currentDetent = .full
                     }

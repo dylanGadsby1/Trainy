@@ -153,7 +153,7 @@ struct AddTrainSheetContent: View {
                         // Search button
                         Button {
                             guard originStation != nil && destinationStation != nil else { return }
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
                                 showingResults = true
                             }
                         } label: {
@@ -183,7 +183,7 @@ struct AddTrainSheetContent: View {
                 .transition(.move(edge: .leading).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showingResults)
+        .animation(.spring(response: 0.25, dampingFraction: 0.55), value: showingResults)
     }
 }
 
@@ -334,7 +334,7 @@ struct LiveDeparturesFeed: View {
             // Header
             HStack(spacing: 16) {
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
                         showingResults = false
                     }
                 } label: {
