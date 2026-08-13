@@ -207,12 +207,12 @@ struct MapBottomSheet<Content: View>: View {
 
             let handleDragGesture = DragGesture(minimumDistance: 4)
                 .onChanged { v in
-                    withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.65)) {
+                    withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
                         dragOffset = v.translation.height
                     }
                 }
                 .onEnded { v in
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         dragOffset = 0
                         currentDetent = nextDetent(
                             currentDetent,
@@ -232,13 +232,13 @@ struct MapBottomSheet<Content: View>: View {
                         }
                         let effectiveTranslation = v.translation.height - sheetDragStartHeight
                         if effectiveTranslation > 0 {
-                            withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.65)) {
+                            withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
                                 dragOffset = effectiveTranslation
                             }
                         }
                     } else if isDraggingSheet {
                         let effectiveTranslation = v.translation.height - sheetDragStartHeight
-                        withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.65)) {
+                        withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
                             dragOffset = max(0, effectiveTranslation)
                         }
                     }
@@ -247,7 +247,7 @@ struct MapBottomSheet<Content: View>: View {
                     guard currentDetent == .full else { return }
                     if isDraggingSheet {
                         let effectiveTranslation = v.translation.height - sheetDragStartHeight
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             dragOffset = 0
                             currentDetent = nextDetent(
                                 currentDetent,
