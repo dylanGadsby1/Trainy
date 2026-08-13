@@ -64,15 +64,18 @@ struct PastTrainsView: View {
                             ForEach(pastTrains) { savedTrain in
                                     if let service = savedTrain.service {
                                         ZStack(alignment: .topTrailing) {
-                                            PastJourneyRow(
-                                                originCode: service.userSearchOriginCRS ?? service.originCRS,
-                                                destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
-                                                date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
-                                                operator_: service.atocName ?? "Unknown",
-                                                atocCode: service.atocCode,
-                                                delayMinutes: service.delayMinutes,
-                                                statusColor: service.trainStatus.color
-                                            )
+                                            NavigationLink(destination: RailHistoryDetailView(train: savedTrain)) {
+                                                PastJourneyRow(
+                                                    originCode: service.userSearchOriginCRS ?? service.originCRS,
+                                                    destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                                                    date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                                                    operator_: service.atocName ?? "Unknown",
+                                                    atocCode: service.atocCode,
+                                                    delayMinutes: service.delayMinutes,
+                                                    statusColor: service.trainStatus.color
+                                                )
+                                            }
+                                            .buttonStyle(.plain)
 
                                             // Delete button
                                             Button {
@@ -275,15 +278,18 @@ private struct PastTrainsSheetContent: View {
                     ForEach(pastTrains) { savedTrain in
                          if let service = savedTrain.service {
                              ZStack(alignment: .topTrailing) {
-                                 PastJourneyRow(
-                                     originCode: service.userSearchOriginCRS ?? service.originCRS,
-                                     destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
-                                     date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
-                                     operator_: service.atocName ?? "Unknown",
-                                     atocCode: service.atocCode,
-                                     delayMinutes: service.delayMinutes,
-                                     statusColor: service.trainStatus.color
-                                 )
+                                 NavigationLink(destination: RailHistoryDetailView(train: savedTrain)) {
+                                     PastJourneyRow(
+                                         originCode: service.userSearchOriginCRS ?? service.originCRS,
+                                         destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                                         date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                                         operator_: service.atocName ?? "Unknown",
+                                         atocCode: service.atocCode,
+                                         delayMinutes: service.delayMinutes,
+                                         statusColor: service.trainStatus.color
+                                     )
+                                 }
+                                 .buttonStyle(.plain)
 
                                  // Delete button
                                  Button {
@@ -334,4 +340,148 @@ private struct PastTrainsSheetContent: View {
 
 #Preview {
     PastTrainsView()
+}
+struct RailHistoryDetailView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let train: SavedTrain
+    
+    var body: some View {
+        ZStack {
+            Color(red: 1, green: 1, blue: 1) // Using the app's background logic
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    if let service = train.service {
+                        // Journey Overview Card
+                        VStack(spacing: 16) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("ORIGIN")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                    Text(service.userSearchOriginCRS ?? service.originCRS)
+                                        .font(.system(size: 28, weight: .black))
+                                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text("DESTINATION")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                    Text(service.userSearchDestinationCRS ?? service.destinationCRS)
+                                        .font(.system(size: 28, weight: .black))
+                                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            // Time and Status
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("DATE")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                    Text(DateFormatter.localizedString(from: train.movedToPastAt ?? train.addedAt, dateStyle: .medium, timeStyle: .short))
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                                }
+                                
+                                Spacer()
+                                
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text("STATUS")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                    
+                                    if service.delayMinutes > 0 {
+                                        Text("Delayed by \(service.delayMinutes)m")
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(service.trainStatus.color)
+                                    } else {
+                                        Text("On Time")
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(service.trainStatus.color)
+                                    }
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            // Operator
+                            HStack {
+                                Text("OPERATED BY")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                Spacer()
+                                OperatorLogoBadge(atocCode: service.atocCode, compact: false)
+                                if OperatorBrand.from(code: service.atocCode) == nil {
+                                    Text(service.atocName ?? "Unknown")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                                }
+                            }
+                        }
+                        .padding(20)
+                        .background(Color(red: 1, green: 1, blue: 1))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
+                        )
+                        
+                        // Delay Repay Section
+                        if service.delayMinutes >= 15,
+                           let brand = OperatorBrand.from(code: service.atocCode),
+                           let delayRepayString = brand.delayRepayURL,
+                           let delayRepayURL = URL(string: delayRepayString) {
+                            
+                            VStack(spacing: 12) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(.orange)
+                                
+                                Text("You may be entitled to compensation")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                                    .multilineTextAlignment(.center)
+                                
+                                Text("This train was delayed by \(service.delayMinutes) minutes. You can claim Delay Repay from \(brand.shortName).")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 20)
+                                
+                                Link(destination: delayRepayURL) {
+                                    Text("Claim Delay Repay")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 16)
+                                        .background(Color.appBlue)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                }
+                                .padding(.top, 8)
+                            }
+                            .padding(24)
+                            .background(Color.orange.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                    }
+                }
+                .padding(20)
+            }
+        }
+        .navigationTitle("Journey Details")
+        .navigationBarTitleDisplayMode(.inline)
+    }
 }

@@ -858,21 +858,23 @@ struct ContentView: View {
             }
 
             Tab("Past Trains", systemImage: "clock.arrow.circlepath", value: 1) {
-                ZStack {
-                    Map(position: $cameraPosition, selection: $selectedStationCRS) {
-                        stationsMapContent
-                    }
-                    .mapStyle(isSatelliteMap ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
-                    .ignoresSafeArea()
-                    .onMapCameraChange(frequency: .onEnd) { context in
-                        cameraDistance = context.camera.distance
-                        currentCamera = context.camera
-                    }
-                    
-                    MapToggleButton()
-                    ProfileToggleButton(showingProfile: $showingProfile)
+                NavigationStack {
+                    ZStack {
+                        Map(position: $cameraPosition, selection: $selectedStationCRS) {
+                            stationsMapContent
+                        }
+                        .mapStyle(isSatelliteMap ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
+                        .ignoresSafeArea()
+                        .onMapCameraChange(frequency: .onEnd) { context in
+                            cameraDistance = context.camera.distance
+                            currentCamera = context.camera
+                        }
+                        
+                        MapToggleButton()
+                        ProfileToggleButton(showingProfile: $showingProfile)
 
-                    PastTrainsSheetView(currentDetent: $globalSheetDetent)
+                        PastTrainsSheetView(currentDetent: $globalSheetDetent)
+                    }
                 }
             }
 
