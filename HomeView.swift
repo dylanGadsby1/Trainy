@@ -472,7 +472,7 @@ struct HomeView: View {
             span: MKCoordinateSpan(latitudeDelta: 5.5, longitudeDelta: 5.5)
         )
     )
-    @State private var currentDetent: SheetDetent = .compact
+    @State private var currentDetent: SheetDetent = .peek
     @State private var selectedTab: Int = 0
 
     var body: some View {

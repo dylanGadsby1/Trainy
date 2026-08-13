@@ -747,7 +747,7 @@ struct ContentView: View {
     @AppStorage("isSatelliteMap") private var isSatelliteMap: Bool = true
     
     @State private var selectedTab: Int = 0
-    @State private var globalSheetDetent: SheetDetent = .compact
+    @State private var globalSheetDetent: SheetDetent = .peek
     @State private var showingProfile: Bool = false
 
     /// Single persistent camera state — never recreated on tab switch.
@@ -850,11 +850,11 @@ struct ContentView: View {
                     HomeSheetView(liveServices: liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
                 }
                 .onAppear {
-                    checkRailHistory()
+                    checkPastTrains()
                 }
             }
 
-            Tab("Rail History", systemImage: "clock.arrow.circlepath", value: 1) {
+            Tab("Past Trains", systemImage: "clock.arrow.circlepath", value: 1) {
                 ZStack {
                     Map(position: $cameraPosition, selection: $selectedStationCRS) {
                         stationsMapContent
@@ -869,7 +869,7 @@ struct ContentView: View {
                     MapToggleButton()
                     ProfileToggleButton(showingProfile: $showingProfile)
 
-                    RailHistorySheetView(currentDetent: $globalSheetDetent)
+                    PastTrainsSheetView(currentDetent: $globalSheetDetent)
                 }
             }
 
@@ -931,7 +931,7 @@ struct ContentView: View {
             }
         }
     }
-    private func checkRailHistory() {
+    private func checkPastTrains() {
         let now = Date()
         for train in mySavedTrains {
             if now.timeIntervalSince(train.addedAt) > 4 * 3600 {
