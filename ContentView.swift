@@ -847,7 +847,7 @@ struct ContentView: View {
                     MapToggleButton()
                     ProfileToggleButton(showingProfile: $showingProfile)
 
-                    HomeSheetView(liveServices: liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
+                    HomeSheetView(currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
                 }
                 .onAppear {
                     checkPastTrains()

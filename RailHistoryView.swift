@@ -5,7 +5,11 @@ import SwiftData
 
 struct PastTrainsView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
+
+    @State private var trainToDelete: SavedTrain?
+    @State private var showingDeleteConfirmation = false
 
     var body: some View {
         ZStack {
@@ -59,15 +63,35 @@ struct PastTrainsView: View {
                             VStack(spacing: 10) {
                             ForEach(pastTrains) { savedTrain in
                                     if let service = savedTrain.service {
-                                        PastJourneyRow(
-                                            originCode: service.userSearchOriginCRS ?? service.originCRS,
-                                            destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
-                                            date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
-                                            operator_: service.atocName ?? "Unknown",
-                                            atocCode: service.atocCode,
-                                            delayMinutes: service.delayMinutes,
-                                            statusColor: service.trainStatus.color
-                                        )
+                                        ZStack(alignment: .topTrailing) {
+                                            PastJourneyRow(
+                                                originCode: service.userSearchOriginCRS ?? service.originCRS,
+                                                destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                                                date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                                                operator_: service.atocName ?? "Unknown",
+                                                atocCode: service.atocCode,
+                                                delayMinutes: service.delayMinutes,
+                                                statusColor: service.trainStatus.color
+                                            )
+
+                                            // Delete button
+                                            Button {
+                                                trainToDelete = savedTrain
+                                                showingDeleteConfirmation = true
+                                            } label: {
+                                                ZStack {
+                                                    Circle()
+                                                        .fill(.regularMaterial)
+                                                        .frame(width: 24, height: 24)
+                                                        .shadow(color: .black.opacity(0.15), radius: 4, y: 1)
+                                                    Image(systemName: "xmark")
+                                                        .font(.system(size: 9, weight: .black))
+                                                        .foregroundColor(.primary)
+                                                }
+                                            }
+                                            .buttonStyle(.plain)
+                                            .offset(x: 6, y: -6)
+                                        }
                                     }
                                 }
                             }
@@ -77,6 +101,26 @@ struct PastTrainsView: View {
                     .padding(.bottom, 40)
                 }
             }
+        }
+        .confirmationDialog(
+            "Remove Train",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                if let train = trainToDelete {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        modelContext.delete(train)
+                        try? modelContext.save()
+                    }
+                }
+                trainToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                trainToDelete = nil
+            }
+        } message: {
+            Text("Are you sure you want to remove this journey from Rail History?")
         }
     }
 }
@@ -180,64 +224,110 @@ struct PastTrainsSheetView: View {
 
 private struct PastTrainsSheetContent: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
 
+    @State private var trainToDelete: SavedTrain?
+    @State private var showingDeleteConfirmation = false
+
     var body: some View {
-        // Header
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("RAIL HISTORY")
-                    .font(.system(size: 11, weight: .black))
-                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                    .tracking(1.5)
-                Text("Rail History")
-                    .font(.system(size: 22, weight: .black))
-                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+        Group {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("RAIL HISTORY")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                        .tracking(1.5)
+                    Text("Rail History")
+                        .font(.system(size: 22, weight: .black))
+                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(pastTrains.count)")
+                        .font(.system(size: 22, weight: .black))
+                        .foregroundColor(.appBlue)
+                    Text("This month")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                }
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(pastTrains.count)")
-                    .font(.system(size: 22, weight: .black))
-                    .foregroundColor(.appBlue)
-                Text("This month")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+
+            // Journey list
+            if pastTrains.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "tram.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                    Text("you haven't caught any trains yet")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 40)
+                .padding(.horizontal, 20)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(pastTrains) { savedTrain in
+                         if let service = savedTrain.service {
+                             ZStack(alignment: .topTrailing) {
+                                 PastJourneyRow(
+                                     originCode: service.userSearchOriginCRS ?? service.originCRS,
+                                     destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                                     date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                                     operator_: service.atocName ?? "Unknown",
+                                     atocCode: service.atocCode,
+                                     delayMinutes: service.delayMinutes,
+                                     statusColor: service.trainStatus.color
+                                 )
+
+                                 // Delete button
+                                 Button {
+                                     trainToDelete = savedTrain
+                                     showingDeleteConfirmation = true
+                                 } label: {
+                                     ZStack {
+                                         Circle()
+                                             .fill(.regularMaterial)
+                                             .frame(width: 24, height: 24)
+                                             .shadow(color: .black.opacity(0.15), radius: 4, y: 1)
+                                         Image(systemName: "xmark")
+                                             .font(.system(size: 9, weight: .black))
+                                             .foregroundColor(.primary)
+                                     }
+                                 }
+                                 .buttonStyle(.plain)
+                                 .offset(x: 6, y: -6)
+                             }
+                         }
+                     }
+                }
+                .padding(.horizontal, 20)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 4)
-
-        // Journey list
-        if pastTrains.isEmpty {
-            VStack(spacing: 16) {
-                Image(systemName: "tram.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                Text("you haven't caught any trains yet")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                    .multilineTextAlignment(.center)
+        .confirmationDialog(
+            "Remove Train",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                if let train = trainToDelete {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        modelContext.delete(train)
+                        try? modelContext.save()
+                    }
+                }
+                trainToDelete = nil
             }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.top, 40)
-            .padding(.horizontal, 20)
-        } else {
-            VStack(spacing: 10) {
-                ForEach(pastTrains) { savedTrain in
-                     if let service = savedTrain.service {
-                         PastJourneyRow(
-                             originCode: service.userSearchOriginCRS ?? service.originCRS,
-                             destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
-                             date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
-                             operator_: service.atocName ?? "Unknown",
-                             atocCode: service.atocCode,
-                             delayMinutes: service.delayMinutes,
-                             statusColor: service.trainStatus.color
-                         )
-                     }
-                 }
+            Button("Cancel", role: .cancel) {
+                trainToDelete = nil
             }
-            .padding(.horizontal, 20)
+        } message: {
+            Text("Are you sure you want to remove this journey from Rail History?")
         }
     }
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import SwiftData
 
 // MARK: - Train Status Colors
 
@@ -362,10 +363,16 @@ struct MapBottomSheet<Content: View>: View {
 
 struct HomeSheetView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
 
     @State private var selectedTrain: RTTAPIService?
+    @State private var trainToDelete: SavedTrain?
+    @State private var showingDeleteConfirmation = false
 
-    var liveServices: [RTTAPIService]
+    // HomeSheetView owns the query so it can delete entries
+    @Query(filter: #Predicate<SavedTrain> { $0.isPast == false }) private var mySavedTrains: [SavedTrain]
+    private var liveServices: [RTTAPIService] { mySavedTrains.compactMap { $0.service } }
+
     @Binding var currentDetent: SheetDetent
     @Binding var selectedTab: Int
 
@@ -375,6 +382,26 @@ struct HomeSheetView: View {
         }
         .sheet(item: $selectedTrain) { train in
             JourneyDashboardView(journey: train.toTrainJourney())
+        }
+        .confirmationDialog(
+            "Remove Train",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                if let train = trainToDelete {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        modelContext.delete(train)
+                        try? modelContext.save()
+                    }
+                }
+                trainToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                trainToDelete = nil
+            }
+        } message: {
+            Text("Are you sure you want to remove this train from My Trains?")
         }
     }
 
@@ -403,14 +430,36 @@ struct HomeSheetView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
                 // Live train cards
-                ForEach(liveServices) { train in
-                    Button {
-                        selectedTrain = train
-                    } label: {
-                        MyTrainCard(train: train)
-                            .frame(width: 220)
+                ForEach(mySavedTrains) { savedTrain in
+                    if let train = savedTrain.service {
+                        ZStack(alignment: .topTrailing) {
+                            Button {
+                                selectedTrain = train
+                            } label: {
+                                MyTrainCard(train: train)
+                                    .frame(width: 220)
+                            }
+                            .buttonStyle(.plain)
+
+                            // Delete button
+                            Button {
+                                trainToDelete = savedTrain
+                                showingDeleteConfirmation = true
+                            } label: {
+                                ZStack {
+                                    Circle()
+                                        .fill(.regularMaterial)
+                                        .frame(width: 24, height: 24)
+                                        .shadow(color: .black.opacity(0.15), radius: 4, y: 1)
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 9, weight: .black))
+                                        .foregroundColor(.primary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .offset(x: 6, y: -6)
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
 
                 // Add card — always last, to the right of trains
@@ -445,6 +494,7 @@ struct HomeSheetView: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
+            .padding(.vertical, 8) // Give the X button room to not clip
         }
 
         // Quick stats
@@ -492,7 +542,7 @@ struct HomeView: View {
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
 
-            HomeSheetView(liveServices: [], currentDetent: $currentDetent, selectedTab: $selectedTab)
+            HomeSheetView(currentDetent: $currentDetent, selectedTab: $selectedTab)
         }
     }
 }
