@@ -15,7 +15,7 @@
 		AA000005 /* TrainyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000006 /* TrainyApp.swift */; };
 		AA000031 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000030 /* HomeView.swift */; };
 		AA000033 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000032 /* ProfileView.swift */; };
-		AA000035 /* PastTrainsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000034 /* PastTrainsView.swift */; };
+		AA000035 /* RailHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000034 /* RailHistoryView.swift */; };
 		AA000037 /* AddTrainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000036 /* AddTrainView.swift */; };
 /* End PBXBuildFile section */
 
@@ -29,7 +29,7 @@
 		AA000007 /* Trainy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Trainy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA000030 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		AA000032 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		AA000034 /* PastTrainsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastTrainsView.swift; sourceTree = "<group>"; };
+		AA000034 /* RailHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailHistoryView.swift; sourceTree = "<group>"; };
 		AA000036 /* AddTrainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTrainView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -59,7 +59,7 @@
 				AA000002 /* ContentView.swift */,
 				AA000030 /* HomeView.swift */,
 				AA000032 /* ProfileView.swift */,
-				AA000034 /* PastTrainsView.swift */,
+				AA000034 /* RailHistoryView.swift */,
 				AA000036 /* AddTrainView.swift */,
 				AA000004 /* Assets.xcassets */,
 			);
@@ -150,7 +150,7 @@
 				AA000001 /* ContentView.swift in Sources */,
 				AA000031 /* HomeView.swift in Sources */,
 				AA000033 /* ProfileView.swift in Sources */,
-				AA000035 /* PastTrainsView.swift in Sources */,
+				AA000035 /* RailHistoryView.swift in Sources */,
 				AA000037 /* AddTrainView.swift in Sources */,
 				8AD4447DB914C555DFD11808 /* RTTModels.swift in Sources */,
 				45B24B1EA4FC824505A9A5C7 /* RTTService.swift in Sources */,

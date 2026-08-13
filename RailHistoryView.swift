@@ -1,11 +1,11 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - Past Trains View
+// MARK: - Rail History View
 
-struct PastTrainsView: View {
+struct RailHistoryView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
+    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var railHistory: [SavedTrain]
 
     var body: some View {
         ZStack {
@@ -28,7 +28,7 @@ struct PastTrainsView: View {
                         Spacer()
                         // Summary stat
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text("\(pastTrains.count)")
+                            Text("\(railHistory.count)")
                                 .font(.system(size: 26, weight: .black))
                                 .foregroundColor(.appBlue)
                             Text("This month")
@@ -42,7 +42,7 @@ struct PastTrainsView: View {
 
                     // Journey list
                     Group {
-                        if pastTrains.isEmpty {
+                        if railHistory.isEmpty {
                             VStack(spacing: 16) {
                                 Image(systemName: "tram.fill")
                                     .font(.system(size: 40))
@@ -57,9 +57,9 @@ struct PastTrainsView: View {
                             .padding(.horizontal, 20)
                         } else {
                             VStack(spacing: 10) {
-                                ForEach(pastTrains) { savedTrain in
+                                ForEach(railHistory) { savedTrain in
                                     if let service = savedTrain.service {
-                                        PastJourneyRow(
+                                        RailHistoryJourneyRow(
                                             originCode: service.userSearchOriginCRS ?? service.originCRS,
                                             destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
                                             date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
@@ -80,9 +80,9 @@ struct PastTrainsView: View {
     }
 }
 
-// MARK: - Past Journey Row
+// MARK: - Rail History Journey Row
 
-struct PastJourneyRow: View {
+struct RailHistoryJourneyRow: View {
     @Environment(\.colorScheme) private var colorScheme
     let originCode: String
     let destinationCode: String
@@ -161,21 +161,21 @@ struct PastJourneyRow: View {
     }
 }
 
-// MARK: - Past Trains Sheet (used by ContentView tab over the map)
+// MARK: - Rail History Sheet (used by ContentView tab over the map)
 
-struct PastTrainsSheetView: View {
+struct RailHistorySheetView: View {
     @Binding var currentDetent: SheetDetent
     
     var body: some View {
         MapBottomSheet(detent: $currentDetent) {
-            PastTrainsSheetContent()
+            RailHistorySheetContent()
         }
     }
 }
 
-private struct PastTrainsSheetContent: View {
+private struct RailHistorySheetContent: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
+    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var railHistory: [SavedTrain]
 
     var body: some View {
         // Header
@@ -191,7 +191,7 @@ private struct PastTrainsSheetContent: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(pastTrains.count)")
+                Text("\(railHistory.count)")
                     .font(.system(size: 22, weight: .black))
                     .foregroundColor(.appBlue)
                 Text("This month")
@@ -203,7 +203,7 @@ private struct PastTrainsSheetContent: View {
         .padding(.top, 4)
 
         // Journey list
-        if pastTrains.isEmpty {
+        if railHistory.isEmpty {
             VStack(spacing: 16) {
                 Image(systemName: "tram.fill")
                     .font(.system(size: 40))
@@ -218,9 +218,9 @@ private struct PastTrainsSheetContent: View {
             .padding(.horizontal, 20)
         } else {
             VStack(spacing: 10) {
-                ForEach(pastTrains) { savedTrain in
+                ForEach(railHistory) { savedTrain in
                     if let service = savedTrain.service {
-                        PastJourneyRow(
+                        RailHistoryJourneyRow(
                             originCode: service.userSearchOriginCRS ?? service.originCRS,
                             destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
                             date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
@@ -237,5 +237,5 @@ private struct PastTrainsSheetContent: View {
 }
 
 #Preview {
-    PastTrainsView()
+    RailHistoryView()
 }

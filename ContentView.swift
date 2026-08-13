@@ -850,7 +850,7 @@ struct ContentView: View {
                     HomeSheetView(liveServices: liveServices, currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
                 }
                 .onAppear {
-                    checkPastTrains()
+                    checkRailHistory()
                 }
             }
 
@@ -869,7 +869,7 @@ struct ContentView: View {
                     MapToggleButton()
                     ProfileToggleButton(showingProfile: $showingProfile)
 
-                    PastTrainsSheetView(currentDetent: $globalSheetDetent)
+                    RailHistorySheetView(currentDetent: $globalSheetDetent)
                 }
             }
 
@@ -931,7 +931,7 @@ struct ContentView: View {
             }
         }
     }
-    private func checkPastTrains() {
+    private func checkRailHistory() {
         let now = Date()
         for train in mySavedTrains {
             if now.timeIntervalSince(train.addedAt) > 4 * 3600 {
