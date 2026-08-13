@@ -106,6 +106,7 @@ struct RTTServiceModel: Codable, Identifiable {
     var platform: String { locationMetadata?.platform?.actual ?? locationMetadata?.platform?.planned ?? "–" }
     
     var atocName: String? { scheduleMetadata?.operatorName?.name }
+    var atocCode: String? { scheduleMetadata?.operatorName?.code }
 
     // MARK: - Helpers
 
@@ -165,6 +166,7 @@ struct RTTScheduleMetadata: Codable {
 
 struct RTTOperator: Codable {
     let name: String?
+    let code: String?
 }
 
 struct RTTEndpoint: Codable {

@@ -64,6 +64,7 @@ struct PastTrainsView: View {
                                             destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
                                             date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
                                             operator_: service.atocName ?? "Unknown",
+                                            atocCode: service.atocCode,
                                             delayMinutes: service.delayMinutes,
                                             statusColor: service.trainStatus.color
                                         )
@@ -88,6 +89,7 @@ struct PastJourneyRow: View {
     let destinationCode: String
     let date: String
     let operator_: String
+    let atocCode: String?
     let delayMinutes: Int
     let statusColor: Color
 
@@ -117,9 +119,12 @@ struct PastJourneyRow: View {
                         .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                     Text("·")
                         .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                    Text(operator_)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                    OperatorLogoBadge(atocCode: atocCode, compact: true)
+                    if OperatorBrand.from(code: atocCode) == nil {
+                        Text(operator_)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                    }
                 }
             }
 
@@ -225,6 +230,7 @@ private struct PastTrainsSheetContent: View {
                              destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
                              date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
                              operator_: service.atocName ?? "Unknown",
+                             atocCode: service.atocCode,
                              delayMinutes: service.delayMinutes,
                              statusColor: service.trainStatus.color
                          )

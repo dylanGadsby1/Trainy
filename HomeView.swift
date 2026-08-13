@@ -34,12 +34,15 @@ struct MyTrainCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Top: operator + status
+            // Top: operator logo + status
             HStack {
-                Text(train.atocName ?? "Unknown")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                    .lineLimit(1)
+                OperatorLogoBadge(atocCode: train.atocCode, compact: false)
+                if OperatorBrand.from(code: train.atocCode) == nil {
+                    Text(train.atocName ?? "Unknown")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                        .lineLimit(1)
+                }
                 Spacer()
                 Text(train.trainStatus.label)
                     .font(.system(size: 9, weight: .black))
