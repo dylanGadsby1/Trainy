@@ -57,12 +57,12 @@ struct PastTrainsView: View {
                             .padding(.horizontal, 20)
                         } else {
                             VStack(spacing: 10) {
-                                ForEach(pastTrains) { savedTrain in
+                            ForEach(pastTrains) { savedTrain in
                                     if let service = savedTrain.service {
                                         PastJourneyRow(
                                             originCode: service.userSearchOriginCRS ?? service.originCRS,
                                             destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
-                                            date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                                            date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
                                             operator_: service.atocName ?? "Unknown",
                                             delayMinutes: service.delayMinutes,
                                             statusColor: service.trainStatus.color
@@ -219,17 +219,17 @@ private struct PastTrainsSheetContent: View {
         } else {
             VStack(spacing: 10) {
                 ForEach(pastTrains) { savedTrain in
-                    if let service = savedTrain.service {
-                        PastJourneyRow(
-                            originCode: service.userSearchOriginCRS ?? service.originCRS,
-                            destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
-                            date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
-                            operator_: service.atocName ?? "Unknown",
-                            delayMinutes: service.delayMinutes,
-                            statusColor: service.trainStatus.color
-                        )
-                    }
-                }
+                     if let service = savedTrain.service {
+                         PastJourneyRow(
+                             originCode: service.userSearchOriginCRS ?? service.originCRS,
+                             destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                             date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                             operator_: service.atocName ?? "Unknown",
+                             delayMinutes: service.delayMinutes,
+                             statusColor: service.trainStatus.color
+                         )
+                     }
+                 }
             }
             .padding(.horizontal, 20)
         }

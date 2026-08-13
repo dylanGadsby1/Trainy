@@ -852,6 +852,9 @@ struct ContentView: View {
                 .onAppear {
                     checkPastTrains()
                 }
+                .onReceive(archiveTimer) { _ in
+                    checkPastTrains()
+                }
             }
 
             Tab("Past Trains", systemImage: "clock.arrow.circlepath", value: 1) {
@@ -931,13 +934,63 @@ struct ContentView: View {
             }
         }
     }
+    /// Fires every 60 seconds to auto-archive trains that have arrived.
+    private let archiveTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
     private func checkPastTrains() {
         let now = Date()
+        let calendar = Calendar.current
+
         for train in mySavedTrains {
-            if now.timeIntervalSince(train.addedAt) > 4 * 3600 {
+            guard let service = train.service else { continue }
+
+            // --- Cancelled trains go straight to Rail History ---
+            if service.isCancelledService {
+                if !train.isPast {
+                    train.isPast = true
+                    train.movedToPastAt = now
+                }
+                continue
+            }
+
+            // --- Parse the real (with-delay) arrival time ---
+            // Prefer the user-search destination realtime arrival, then scheduled arrival.
+            let arrivalTimeString: String? =
+                service.userSearchDestinationArrivalTime
+                ?? service.userSearchDestinationScheduledArrivalTime
+
+            guard let timeStr = arrivalTimeString, timeStr.count == 5,
+                  let hour = Int(timeStr.prefix(2)),
+                  let minute = Int(timeStr.suffix(2)) else {
+                // No usable arrival time — fall back: archive if added > 4 hours ago
+                if now.timeIntervalSince(train.addedAt) > 4 * 3600 && !train.isPast {
+                    train.isPast = true
+                    train.movedToPastAt = now
+                }
+                continue
+            }
+
+            // Build today's (or tomorrow's if past midnight) arrival Date
+            var components = calendar.dateComponents([.year, .month, .day], from: now)
+            components.hour = hour
+            components.minute = minute
+            components.second = 0
+
+            guard var arrivalDate = calendar.date(from: components) else { continue }
+
+            // If the arrival time is more than 12 hours in the future relative to now,
+            // the service probably departed yesterday — shift back one day.
+            if arrivalDate.timeIntervalSince(now) > 12 * 3600 {
+                arrivalDate = calendar.date(byAdding: .day, value: -1, to: arrivalDate) ?? arrivalDate
+            }
+
+            // Move to Rail History once the real arrival time has passed.
+            if now >= arrivalDate && !train.isPast {
                 train.isPast = true
+                train.movedToPastAt = arrivalDate
             }
         }
+
         try? modelContext.save()
     }
 }
