@@ -447,11 +447,17 @@ struct HomeSheetView: View {
         // Quick stats
         let activeCount = liveServices.count
         let onTimeCount = liveServices.filter { $0.trainStatus == .onTime }.count
+        let delayedCount = liveServices.filter { $0.trainStatus == .delayed }.count
+        let cancelledCount = liveServices.filter { $0.trainStatus == .cancelled }.count
+        
+        let onTimeStr = activeCount == 0 ? "-" : "\(onTimeCount)"
+        let delayedStr = activeCount == 0 ? "-" : "\(delayedCount)"
+        let cancelledStr = activeCount == 0 ? "-" : "\(cancelledCount)"
 
         HStack(spacing: 12) {
-            QuickStatTile(icon: "tram.fill",             label: "Departures",  value: "\(activeCount)", color: .appBlue)
-            QuickStatTile(icon: "checkmark.circle.fill", label: "On Time",     value: "\(onTimeCount)", color: .green)
-            QuickStatTile(icon: "clock.arrow.circlepath", label: "Today",      value: "3", color: Color(red: 0.35, green: 0.75, blue: 1.0))
+            QuickStatTile(icon: "checkmark.circle.fill", label: "On Time",   value: onTimeStr,    color: .green)
+            QuickStatTile(icon: "exclamationmark.triangle.fill", label: "Delayed",   value: delayedStr,   color: .orange)
+            QuickStatTile(icon: "xmark.octagon.fill",    label: "Cancelled", value: cancelledStr, color: Color(red: 0.95, green: 0.25, blue: 0.25))
         }
         .padding(.horizontal, 20)
     }

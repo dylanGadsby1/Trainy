@@ -854,7 +854,7 @@ struct ContentView: View {
                 }
             }
 
-            Tab("Past Trains", systemImage: "clock.arrow.circlepath", value: 1) {
+            Tab("Rail History", systemImage: "clock.arrow.circlepath", value: 1) {
                 ZStack {
                     Map(position: $cameraPosition, selection: $selectedStationCRS) {
                         stationsMapContent

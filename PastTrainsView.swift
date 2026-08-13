@@ -17,18 +17,18 @@ struct PastTrainsView: View {
                     // Header
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("PAST TRAINS")
+                            Text("RAIL HISTORY")
                                 .font(.system(size: 11, weight: .black))
                                 .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                                 .tracking(1.5)
-                            Text("Journey History")
+                            Text("Rail History")
                                 .font(.system(size: 26, weight: .black))
                                 .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                         }
                         Spacer()
                         // Summary stat
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text("6")
+                            Text("\(pastTrains.count)")
                                 .font(.system(size: 26, weight: .black))
                                 .foregroundColor(.appBlue)
                             Text("This month")
@@ -41,21 +41,38 @@ struct PastTrainsView: View {
                     .padding(.bottom, 20)
 
                     // Journey list
-                    VStack(spacing: 10) {
-                        ForEach(pastTrains) { savedTrain in
-                            if let service = savedTrain.service {
-                                PastJourneyRow(
-                                    originCode: service.userSearchOriginCRS ?? service.originCRS,
-                                    destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
-                                    date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
-                                    operator_: service.atocName ?? "Unknown",
-                                    delayMinutes: service.delayMinutes,
-                                    statusColor: service.trainStatus.color
-                                )
+                    Group {
+                        if pastTrains.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "tram.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                Text("you haven't caught any trains yet")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                                    .multilineTextAlignment(.center)
                             }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 60)
+                            .padding(.horizontal, 20)
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(pastTrains) { savedTrain in
+                                    if let service = savedTrain.service {
+                                        PastJourneyRow(
+                                            originCode: service.userSearchOriginCRS ?? service.originCRS,
+                                            destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                                            date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                                            operator_: service.atocName ?? "Unknown",
+                                            delayMinutes: service.delayMinutes,
+                                            statusColor: service.trainStatus.color
+                                        )
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 20)
                         }
                     }
-                    .padding(.horizontal, 20)
                     .padding(.bottom, 40)
                 }
             }
@@ -164,17 +181,17 @@ private struct PastTrainsSheetContent: View {
         // Header
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("PAST TRAINS")
+                Text("RAIL HISTORY")
                     .font(.system(size: 11, weight: .black))
                     .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                     .tracking(1.5)
-                Text("Journey History")
+                Text("Rail History")
                     .font(.system(size: 22, weight: .black))
                     .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("6")
+                Text("\(pastTrains.count)")
                     .font(.system(size: 22, weight: .black))
                     .foregroundColor(.appBlue)
                 Text("This month")
@@ -186,21 +203,36 @@ private struct PastTrainsSheetContent: View {
         .padding(.top, 4)
 
         // Journey list
-        VStack(spacing: 10) {
-            ForEach(pastTrains) { savedTrain in
-                if let service = savedTrain.service {
-                    PastJourneyRow(
-                        originCode: service.userSearchOriginCRS ?? service.originCRS,
-                        destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
-                        date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
-                        operator_: service.atocName ?? "Unknown",
-                        delayMinutes: service.delayMinutes,
-                        statusColor: service.trainStatus.color
-                    )
+        if pastTrains.isEmpty {
+            VStack(spacing: 16) {
+                Image(systemName: "tram.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                Text("you haven't caught any trains yet")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.top, 40)
+            .padding(.horizontal, 20)
+        } else {
+            VStack(spacing: 10) {
+                ForEach(pastTrains) { savedTrain in
+                    if let service = savedTrain.service {
+                        PastJourneyRow(
+                            originCode: service.userSearchOriginCRS ?? service.originCRS,
+                            destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                            date: DateFormatter.localizedString(from: savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                            operator_: service.atocName ?? "Unknown",
+                            delayMinutes: service.delayMinutes,
+                            statusColor: service.trainStatus.color
+                        )
+                    }
                 }
             }
+            .padding(.horizontal, 20)
         }
-        .padding(.horizontal, 20)
     }
 }
 
