@@ -972,18 +972,38 @@ struct ContentView: View {
                 continue
             }
 
-            // Build today's (or tomorrow's if past midnight) arrival Date
-            var components = calendar.dateComponents([.year, .month, .day], from: now)
+            // Build the base date using the run date if available, otherwise fallback to today
+            var baseDate = now
+            if let runDateString = service.scheduleMetadata?.departureDate {
+                let df = DateFormatter()
+                df.dateFormat = "yyyy-MM-dd"
+                if let runDate = df.date(from: runDateString) {
+                    baseDate = runDate
+                }
+            }
+
+            var components = calendar.dateComponents([.year, .month, .day], from: baseDate)
             components.hour = hour
             components.minute = minute
             components.second = 0
 
             guard var arrivalDate = calendar.date(from: components) else { continue }
 
-            // If the arrival time is more than 12 hours in the future relative to now,
-            // the service probably departed yesterday — shift back one day.
-            if arrivalDate.timeIntervalSince(now) > 12 * 3600 {
-                arrivalDate = calendar.date(byAdding: .day, value: -1, to: arrivalDate) ?? arrivalDate
+            if service.scheduleMetadata?.departureDate == nil {
+                // If the arrival time is more than 12 hours in the future relative to now,
+                // the service probably departed yesterday — shift back one day.
+                if arrivalDate.timeIntervalSince(now) > 12 * 3600 {
+                    arrivalDate = calendar.date(byAdding: .day, value: -1, to: arrivalDate) ?? arrivalDate
+                }
+            } else {
+                // Check if arrival crossed midnight relative to scheduled departure
+                let depTimeStr = service.scheduledDeparture
+                if depTimeStr.count >= 5,
+                   let depHour = Int(depTimeStr.prefix(2)) {
+                    if hour < depHour && (depHour - hour) > 4 {
+                        arrivalDate = calendar.date(byAdding: .day, value: 1, to: arrivalDate) ?? arrivalDate
+                    }
+                }
             }
 
             // Move to Rail History once the real arrival time has passed.

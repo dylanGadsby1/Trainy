@@ -112,7 +112,8 @@ final class RTTService {
         components.queryItems = [
             URLQueryItem(name: "code", value: origin),
             URLQueryItem(name: "filterTo", value: destination),
-            URLQueryItem(name: "detailed", value: "true")
+            URLQueryItem(name: "detailed", value: "true"),
+            URLQueryItem(name: "timeFrom", value: isoString(date))
         ]
         guard let url = components.url else { throw RTTError.invalidResponse }
         return try await fetch(url)
