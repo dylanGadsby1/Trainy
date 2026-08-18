@@ -325,10 +325,13 @@ struct LiveDeparturesFeed: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var savedTrains: [SavedTrain]
 
-    @State private var services: [RTTAPIService] = []
+    @State private var services: [RTTServiceModel] = []
+    @State private var allFetchedRawServices: [RTTServiceModel] = []
+    @State private var loadedRawCount = 0
+    @State private var isFetchingMore = false
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var focusedTrain: RTTAPIService.ID?
+    @State private var focusedTrain: RTTServiceModel.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -416,6 +419,31 @@ struct LiveDeparturesFeed: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    
+                    if loadedRawCount < allFetchedRawServices.count {
+                        Button {
+                            Task {
+                                await fetchMoreDepartures()
+                            }
+                        } label: {
+                            if isFetchingMore {
+                                ProgressView()
+                                    .padding(.vertical, 16)
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                Text("See more trains +")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(Color.appleBlack)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            }
+                        }
+                        .disabled(isFetchingMore)
+                        .padding(.top, 8)
+                        .padding(.bottom, 20)
+                    }
                 }
                 .scrollTargetLayout()
                 .padding(.horizontal, 20)
@@ -434,81 +462,21 @@ struct LiveDeparturesFeed: View {
         isLoading = true
         errorMessage = nil
         do {
-            let res = try await RTTService.shared.departures(from: origin.crs, on: date, to: destination.crs)
+            let res = try await RTTService.shared.departures(from: origin.crs, on: date, to: destination.crs, timeWindow: 1439)
             let rawServices = res.services ?? []
-            let limitedServices = Array(rawServices.prefix(5))
             
-            let detailedServices = try await withThrowingTaskGroup(of: RTTServiceModel?.self) { group in
-                for service in limitedServices {
-                    group.addTask {
-                        var mutableService = service
-                        mutableService.userSearchOriginCRS = origin.crs
-                        mutableService.userSearchDestinationCRS = destination.crs
-                        
-                        guard let identity = service.scheduleMetadata?.identity,
-                              let runDate = service.scheduleMetadata?.departureDate else {
-                            // Fallback mock
-                            let departureTimeStr = mutableService.scheduledDeparture
-                            let dateFormatter = DateFormatter()
-                            dateFormatter.dateFormat = "HH:mm"
-                            if let depTime = dateFormatter.date(from: departureTimeStr) {
-                                let mockArrivalTime = depTime.addingTimeInterval(3600)
-                                mutableService.userSearchDestinationArrivalTime = dateFormatter.string(from: mockArrivalTime)
-                            } else {
-                                mutableService.userSearchDestinationArrivalTime = "--:--"
-                            }
-                            return mutableService
-                        }
-                        
-                        do {
-                            let details = try await RTTService.shared.serviceDetails(identity: identity, date: runDate)
-                            if let calls = details.service?.locations,
-                               let destCall = calls.first(where: { $0.location?.shortCodes?.contains(destination.crs) == true }) {
-                                
-                                let arrival = destCall.temporalData?.arrival
-                                let actual = arrival?.realtimeActual
-                                let forecast = arrival?.realtimeForecast
-                                let scheduled = arrival?.scheduleAdvertised
-                                
-                                let bestTime = actual ?? forecast ?? scheduled ?? ""
-                                if bestTime.count >= 19 {
-                                    let timePart = bestTime.split(separator: "T").last ?? ""
-                                    if timePart.count >= 5 {
-                                        mutableService.userSearchDestinationArrivalTime = String(timePart.prefix(5))
-                                    } else {
-                                        mutableService.userSearchDestinationArrivalTime = "--:--"
-                                    }
-                                } else {
-                                    mutableService.userSearchDestinationArrivalTime = "--:--"
-                                }
-                                
-                                if let sched = scheduled, sched.count >= 19 {
-                                    let timePart = sched.split(separator: "T").last ?? ""
-                                    if timePart.count >= 5 {
-                                        mutableService.userSearchDestinationScheduledArrivalTime = String(timePart.prefix(5))
-                                    }
-                                }
-                            } else {
-                                mutableService.userSearchDestinationArrivalTime = "--:--"
-                            }
-                        } catch {
-                            mutableService.userSearchDestinationArrivalTime = "--:--"
-                        }
-                        
-                        return mutableService
-                    }
-                }
-                
-                var results = [RTTServiceModel]()
-                for try await result in group {
-                    if let s = result { results.append(s) }
-                }
-                // Restore order by scheduled departure string (HH:mm)
-                results.sort { $0.scheduledDeparture < $1.scheduledDeparture }
-                return results
-            }
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let targetDateString = dateFormatter.string(from: date)
+            
+            let sameDayTrains = rawServices.filter { $0.scheduleMetadata?.departureDate == targetDateString }
+            let initialBatch = Array(sameDayTrains.prefix(10))
+            
+            let detailedServices = await resolveDetails(for: initialBatch)
             
             await MainActor.run {
+                self.allFetchedRawServices = rawServices
+                self.loadedRawCount = initialBatch.count
                 self.services = detailedServices
                 self.isLoading = false
             }
@@ -517,8 +485,95 @@ struct LiveDeparturesFeed: View {
                 self.errorMessage = "Failed to load live data. \(error.localizedDescription)"
                 self.isLoading = false
             }
-
         }
+    }
+    
+    private func fetchMoreDepartures() async {
+        guard loadedRawCount < allFetchedRawServices.count else { return }
+        
+        await MainActor.run { isFetchingMore = true }
+        
+        let nextBatchSize = min(10, allFetchedRawServices.count - loadedRawCount)
+        let nextBatch = Array(allFetchedRawServices[loadedRawCount ..< (loadedRawCount + nextBatchSize)])
+        
+        let newDetailedServices = await resolveDetails(for: nextBatch)
+        
+        await MainActor.run {
+            self.services.append(contentsOf: newDetailedServices)
+            self.loadedRawCount += nextBatchSize
+            self.isFetchingMore = false
+        }
+    }
+    
+    private func resolveDetails(for batch: [RTTServiceModel]) async -> [RTTServiceModel] {
+        let results = await withTaskGroup(of: (Int, RTTServiceModel?).self) { group in
+            for (index, service) in batch.enumerated() {
+                group.addTask {
+                    var mutableService = service
+                    mutableService.userSearchOriginCRS = origin.crs
+                    mutableService.userSearchDestinationCRS = destination.crs
+                    
+                    guard let identity = service.scheduleMetadata?.identity,
+                          let runDate = service.scheduleMetadata?.departureDate else {
+                        // Fallback mock
+                        let departureTimeStr = mutableService.scheduledDeparture
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.dateFormat = "HH:mm"
+                        if let depTime = dateFormatter.date(from: departureTimeStr) {
+                            let mockArrivalTime = depTime.addingTimeInterval(3600)
+                            mutableService.userSearchDestinationArrivalTime = dateFormatter.string(from: mockArrivalTime)
+                        } else {
+                            mutableService.userSearchDestinationArrivalTime = "--:--"
+                        }
+                        return (index, mutableService)
+                    }
+                    
+                    do {
+                        let details = try await RTTService.shared.serviceDetails(identity: identity, date: runDate)
+                        if let calls = details.service?.locations,
+                           let destCall = calls.first(where: { $0.location?.shortCodes?.contains(destination.crs) == true }) {
+                            
+                            let arrival = destCall.temporalData?.arrival
+                            let actual = arrival?.realtimeActual
+                            let forecast = arrival?.realtimeForecast
+                            let scheduled = arrival?.scheduleAdvertised
+                            
+                            let bestTime = actual ?? forecast ?? scheduled ?? ""
+                            if bestTime.count >= 19 {
+                                let timePart = bestTime.split(separator: "T").last ?? ""
+                                if timePart.count >= 5 {
+                                    mutableService.userSearchDestinationArrivalTime = String(timePart.prefix(5))
+                                } else {
+                                    mutableService.userSearchDestinationArrivalTime = "--:--"
+                                }
+                            } else {
+                                mutableService.userSearchDestinationArrivalTime = "--:--"
+                            }
+                            
+                            if let sched = scheduled, sched.count >= 19 {
+                                let timePart = sched.split(separator: "T").last ?? ""
+                                if timePart.count >= 5 {
+                                    mutableService.userSearchDestinationScheduledArrivalTime = String(timePart.prefix(5))
+                                }
+                            }
+                        } else {
+                            mutableService.userSearchDestinationArrivalTime = "--:--"
+                        }
+                    } catch {
+                        mutableService.userSearchDestinationArrivalTime = "--:--"
+                    }
+                    
+                    return (index, mutableService)
+                }
+            }
+            
+            var unordered = [(Int, RTTServiceModel)]()
+            for await result in group {
+                if let s = result.1 { unordered.append((result.0, s)) }
+            }
+            return unordered.sorted { $0.0 < $1.0 }.map { $1 }
+        }
+        return results
     }
 }
 

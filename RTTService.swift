@@ -107,14 +107,18 @@ final class RTTService {
 
 
     /// Departures from a station for a specific date.
-    func departures(from origin: String, on date: Date, to destination: String) async throws -> RTTSearchResponse {
+    func departures(from origin: String, on date: Date, to destination: String, timeWindow: Int? = nil) async throws -> RTTSearchResponse {
         var components = URLComponents(string: "\(baseURL)/gb-nr/location")!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "code", value: origin),
             URLQueryItem(name: "filterTo", value: destination),
             URLQueryItem(name: "detailed", value: "true"),
             URLQueryItem(name: "timeFrom", value: isoString(date))
         ]
+        if let timeWindow = timeWindow {
+            queryItems.append(URLQueryItem(name: "timeWindow", value: String(timeWindow)))
+        }
+        components.queryItems = queryItems
         guard let url = components.url else { throw RTTError.invalidResponse }
         return try await fetch(url)
     }
