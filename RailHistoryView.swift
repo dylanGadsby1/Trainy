@@ -75,6 +75,9 @@ struct PastTrainsView: View {
                                                     statusColor: service.trainStatus.color
                                                 )
                                             }
+                                            .simultaneousGesture(TapGesture().onEnded {
+                                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                            })
                                             .buttonStyle(.plain)
 
                                             // Delete button
@@ -111,6 +114,7 @@ struct PastTrainsView: View {
             titleVisibility: .visible
         ) {
             Button("Remove", role: .destructive) {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
                 if let train = trainToDelete {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         modelContext.delete(train)
@@ -289,6 +293,9 @@ private struct PastTrainsSheetContent: View {
                                          statusColor: service.trainStatus.color
                                      )
                                  }
+                                 .simultaneousGesture(TapGesture().onEnded {
+                                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                 })
                                  .buttonStyle(.plain)
 
                                  // Delete button

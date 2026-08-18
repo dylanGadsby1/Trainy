@@ -693,6 +693,7 @@ struct MapToggleButton: View {
             HStack {
                 Spacer()
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     withAnimation {
                         isSatelliteMap.toggle()
                     }
@@ -722,6 +723,7 @@ struct ProfileToggleButton: View {
         VStack {
             HStack {
                 Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     showingProfile = true
                 } label: {
                     Image(systemName: "person.fill")
@@ -901,6 +903,7 @@ struct ContentView: View {
             ProfileView()
         }
         .onChange(of: selectedTab) { _, _ in
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             if let cam = currentCamera {
                 cameraPosition = .camera(cam)
             }

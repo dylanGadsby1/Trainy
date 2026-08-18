@@ -328,6 +328,7 @@ struct LiveDeparturesFeed: View {
     @State private var services: [RTTAPIService] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var focusedTrain: RTTAPIService.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -398,6 +399,7 @@ struct LiveDeparturesFeed: View {
                 LazyVStack(spacing: 16) {
                     ForEach(services) { service in
                         Button {
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
                             if !savedTrains.contains(where: { $0.id == service.id }) {
                                 if let data = try? JSONEncoder().encode(service) {
                                     let newSavedTrain = SavedTrain(id: service.id, serviceData: data)
@@ -415,8 +417,13 @@ struct LiveDeparturesFeed: View {
                         .buttonStyle(.plain)
                     }
                 }
+                .scrollTargetLayout()
                 .padding(.horizontal, 20)
             }
+        }
+        .scrollPosition(id: $focusedTrain)
+        .onChange(of: focusedTrain) { _, _ in
+            UISelectionFeedbackGenerator().selectionChanged()
         }
         .task {
             await fetchDepartures()

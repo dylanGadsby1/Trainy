@@ -389,6 +389,7 @@ struct HomeSheetView: View {
             titleVisibility: .visible
         ) {
             Button("Remove", role: .destructive) {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
                 if let train = trainToDelete {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         modelContext.delete(train)
@@ -434,6 +435,7 @@ struct HomeSheetView: View {
                     if let train = savedTrain.service {
                         ZStack(alignment: .topTrailing) {
                             Button {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 selectedTrain = train
                             } label: {
                                 MyTrainCard(train: train)
