@@ -1090,6 +1090,7 @@ struct DeparturesBoardView: View {
                             
                             if displayedServices.count < allServices.count {
                                 Button(action: {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     withAnimation {
                                         displayLimit += 10
                                         displayedServices = Array(allServices.prefix(displayLimit))

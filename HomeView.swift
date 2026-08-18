@@ -466,6 +466,7 @@ struct HomeSheetView: View {
 
                 // Add card — always last, to the right of trains
                 Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
                         selectedTab = 2
                         currentDetent = .full

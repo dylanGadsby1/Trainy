@@ -10,6 +10,7 @@ struct PastTrainsView: View {
 
     @State private var trainToDelete: SavedTrain?
     @State private var showingDeleteConfirmation = false
+    @State private var focusedTrain: String?
 
     var body: some View {
         ZStack {
@@ -98,14 +99,20 @@ struct PastTrainsView: View {
                                             .buttonStyle(.plain)
                                             .offset(x: 6, y: -6)
                                         }
+                                        .id(savedTrain.id)
                                     }
                                 }
                             }
+                            .scrollTargetLayout()
                             .padding(.horizontal, 20)
                         }
                     }
                     .padding(.bottom, 40)
                 }
+            }
+            .scrollPosition(id: $focusedTrain)
+            .onChange(of: focusedTrain) { _, _ in
+                UISelectionFeedbackGenerator().selectionChanged()
             }
         }
         .confirmationDialog(
@@ -236,6 +243,7 @@ private struct PastTrainsSheetContent: View {
 
     @State private var trainToDelete: SavedTrain?
     @State private var showingDeleteConfirmation = false
+    @State private var focusedTrain: String?
 
     var body: some View {
         Group {
@@ -316,11 +324,17 @@ private struct PastTrainsSheetContent: View {
                                  .buttonStyle(.plain)
                                  .offset(x: 6, y: -6)
                              }
+                             .id(savedTrain.id)
                          }
                      }
                 }
+                .scrollTargetLayout()
                 .padding(.horizontal, 20)
             }
+        }
+        .scrollPosition(id: $focusedTrain)
+        .onChange(of: focusedTrain) { _, _ in
+            UISelectionFeedbackGenerator().selectionChanged()
         }
         .confirmationDialog(
             "Remove Train",

@@ -55,6 +55,7 @@ struct AddTrainSheetContent: View {
                         VStack(spacing: 0) {
                             // From
                             Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 showingOriginPicker = true
                             } label: {
                                 HStack(spacing: 14) {
@@ -89,6 +90,7 @@ struct AddTrainSheetContent: View {
 
                             // To
                             Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 showingDestinationPicker = true
                             } label: {
                                 HStack(spacing: 14) {
@@ -152,6 +154,7 @@ struct AddTrainSheetContent: View {
 
                         // Search button
                         Button {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             guard originStation != nil && destinationStation != nil else { return }
                             withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
                                 showingResults = true
@@ -296,6 +299,7 @@ struct StationPickerView: View {
     @ViewBuilder
     private func stationRow(_ station: UKStation) -> some View {
         Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             RecentStationSearches.record(station)
             selectedStation = station
             dismiss()
@@ -338,6 +342,7 @@ struct LiveDeparturesFeed: View {
             // Header
             HStack(spacing: 16) {
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
                         showingResults = false
                     }
@@ -418,10 +423,12 @@ struct LiveDeparturesFeed: View {
                             MyTrainCard(train: service)
                         }
                         .buttonStyle(.plain)
+                        .id(service.id)
                     }
                     
                     if loadedRawCount < allFetchedRawServices.count {
                         Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             Task {
                                 await fetchMoreDepartures()
                             }
