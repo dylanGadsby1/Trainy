@@ -877,6 +877,7 @@ struct ContentView: View {
 
                         PastTrainsSheetView(currentDetent: $globalSheetDetent)
                     }
+                    .toolbar(.hidden, for: .navigationBar)
                 }
             }
 
