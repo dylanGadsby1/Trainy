@@ -232,58 +232,35 @@ struct TimelineCard: View {
                 HStack {
                     StationTimeView(station: journey.origin)
                     Spacer()
-                    StationTimeView(station: journey.intermediate)
-                    Spacer()
                     StationTimeView(station: journey.destination)
                 }
 
                 GeometryReader { geo in
                     let w = geo.size.width
-                    let seg1End = w * 0.45
-                    let trainX = w * journey.progressFraction
 
                     ZStack(alignment: .leading) {
                         Capsule()
                             .fill(AdaptiveColor.track.resolve(in: colorScheme))
                             .frame(height: 5)
 
-                        Capsule()
+                        Circle()
                             .fill(Color.green)
-                            .frame(width: seg1End, height: 5)
+                            .frame(width: 12, height: 12)
+                            .overlay(Circle().stroke(Color.appleBlack.opacity(0.15), lineWidth: 1))
+                            .offset(x: -6)
 
-                        Capsule()
-                            .fill(Color.appleBlack.opacity(0.12))
-                            .frame(width: w - seg1End, height: 5)
-                            .offset(x: seg1End)
-
-                        ForEach(0..<3) { i in
-                            let fraction = timelineFractions[i]
-                            Circle()
-                                .fill(fraction <= CGFloat(journey.progressFraction)
-                                      ? Color.green
-                                      : AdaptiveColor.dotUnvisited.resolve(in: colorScheme))
-                                .frame(width: 12, height: 12)
-                                .overlay(Circle().stroke(Color.appleBlack.opacity(0.15), lineWidth: 1))
-                                .offset(x: w * fraction - 6)
-                        }
-
-                        Image(systemName: "tram.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(6)
-                            .background(Color.appleBlack)
-                            .clipShape(Circle())
-                            .offset(x: trainX - 13, y: -22)
+                        Circle()
+                            .fill(AdaptiveColor.dotUnvisited.resolve(in: colorScheme))
+                            .frame(width: 12, height: 12)
+                            .overlay(Circle().stroke(Color.appleBlack.opacity(0.15), lineWidth: 1))
+                            .offset(x: w - 6)
                     }
                 }
-                .frame(height: 40)
+                .frame(height: 12)
+                .padding(.vertical, 8)
 
                 HStack {
                     Text(journey.origin.code)
-                        .font(.system(size: 13, weight: .black))
-                        .foregroundColor(AdaptiveColor.stationCode.resolve(in: colorScheme))
-                    Spacer()
-                    Text(journey.intermediate.code)
                         .font(.system(size: 13, weight: .black))
                         .foregroundColor(AdaptiveColor.stationCode.resolve(in: colorScheme))
                     Spacer()
@@ -291,175 +268,6 @@ struct TimelineCard: View {
                         .font(.system(size: 13, weight: .black))
                         .foregroundColor(AdaptiveColor.stationCode.resolve(in: colorScheme))
                 }
-            }
-        }
-    }
-}
-
-// MARK: - Congestion Card (Card A)
-
-struct CongestionCard: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let journey: TrainJourney
-
-    var body: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Label("ROOT CAUSE", systemImage: "waveform.path.ecg")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                        .tracking(1)
-                    Spacer()
-                    Text("\(journey.confidence)% CONFIDENCE")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.appBlue)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Color.appBlue.opacity(0.15))
-                        .clipShape(Capsule())
-                }
-
-                Text("CONGESTION AT\nRUGBY JUNCTION")
-                    .font(.system(size: 18, weight: .black))
-                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    .lineSpacing(2)
-
-                HStack(spacing: 4) {
-                    ForEach(0..<barHeights.count, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(Color.appleBlack.opacity(0.12 + 0.08 * barHeights[i]))
-                            .frame(width: 14, height: 50 * barHeights[i])
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: 52)
-
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("HISTORICAL AVG")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                            .tracking(0.5)
-                        Text("+\(journey.congestionAvgDelay)m")
-                            .font(.system(size: 20, weight: .black))
-                            .foregroundColor(.appBlue)
-                    }
-                    Divider()
-                        .frame(height: 30)
-                        .background(AdaptiveColor.divider.resolve(in: colorScheme))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("AFFECTED SERVICES")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                            .tracking(0.5)
-                        Text("3 of 4 Today")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Rolling Stock Card (Card B)
-
-struct RollingStockCard: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let journey: TrainJourney
-
-    var body: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("EQUIPMENT PROFILE", systemImage: "tram.fill")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                    .tracking(1)
-
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Unit: \(journey.trainUnit)")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                        Text("\(journey.trainType)\n(\(journey.trainCars) CARS)")
-                            .font(.system(size: 16, weight: .black))
-                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                            .lineSpacing(2)
-                    }
-                    Spacer()
-                    Image(systemName: "tram.fill")
-                        .font(.system(size: 36))
-                        .foregroundColor(AdaptiveColor.equipmentIconTop.resolve(in: colorScheme))
-                }
-
-                Divider().background(AdaptiveColor.divider.resolve(in: colorScheme))
-
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("INBOUND ARRIVAL DELAY")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                            .tracking(0.5)
-                        Spacer()
-                        Text("+\(journey.inboundLateMinutes)m late")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.appBlue)
-                    }
-                    ProgressView(value: Double(journey.inboundLateMinutes), total: 30.0)
-                        .tint(.appBlue)
-                        .scaleEffect(x: 1, y: 1.6, anchor: .center)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Connection Risk Card (Card C)
-
-struct ConnectionRiskCard: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let journey: TrainJourney
-
-    var body: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("EUSTON CONNECTION RISK", systemImage: "arrow.triangle.swap")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                    .tracking(1)
-
-                HStack(alignment: .center, spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.green.opacity(0.15))
-                            .frame(width: 52, height: 52)
-                        Image(systemName: "checkmark.shield.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.green)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(journey.connectionRisk)
-                            .font(.system(size: 20, weight: .black))
-                            .foregroundColor(.green)
-                        Text(journey.connectionService)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                    }
-                    Spacer()
-                }
-
-                HStack(spacing: 8) {
-                    Image(systemName: "figure.walk")
-                        .font(.system(size: 13))
-                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                    Text("\(journey.transferMinutes) min transfer · Platforms nearby")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                }
-                .padding(10)
-                .background(AdaptiveColor.subtleFill.resolve(in: colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
     }
@@ -475,61 +283,44 @@ struct ArrivalContextCard: View {
         GlassCard {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("PREDICTED PLATFORM", systemImage: "signpost.right.fill")
+                    Label("PLATFORM", systemImage: "signpost.right.fill")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                         .tracking(1)
 
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("\(journey.platform)")
-                            .font(.system(size: 56, weight: .black))
-                            .foregroundColor(AdaptiveColor.platformTop.resolve(in: colorScheme))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(journey.platformProbability)%")
-                                .font(.system(size: 22, weight: .black))
-                                .foregroundColor(.green)
-                            Text("Probability")
-                                .font(.system(size: 11, weight: .semibold))
+                    Text("\(journey.platform)")
+                        .font(.system(size: 56, weight: .black))
+                        .foregroundColor(AdaptiveColor.platformTop.resolve(in: colorScheme))
+                }
+
+                if journey.delayMinutes >= 15 {
+                    Divider().background(AdaptiveColor.divider.resolve(in: colorScheme))
+
+                    HStack(alignment: .center, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "sterlingsign.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.yellow)
+                                Text("DELAY REPAY ELIGIBLE")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.yellow)
+                                    .tracking(0.5)
+                            }
+                            Text("\(journey.delayMinutes)+ min delay · \(journey.trainType)")
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                         }
+                        Spacer()
                     }
+                    .padding(12)
+                    .background(Color.yellow.opacity(0.07))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.yellow.opacity(0.20), lineWidth: 1)
+                    )
                 }
-
-                Divider().background(AdaptiveColor.divider.resolve(in: colorScheme))
-
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "sterlingsign.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(.yellow)
-                            Text("DELAY REPAY ELIGIBLE")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.yellow)
-                                .tracking(0.5)
-                        }
-                        Text("\(journey.delayMinutes)+ min delay · Avanti West Coast")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                    }
-                    Spacer()
-                    Button(action: {}) {
-                        Text("CLAIM NOW")
-                            .font(.system(size: 13, weight: .black))
-                            .foregroundColor(Color.appleBlack)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(Color.yellow)
-                            .clipShape(Capsule())
-                    }
-                }
-                .padding(12)
-                .background(Color.yellow.opacity(0.07))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.yellow.opacity(0.20), lineWidth: 1)
-                )
             }
         }
     }
@@ -553,12 +344,13 @@ struct JourneyDashboardView: View {
                     // Header row
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
+                            Text(journey.trainType.uppercased())
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                .tracking(1.5)
                             Text("\(journey.origin.code) → \(journey.destination.code)")
                                 .font(.system(size: 22, weight: .black))
                                 .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                            Text(journey.trainType)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                         }
                         Spacer()
 
@@ -587,7 +379,7 @@ struct JourneyDashboardView: View {
                             }
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 4)
 
                     StatusHeaderCard(journey: journey)
                     TimelineCard(journey: journey)
@@ -604,7 +396,7 @@ struct JourneyDashboardView: View {
 
                     Spacer(minLength: 32)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
             }
         }
     }
