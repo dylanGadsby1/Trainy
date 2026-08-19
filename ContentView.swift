@@ -563,6 +563,7 @@ struct JourneyDashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let journey: TrainJourney
+    var rawService: RTTAPIService? = nil
 
     var body: some View {
         ZStack {
@@ -584,6 +585,19 @@ struct JourneyDashboardView: View {
                         Spacer()
 
                         HStack(spacing: 10) {
+                            if let service = rawService {
+                                Button(action: {
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    LiveActivityManager.shared.startTracking(service: service)
+                                }) {
+                                    Image(systemName: "livephoto")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.red)
+                                        .padding(10)
+                                        .background(Color(red: 1, green: 1, blue: 1))
+                                        .clipShape(Circle())
+                                }
+                            }
                             // Bell button
                             Button(action: {}) {
                                 Image(systemName: "bell.badge.fill")

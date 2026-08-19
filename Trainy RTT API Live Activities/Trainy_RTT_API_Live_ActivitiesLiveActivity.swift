@@ -1,80 +1,121 @@
-//
-//  Trainy_RTT_API_Live_ActivitiesLiveActivity.swift
-//  Trainy RTT API Live Activities
-//
-//  Created by Dylan Gadsby on 18/08/2026.
-//
-
 import ActivityKit
 import WidgetKit
 import SwiftUI
 
-struct Trainy_RTT_API_Live_ActivitiesAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        // Dynamic stateful properties about your activity go here!
-        var emoji: String
-    }
-
-    // Fixed non-changing properties about your activity go here!
-    var name: String
-}
-
 struct Trainy_RTT_API_Live_ActivitiesLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: Trainy_RTT_API_Live_ActivitiesAttributes.self) { context in
+        ActivityConfiguration(for: TrainyActivityAttributes.self) { context in
             // Lock screen/banner UI goes here
-            VStack {
-                Text("Hello \(context.state.emoji)")
-            }
-            .activityBackgroundTint(Color.cyan)
-            .activitySystemActionForegroundColor(Color.black)
-
+            LiveActivityLockScreenView(context: context)
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded UI goes here.  Compose the expanded UI through
-                // various regions, like leading/trailing/center/bottom
+                // Expanded UI goes here.
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("Leading")
+                    HStack(spacing: 4) {
+                        Image(systemName: "tram.fill")
+                        Text(context.attributes.originCRS)
+                            .font(.headline)
+                    }
+                    .foregroundColor(.primary)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text("Trailing")
+                    Text(context.attributes.destinationCRS)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    Text(context.state.expectedDeparture)
+                        .font(.body)
+                        .bold()
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("Bottom \(context.state.emoji)")
-                    // more content
+                    HStack {
+                        if context.state.isCancelled {
+                            Text("Cancelled")
+                                .foregroundColor(.red)
+                                .bold()
+                        } else if context.state.delayMinutes > 0 {
+                            Text("Delayed \(context.state.delayMinutes)m")
+                                .foregroundColor(.red)
+                                .bold()
+                        } else {
+                            Text("On Time")
+                                .foregroundColor(.green)
+                                .bold()
+                        }
+                        Spacer()
+                        Text("Plat \(context.state.platform.isEmpty ? "TBC" : context.state.platform)")
+                            .font(.subheadline)
+                    }
                 }
             } compactLeading: {
-                Text("L")
+                Text("\(context.attributes.originCRS)")
+                    .font(.caption)
+                    .bold()
             } compactTrailing: {
-                Text("T \(context.state.emoji)")
+                Text(context.state.expectedDeparture)
+                    .font(.caption)
+                    .foregroundColor(context.state.isCancelled || context.state.delayMinutes > 0 ? .red : .green)
             } minimal: {
-                Text(context.state.emoji)
+                Image(systemName: "tram.fill")
+                    .foregroundColor(context.state.isCancelled || context.state.delayMinutes > 0 ? .red : .green)
             }
-            .widgetURL(URL(string: "http://www.apple.com"))
-            .keylineTint(Color.red)
+            .widgetURL(URL(string: "trainy://train/\(context.attributes.trainId)"))
+            .keylineTint(Color.cyan)
         }
     }
 }
 
-extension Trainy_RTT_API_Live_ActivitiesAttributes {
-    fileprivate static var preview: Trainy_RTT_API_Live_ActivitiesAttributes {
-        Trainy_RTT_API_Live_ActivitiesAttributes(name: "World")
+struct LiveActivityLockScreenView: View {
+    let context: ActivityViewContext<TrainyActivityAttributes>
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(context.attributes.operatorCode)
+                    .font(.caption)
+                    .bold()
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.white.opacity(0.2))
+                    .cornerRadius(4)
+                
+                Spacer()
+                
+                Text(context.state.expectedDeparture)
+                    .font(.headline)
+            }
+            
+            HStack {
+                Text(context.attributes.originName)
+                Image(systemName: "arrow.right")
+                Text(context.attributes.destinationName)
+            }
+            .font(.subheadline)
+            .bold()
+            
+            HStack {
+                if context.state.isCancelled {
+                    Text("Cancelled")
+                        .foregroundColor(.red)
+                        .bold()
+                } else if context.state.delayMinutes > 0 {
+                    Text("\(context.state.delayMinutes)m late")
+                        .foregroundColor(.red)
+                        .bold()
+                } else {
+                    Text("On Time")
+                        .foregroundColor(.green)
+                        .bold()
+                }
+                Spacer()
+                Text("Platform \(context.state.platform.isEmpty ? "TBC" : context.state.platform)")
+                    .foregroundColor(.white.opacity(0.8))
+            }
+            .font(.caption)
+        }
+        .padding()
+        .activityBackgroundTint(Color(red: 0.1, green: 0.1, blue: 0.15))
+        .activitySystemActionForegroundColor(Color.white)
     }
-}
-
-extension Trainy_RTT_API_Live_ActivitiesAttributes.ContentState {
-    fileprivate static var smiley: Trainy_RTT_API_Live_ActivitiesAttributes.ContentState {
-        Trainy_RTT_API_Live_ActivitiesAttributes.ContentState(emoji: "😀")
-     }
-     
-     fileprivate static var starEyes: Trainy_RTT_API_Live_ActivitiesAttributes.ContentState {
-         Trainy_RTT_API_Live_ActivitiesAttributes.ContentState(emoji: "🤩")
-     }
-}
-
-#Preview("Notification", as: .content, using: Trainy_RTT_API_Live_ActivitiesAttributes.preview) {
-   Trainy_RTT_API_Live_ActivitiesLiveActivity()
-} contentStates: {
-    Trainy_RTT_API_Live_ActivitiesAttributes.ContentState.smiley
-    Trainy_RTT_API_Live_ActivitiesAttributes.ContentState.starEyes
 }

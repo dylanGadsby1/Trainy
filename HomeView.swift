@@ -381,7 +381,7 @@ struct HomeSheetView: View {
             homeContent
         }
         .sheet(item: $selectedTrain) { train in
-            JourneyDashboardView(journey: train.toTrainJourney())
+            JourneyDashboardView(journey: train.toTrainJourney(), rawService: train)
         }
         .confirmationDialog(
             "Remove Train",

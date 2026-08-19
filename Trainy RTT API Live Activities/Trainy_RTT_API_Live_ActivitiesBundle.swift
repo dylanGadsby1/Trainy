@@ -11,8 +11,6 @@ import SwiftUI
 @main
 struct Trainy_RTT_API_Live_ActivitiesBundle: WidgetBundle {
     var body: some Widget {
-        Trainy_RTT_API_Live_Activities()
-        Trainy_RTT_API_Live_ActivitiesControl()
         Trainy_RTT_API_Live_ActivitiesLiveActivity()
     }
 }
