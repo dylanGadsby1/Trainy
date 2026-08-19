@@ -92,46 +92,24 @@ struct TrainStation {
 
 struct TrainJourney {
     let origin: TrainStation
-    let intermediate: TrainStation
     let destination: TrainStation
     let scheduledDeparture: String
     let predictedArrival: String
     let actualArrival: String
     let delayMinutes: Int
-    let confidence: Int
-    let platform: Int
-    let platformProbability: Int
-    let trainUnit: String
+    let platform: String
     let trainType: String
-    let trainCars: Int
-    let inboundLateMinutes: Int
-    let connectionRisk: String
-    let connectionService: String
-    let transferMinutes: Int
-    let congestionAvgDelay: Int
-    let progressFraction: Double
 }
 
 let mockJourney = TrainJourney(
     origin: TrainStation(code: "LPY", name: "Long Preston", scheduled: "11:00", actual: "11:00"),
-    intermediate: TrainStation(code: "RUG", name: "Rugby", scheduled: "11:52", actual: "11:58"),
     destination: TrainStation(code: "EUS", name: "London Euston", scheduled: "12:45", actual: "13:01"),
-    scheduledDeparture: "11:00 LPY-EUS",
+    scheduledDeparture: "11:00",
     predictedArrival: "13:01",
     actualArrival: "12:45",
-    delayMinutes: 16,
-    confidence: 89,
-    platform: 12,
-    platformProbability: 98,
-    trainUnit: "390151",
-    trainType: "AVANTI PENDOLINO",
-    trainCars: 9,
-    inboundLateMinutes: 14,
-    connectionRisk: "LOW RISK",
-    connectionService: "14:51 Southeastern Service",
-    transferMinutes: 5,
-    congestionAvgDelay: 11,
-    progressFraction: 0.72
+    delayMinutes: 0,
+    platform: "12",
+    trainType: "AVANTI PENDOLINO"
 )
 
 // MARK: - Bar chart data
@@ -174,12 +152,12 @@ struct StatusHeaderCard: View {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Image(systemName: "tram.fill")
                                 .font(.system(size: 22, weight: .bold))
-                                .foregroundColor(.appBlue)
-                            Text("\(journey.delayMinutes)M DELAY PREDICTED")
+                                .foregroundColor(journey.delayMinutes > 0 ? .red : .green)
+                            Text(journey.delayMinutes > 0 ? "\(journey.delayMinutes)M DELAY PREDICTED" : "ON TIME")
                                 .font(.system(size: 24, weight: .black))
-                                .foregroundColor(.appBlue)
+                                .foregroundColor(journey.delayMinutes > 0 ? .red : .green)
                         }
-                        Text("BASED ON INBOUND EQUIPMENT (\(journey.scheduledDeparture))")
+                        Text("SCHEDULED DEPARTURE: \(journey.scheduledDeparture)")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                             .tracking(0.5)
@@ -575,10 +553,10 @@ struct JourneyDashboardView: View {
                     // Header row
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("LPY → EUS")
+                            Text("\(journey.origin.code) → \(journey.destination.code)")
                                 .font(.system(size: 22, weight: .black))
                                 .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                            Text("Tue 29 Jul · Avanti West Coast")
+                            Text(journey.trainType)
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                         }
@@ -615,18 +593,6 @@ struct JourneyDashboardView: View {
                     TimelineCard(journey: journey)
 
                     HStack {
-                        Text("PREDICTIVE INTELLIGENCE")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                            .tracking(1.5)
-                        Spacer()
-                    }
-
-                    CongestionCard(journey: journey)
-                    RollingStockCard(journey: journey)
-                    ConnectionRiskCard(journey: journey)
-
-                    HStack {
                         Text("ARRIVAL CONTEXT")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
@@ -655,30 +621,16 @@ extension RTTAPIService {
         
         let originStation = TrainStation(code: originCode, name: originCode, scheduled: scheduledDeparture, actual: realtimeDeparture)
         let destStation = TrainStation(code: destCode, name: destCode, scheduled: userSearchDestinationArrivalTime ?? scheduledDeparture, actual: userSearchDestinationArrivalTime ?? scheduledDeparture)
-        let intermediateStation = TrainStation(code: "INT", name: "Intermediate", scheduled: "--:--", actual: "--:--")
-        
-        let parsedPlatform = Int(platform) ?? Int.random(in: 1...12)
         
         return TrainJourney(
             origin: originStation,
-            intermediate: intermediateStation,
             destination: destStation,
             scheduledDeparture: "\(scheduledDeparture) \(originCode)-\(destCode)",
             predictedArrival: userSearchDestinationArrivalTime ?? scheduledDeparture,
             actualArrival: userSearchDestinationArrivalTime ?? scheduledDeparture,
             delayMinutes: delayMinutes,
-            confidence: Int.random(in: 80...99),
-            platform: parsedPlatform,
-            platformProbability: Int.random(in: 75...99),
-            trainUnit: ["390151", "802001", "350101", "158701"].randomElement()!,
-            trainType: atocName ?? "Unknown Service",
-            trainCars: [4, 5, 8, 9, 11].randomElement()!,
-            inboundLateMinutes: max(0, delayMinutes - Int.random(in: 1...5)),
-            connectionRisk: delayMinutes > 5 ? "ELEVATED RISK" : "LOW RISK",
-            connectionService: "Various Connections",
-            transferMinutes: Int.random(in: 3...15),
-            congestionAvgDelay: Int.random(in: 2...12),
-            progressFraction: 0.15
+            platform: platform,
+            trainType: atocName ?? "Unknown Service"
         )
     }
 }
