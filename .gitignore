@@ -1,0 +1,24 @@
+# Secrets - Keep API keys private!
+Secrets.swift
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# macOS
+.DS_Store
+
+# Python scratch environment
+.venv/
+__pycache__/
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# Build artifacts
+*.ipa
+*.dSYM.zip
+*.dSYM
