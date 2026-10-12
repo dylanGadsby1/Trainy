@@ -516,6 +516,57 @@ struct FloatingTabBar: UIViewRepresentable {
     }
 }
 
+// MARK: - Station Callout
+
+/// A speech bubble that rises from a selected station on the map and opens its departures board.
+struct StationCallout: View {
+    /// Height of a selected map marker's balloon, which the bubble has to sit above
+    static let markerClearance: CGFloat = 86
+
+    let name: String
+    let action: () -> Void
+
+    private let pointerSize = CGSize(width: 18, height: 9)
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 0) {
+                VStack(spacing: 2) {
+                    Text(name.uppercased())
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(Color.appleBlack.opacity(0.45))
+                        .tracking(1)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text("See departures board")
+                            .font(.system(size: 14, weight: .bold))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundColor(.appleBlack)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                // The bubble's tail, pointing down at the station
+                Path { path in
+                    path.move(to: .zero)
+                    path.addLine(to: CGPoint(x: pointerSize.width, y: 0))
+                    path.addLine(to: CGPoint(x: pointerSize.width / 2, y: pointerSize.height))
+                    path.closeSubpath()
+                }
+                .fill(Color.white)
+                .frame(width: pointerSize.width, height: pointerSize.height)
+            }
+            .shadow(color: .black.opacity(0.22), radius: 8, y: 3)
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+    }
+}
+
 // MARK: - Map Toggle Button
 
 struct MapToggleButton: View {
@@ -616,9 +667,13 @@ struct ContentView: View {
     @State private var visibleRegion: MKCoordinateRegion? = nil
     @State private var selectedStationCRS: String? = nil
     
-    @State private var showingStationOptions = false
     @State private var showingDeparturesBoard = false
-    @State private var selectedNonHighlightedStation: String? = nil
+    /// The station whose departures board is open. Kept apart from the map selection,
+    /// which the map clears by itself when the user taps elsewhere.
+    @State private var departuresBoardCRS: String? = nil
+
+    /// Stations show once the camera is closer than this, in metres
+    private let stationVisibilityDistance: Double = 20_000
 
     private var highlightedStations: Set<String> {
         let bookedOrigins = Set(liveServices.map { $0.userSearchOriginCRS ?? $0.originCRS })
@@ -638,7 +693,7 @@ struct ContentView: View {
     }
     
     private var visibleUnhighlightedUKStations: [UKStation] {
-        guard cameraDistance < 5000, let region = visibleRegion else { return [] }  // Reduced from 15000
+        guard cameraDistance < stationVisibilityDistance, let region = visibleRegion else { return [] }
         let highlighted = highlightedStations
         // A full span either side of the centre: what is on screen plus half a screen of
         // margin, so a station just past the edge is already there after a small pan
@@ -647,6 +702,18 @@ struct ContentView: View {
         return ukStations.filter {
             latitudes.contains($0.lat) && longitudes.contains($0.lon) && !highlighted.contains($0.crs)
         }
+    }
+
+    /// The selected station, when it is not part of one of the user's journeys: it gets a
+    /// callout offering its departures board.
+    private var calloutStation: UKStation? {
+        guard let selected = selectedStationCRS else { return nil }
+        let myStations = Set(liveServices.flatMap { [
+            $0.userSearchOriginCRS ?? $0.originCRS,
+            $0.userSearchDestinationCRS ?? $0.destinationCRS
+        ] })
+        guard !myStations.contains(selected) else { return nil }
+        return ukStations.first { $0.crs == selected }
     }
 
     @MapContentBuilder
@@ -661,6 +728,19 @@ struct ContentView: View {
             Marker(station.crs, systemImage: "tram.fill", coordinate: station.coordinate)
                 .tint(.white)
                 .tag(station.crs)
+        }
+
+        if let station = calloutStation {
+            Annotation("", coordinate: station.coordinate, anchor: .bottom) {
+                StationCallout(name: station.name) {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    departuresBoardCRS = station.crs
+                    showingDeparturesBoard = true
+                }
+                // Clear the selected marker's balloon, which stands this tall above the station
+                .padding(.bottom, StationCallout.markerClearance)
+            }
+            .annotationTitles(.hidden)
         }
 
         if routeCoordinates.count > 1 {
@@ -720,33 +800,11 @@ struct ContentView: View {
             // A pushed journey belongs to Past Trains: don't leave it covering another tab
             historyPath.removeAll()
         }
-        .onChange(of: selectedStationCRS) { _, newValue in
-            guard let newValue = newValue else { return }
-            
-            let allMyStations = Set(liveServices.flatMap { [
-                $0.userSearchOriginCRS ?? $0.originCRS,
-                $0.userSearchDestinationCRS ?? $0.destinationCRS
-            ] })
-            
-            if !allMyStations.contains(newValue) {
-                selectedNonHighlightedStation = newValue
-                showingStationOptions = true
-            }
-        }
-        .confirmationDialog("Station Options", isPresented: $showingStationOptions, titleVisibility: .hidden) {
-            Button("See Departures Board") {
-                showingDeparturesBoard = true
-            }
-            Button("Cancel", role: .cancel) {
-                selectedStationCRS = nil
-                selectedNonHighlightedStation = nil
-            }
-        }
         .sheet(isPresented: $showingDeparturesBoard, onDismiss: {
             selectedStationCRS = nil
-            selectedNonHighlightedStation = nil
+            departuresBoardCRS = nil
         }) {
-            if let crs = selectedNonHighlightedStation {
+            if let crs = departuresBoardCRS {
                 DeparturesBoardView(crs: crs)
             }
         }
