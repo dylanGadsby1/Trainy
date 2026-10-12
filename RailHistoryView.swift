@@ -1,6 +1,13 @@
 import SwiftUI
 import SwiftData
 
+/// Journeys that finished in the current calendar month.
+private func journeysThisMonth(_ trains: [SavedTrain]) -> Int {
+    trains.filter {
+        Calendar.current.isDate($0.movedToPastAt ?? $0.addedAt, equalTo: Date(), toGranularity: .month)
+    }.count
+}
+
 // MARK: - Past Trains View
 
 struct PastTrainsView: View {
@@ -33,7 +40,7 @@ struct PastTrainsView: View {
                         Spacer()
                         // Summary stat
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text("\(pastTrains.count)")
+                            Text("\(journeysThisMonth(pastTrains))")
                                 .font(.system(size: 26, weight: .black))
                                 .foregroundColor(.appBlue)
                             Text("This month")
@@ -73,6 +80,7 @@ struct PastTrainsView: View {
                                                     operator_: service.atocName ?? "Unknown",
                                                     atocCode: service.atocCode,
                                                     delayMinutes: service.delayMinutes,
+                                                    isCancelled: service.isCancelledService,
                                                     statusColor: service.trainStatus.color
                                                 )
                                             }
@@ -149,6 +157,7 @@ struct PastJourneyRow: View {
     let operator_: String
     let atocCode: String?
     let delayMinutes: Int
+    let isCancelled: Bool
     let statusColor: Color
 
     var body: some View {
@@ -188,9 +197,17 @@ struct PastJourneyRow: View {
 
             Spacer()
 
-            // Delay / on time
+            // Cancelled / delay / on time
             VStack(alignment: .trailing, spacing: 4) {
-                if delayMinutes > 0 {
+                if isCancelled {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(statusColor)
+                    Text("CANCELLED")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(statusColor.opacity(0.7))
+                        .tracking(0.5)
+                } else if delayMinutes > 0 {
                     Text("+\(delayMinutes)m")
                         .font(.system(size: 15, weight: .black))
                         .foregroundColor(statusColor)
@@ -260,7 +277,7 @@ private struct PastTrainsSheetContent: View {
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(pastTrains.count)")
+                    Text("\(journeysThisMonth(pastTrains))")
                         .font(.system(size: 22, weight: .black))
                         .foregroundColor(.appBlue)
                     Text("This month")
@@ -298,6 +315,7 @@ private struct PastTrainsSheetContent: View {
                                          operator_: service.atocName ?? "Unknown",
                                          atocCode: service.atocCode,
                                          delayMinutes: service.delayMinutes,
+                                         isCancelled: service.isCancelledService,
                                          statusColor: service.trainStatus.color
                                      )
                                  }
@@ -420,7 +438,11 @@ struct RailHistoryDetailView: View {
                                         .font(.system(size: 11, weight: .bold))
                                         .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                                     
-                                    if service.delayMinutes > 0 {
+                                    if service.isCancelledService {
+                                        Text("Cancelled")
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(service.trainStatus.color)
+                                    } else if service.delayMinutes > 0 {
                                         Text("Delayed by \(service.delayMinutes)m")
                                             .font(.system(size: 15, weight: .bold))
                                             .foregroundColor(service.trainStatus.color)

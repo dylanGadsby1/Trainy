@@ -1,25 +1,32 @@
 import Foundation
 
 // MARK: - Realtime Trains API Service
+// Realtime Trains holds the timetable, so it covers trains Darwin does not list yet
+// (more than about four hours ahead) and trains Darwin has already dropped.
 
-final class RTTService {
+actor RTTService {
 
     static let shared = RTTService()
     private init() {}
 
     // ── Credentials ──────────────────────────────────────────────────────────
     // Refresh token provided by user for Next Generation API
-    private let refreshToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MTE4NzIzZC00M2FjLTRlMTMtYThiMi02YzhkMWRjYmNjZTIiLCJpc3MiOiJodHRwczovL2FwaS1wb3J0YWwucnR0LmlvIn0.K6_AWC4WdUdkx5GebMotjifGjHG21Z5cLkFP-LIVKsg"
-    
+    private let refreshToken = Secrets.rttRefreshToken
+
     // In-memory access token cache
     private var accessToken: String?
+    private var accessTokenExpiry: Date?
+
+    /// Set when the API answers 429, so no further requests go out until it lifts.
+    /// The key allows 10 requests a minute and 100 an hour.
+    private var rateLimitedUntil: Date?
 
     // Base URL for Next Generation API
     private let baseURL = "https://data.rtt.io"
 
     // MARK: - URL Session
 
-    private lazy var session: URLSession = {
+    private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
         return URLSession(configuration: config)
@@ -28,14 +35,13 @@ final class RTTService {
     // MARK: - Auth Logic
 
     private func getValidAccessToken() async throws -> String {
-        if let token = accessToken {
-            // In a production app, we would check the 'validUntil' expiry time here.
-            // For now, we rely on the 401 Unauthorized catch to refresh it if it expires.
+        // Access tokens last about twenty minutes; renew a minute early
+        if let token = accessToken, let expiry = accessTokenExpiry, expiry.timeIntervalSinceNow > 60 {
             return token
         }
         return try await fetchNewAccessToken()
     }
-    
+
     private func fetchNewAccessToken() async throws -> String {
         guard let url = URL(string: "\(baseURL)/api/get_access_token") else {
             throw RTTError.invalidResponse
@@ -43,28 +49,38 @@ final class RTTService {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(refreshToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
+
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw RTTError.authFailed
         }
-        
-        // The token exchange returns a JSON with a "token" field
+
         struct TokenResponse: Decodable {
             let token: String
+            let validUntil: String?
         }
-        
-        let decoder = JSONDecoder()
-        let result = try decoder.decode(TokenResponse.self, from: data)
+
+        let result = try JSONDecoder().decode(TokenResponse.self, from: data)
         self.accessToken = result.token
+        self.accessTokenExpiry = result.validUntil.flatMap { ISO8601DateFormatter().date(from: $0) }
+            ?? Date().addingTimeInterval(10 * 60)
         return result.token
     }
 
     // MARK: - Generic Fetch
 
-    private func fetch<T: Decodable>(_ url: URL) async throws -> T {
+    /// Returns nil when the query is valid but matches nothing (HTTP 204).
+    private func fetch<T: Decodable>(_ path: String, query: [URLQueryItem], retryingAuth: Bool = true) async throws -> T? {
+        if let until = rateLimitedUntil, until > Date() {
+            throw RTTError.rateLimitExceeded
+        }
+
         let token = try await getValidAccessToken()
-        
+
+        var components = URLComponents(string: "\(baseURL)\(path)")
+        components?.queryItems = query
+        guard let url = components?.url else { throw RTTError.invalidResponse }
+
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -74,72 +90,171 @@ final class RTTService {
         guard let http = response as? HTTPURLResponse else {
             throw RTTError.invalidResponse
         }
-        
-        // If token expired, we can clear it and throw an error to be handled, or retry
-        if http.statusCode == 401 {
-            self.accessToken = nil
-            throw RTTError.authFailed // The caller could theoretically retry, but for simplicity we throw
-        }
-        
-        guard http.statusCode == 200 else {
-            print("API Error: \(http.statusCode) for URL: \(url)")
+
+        switch http.statusCode {
+        case 200:
+            do {
+                return try JSONDecoder().decode(T.self, from: data)
+            } catch {
+                print("❌ RTT decoding error for URL \(url): \(error)")
+                throw error
+            }
+        case 204:
+            return nil
+        case 401 where retryingAuth:
+            // The access token expired early: get a new one and try once more
+            accessToken = nil
+            return try await fetch(path, query: query, retryingAuth: false)
+        case 401:
+            throw RTTError.authFailed
+        case 429:
+            let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init) ?? 60
+            rateLimitedUntil = Date().addingTimeInterval(retryAfter)
+            print("⚠️ RTT rate limit reached. Pausing requests for \(Int(retryAfter))s.")
+            throw RTTError.rateLimitExceeded
+        default:
+            print("❌ RTT API Error: \(http.statusCode) for URL: \(url)")
             throw RTTError.httpError(http.statusCode)
         }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(T.self, from: data)
     }
 
-    // MARK: - Public API
-    
-    /// Departures from a station for today.
-    func departures(from crs: String, to destination: String? = nil) async throws -> RTTSearchResponse {
-        var components = URLComponents(string: "\(baseURL)/gb-nr/location")!
-        var queryItems = [URLQueryItem(name: "code", value: crs.uppercased())]
-        if let dest = destination {
-            queryItems.append(URLQueryItem(name: "filterTo", value: dest.uppercased()))
-        }
-        components.queryItems = queryItems
-        guard let url = components.url else { throw RTTError.invalidResponse }
-        return try await fetch(url)
+    // MARK: - API Requests
+
+    /// Trains calling at `origin` and then `destination`, departing in the window after `date`.
+    func departures(from origin: String, to destination: String, from date: Date, window: Int) async throws -> RTTSearchResponse? {
+        try await fetch("/gb-nr/location", query: [
+            URLQueryItem(name: "code", value: origin.uppercased()),
+            URLQueryItem(name: "filterTo", value: destination.uppercased()),
+            URLQueryItem(name: "timeFrom", value: Self.timeFormatter.string(from: date)),
+            URLQueryItem(name: "timeWindow", value: String(window))
+        ])
     }
 
-
-
-    /// Departures from a station for a specific date.
-    func departures(from origin: String, on date: Date, to destination: String, timeWindow: Int? = nil) async throws -> RTTSearchResponse {
-        var components = URLComponents(string: "\(baseURL)/gb-nr/location")!
-        var queryItems = [
-            URLQueryItem(name: "code", value: origin),
-            URLQueryItem(name: "filterTo", value: destination),
-            URLQueryItem(name: "detailed", value: "true"),
-            URLQueryItem(name: "timeFrom", value: isoString(date))
-        ]
-        if let timeWindow = timeWindow {
-            queryItems.append(URLQueryItem(name: "timeWindow", value: String(timeWindow)))
-        }
-        components.queryItems = queryItems
-        guard let url = components.url else { throw RTTError.invalidResponse }
-        return try await fetch(url)
+    /// Trains arriving at `destination` between two times, having called at `origin`.
+    func arrivals(at destination: String, from origin: String, from start: Date, until end: Date) async throws -> RTTSearchResponse? {
+        try await fetch("/gb-nr/location", query: [
+            URLQueryItem(name: "code", value: destination.uppercased()),
+            URLQueryItem(name: "filterFrom", value: origin.uppercased()),
+            URLQueryItem(name: "timeFrom", value: Self.timeFormatter.string(from: start)),
+            URLQueryItem(name: "timeTo", value: Self.timeFormatter.string(from: end))
+        ])
     }
 
+    /// Every calling point of one train. `uniqueIdentity` looks like "gb-nr:Y80917:2026-10-12".
+    func service(uniqueIdentity: String) async throws -> RTTServiceDetailResponse? {
+        let parts = uniqueIdentity.split(separator: ":").map(String.init)
+        guard parts.count == 3 else { throw RTTError.invalidResponse }
+        return try await fetch("/\(parts[0])/service", query: [
+            URLQueryItem(name: "identity", value: parts[1]),
+            URLQueryItem(name: "departureDate", value: parts[2])
+        ])
+    }
 
+    // MARK: - Trains
 
-    /// Service details for a specific train and date.
-    func serviceDetails(identity: String, date: String) async throws -> RTTServiceDetailResponse {
-        guard let url = URL(string: "\(baseURL)/gb-nr/service?identity=\(identity)&departureDate=\(date)") else {
-            throw RTTError.invalidResponse
+    /// Timetabled trains from `origin` to `destination` leaving in the `window` minutes after `date`.
+    /// Two requests: the origin's departures, then the destination's arrivals for the arrival times.
+    func search(from origin: String, to destination: String, at date: Date, window: Int = 360) async throws -> [DarwinServiceAdapter] {
+        guard let departures = try await departures(from: origin, to: destination, from: date, window: window) else {
+            return []
         }
-        return try await fetch(url)
+
+        // The last of these trains reaches the destination no later than it reaches its own terminus
+        let lastArrival = (departures.services ?? [])
+            .compactMap { $0.destination?.last?.temporalData?.scheduleAdvertised }
+            .max()
+            .flatMap { Self.timeFormatter.date(from: $0) }
+            ?? date.addingTimeInterval(TimeInterval((window + 360) * 60))
+        // A query can span at most 23 hours 59 minutes
+        let end = min(lastArrival.addingTimeInterval(10 * 60), date.addingTimeInterval(1439 * 60))
+
+        // Arrival times are a bonus: the search still works without them
+        let arrivals = try? await arrivals(at: destination, from: origin, from: date, until: end)
+
+        return Self.trains(departures: departures, arrivals: arrivals, origin: origin, destination: destination)
+    }
+
+    /// Joins an origin's departures to a destination's arrivals, train by train.
+    nonisolated static func trains(
+        departures: RTTSearchResponse,
+        arrivals: RTTSearchResponse?,
+        origin: String,
+        destination: String
+    ) -> [DarwinServiceAdapter] {
+        var arrivalByTrain: [String: RTTTimeNode] = [:]
+        for service in arrivals?.services ?? [] {
+            if let identity = service.scheduleMetadata?.uniqueIdentity, let arrival = service.temporalData?.arrival {
+                arrivalByTrain[identity] = arrival
+            }
+        }
+
+        return (departures.services ?? []).compactMap { service in
+            // Passenger trains only, to match what Darwin's train board lists
+            guard service.scheduleMetadata?.inPassengerService != false,
+                  (service.scheduleMetadata?.modeType ?? "TRAIN") == "TRAIN",
+                  let identity = service.scheduleMetadata?.uniqueIdentity else { return nil }
+            return DarwinServiceAdapter(rtt: service, arrival: arrivalByTrain[identity], origin: origin, destination: destination)
+        }
+    }
+
+    /// `train` with Realtime Trains' current times applied, or nil if they could not be read.
+    func refreshed(_ train: DarwinServiceAdapter) async -> DarwinServiceAdapter? {
+        guard let identity = train.rttIdentity,
+              let response = try? await service(uniqueIdentity: identity) else { return nil }
+        return Self.applying(response, to: train)
+    }
+
+    nonisolated static func applying(_ response: RTTServiceDetailResponse, to train: DarwinServiceAdapter) -> DarwinServiceAdapter? {
+        let calls = response.service?.locations ?? []
+        let origin = train.userSearchOriginCRS ?? train.originCRS
+        let destination = train.userSearchDestinationCRS ?? train.destinationCRS
+
+        // A circular route can call at the origin twice, so prefer the call at the scheduled time
+        guard let from = calls.firstIndex(where: {
+            $0.isCall(at: origin) && $0.temporalData?.departure?.scheduledClock == train.scheduledDeparture
+        }) ?? calls.firstIndex(where: { $0.isCall(at: origin) }) else { return nil }
+
+        let to = calls[(from + 1)...].first { $0.isCall(at: destination) }
+
+        var updated = train
+        updated.applyRTT(
+            departure: calls[from].temporalData?.departure,
+            arrival: to?.temporalData?.arrival,
+            platform: calls[from].locationMetadata?.platform
+        )
+        return updated
+    }
+
+    /// Finds the Realtime Trains identity of a train that was found through Darwin.
+    func identity(for train: DarwinServiceAdapter) async -> String? {
+        // This key can only see the last 14 days
+        guard let departure = train.scheduledDepartureDate,
+              departure.timeIntervalSinceNow > -13 * 86400,
+              let response = try? await departures(
+                from: train.userSearchOriginCRS ?? train.originCRS,
+                to: train.userSearchDestinationCRS ?? train.destinationCRS,
+                from: departure.addingTimeInterval(-60),
+                window: 3
+              ) else { return nil }
+
+        let sameMinute = (response.services ?? []).filter {
+            $0.temporalData?.departure?.scheduledClock == train.scheduledDeparture
+        }
+        let match = sameMinute.first { $0.atocCode == train.atocCode } ?? (sameMinute.count == 1 ? sameMinute.first : nil)
+        return match?.scheduleMetadata?.uniqueIdentity
     }
 
     // MARK: - Helpers
 
-    private func isoString(_ date: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.string(from: date)
-    }
+    /// Realtime Trains reads a time without an offset as local to the station, so send UK time.
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Europe/London")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter
+    }()
 }
 
 // MARK: - RTT Errors
@@ -148,12 +263,14 @@ enum RTTError: LocalizedError {
     case invalidResponse
     case httpError(Int)
     case authFailed
+    case rateLimitExceeded
 
     var errorDescription: String? {
         switch self {
         case .invalidResponse:   return "Invalid server response."
         case .httpError(let c):  return "Server returned HTTP \(c)."
         case .authFailed:        return "Authentication failed with Realtime Trains API."
+        case .rateLimitExceeded: return "Too many requests. Please wait a moment and try again."
         }
     }
 }

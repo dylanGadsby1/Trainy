@@ -1,0 +1,123 @@
+import Foundation
+import SwiftData
+
+// MARK: - Train Sync
+// Keeps every saved train up to date and decides which feed it is read from:
+//
+//   more than ~4 hours before departure   Realtime Trains (timetable; checked every half hour)
+//   ~4 hours before → 2 hours after       Darwin (live; checked every minute)
+//   after Darwin drops the train          Realtime Trains again, until it is seen arriving
+//
+// A train saved from the timetable carries a Realtime Trains identity. The first time
+// Darwin lists it, it is matched by its journey and switched to its Darwin identity.
+
+@MainActor
+final class TrainSync {
+
+    static let shared = TrainSync()
+    private init() {}
+
+    private var isSyncing = false
+
+    /// When each train was last read from Realtime Trains, which allows only 100 requests an hour.
+    private var lastTimetableCheck: [String: Date] = [:]
+
+    // MARK: - Sync
+
+    /// Refreshes the saved trains, hands timetable trains over to Darwin, and moves
+    /// finished trains to Rail History.
+    func sync(in context: ModelContext) async {
+        guard !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+
+        let savedTrains = (try? context.fetch(FetchDescriptor<SavedTrain>())) ?? []
+
+        for saved in savedTrains {
+            guard let train = saved.service, needsRefresh(saved, train),
+                  let updated = await refreshed(train),
+                  updated != train,
+                  // The train may have been removed while the request was in flight
+                  saved.modelContext != nil, !saved.isDeleted,
+                  let data = try? JSONEncoder().encode(updated) else { continue }
+
+            if updated.dataSource == .darwin && train.dataSource == .rtt {
+                print("🔄 \(train.scheduledDeparture) \(train.originCRS)→\(train.destinationCRS) is now live on Darwin: \(train.id) became \(updated.id)")
+            }
+
+            saved.serviceData = data
+            saved.id = updated.id
+            LiveActivityManager.shared.updateTracking(with: updated)
+        }
+
+        archiveFinishedTrains(savedTrains)
+        try? context.save()
+    }
+
+    /// The latest version of `train` from whichever feed can see it, or nil if neither can right now.
+    func refreshed(_ train: DarwinServiceAdapter) async -> DarwinServiceAdapter? {
+        if let live = await DarwinService.shared.refreshed(train) {
+            return live
+        }
+
+        // Darwin is not listing it: too early, too late, or the request failed
+        let now = Date()
+        let key = train.rttIdentity ?? train.id
+        if let last = lastTimetableCheck[key], now.timeIntervalSince(last) < timetableInterval(for: train, now: now) {
+            return nil
+        }
+        lastTimetableCheck[key] = now
+
+        var train = train
+        if train.rttIdentity == nil {
+            train.rttIdentity = await RTTService.shared.identity(for: train)
+        }
+        // Even when the read fails, hand back the identity so it is not looked up again
+        return await RTTService.shared.refreshed(train) ?? train
+    }
+
+    // MARK: - Rules
+
+    private func needsRefresh(_ saved: SavedTrain, _ train: DarwinServiceAdapter) -> Bool {
+        guard saved.isPast else { return true }
+
+        // A train moves to Rail History at its expected arrival. Keep following it for a
+        // while after that, so the history records when it really arrived.
+        guard train.hasArrived != true, !train.isCancelledService,
+              let finished = saved.movedToPastAt else { return false }
+        return Date().timeIntervalSince(finished) < 3 * 3600
+    }
+
+    /// The timetable rarely changes hours ahead; a running train needs a closer watch.
+    private func timetableInterval(for train: DarwinServiceAdapter, now: Date) -> TimeInterval {
+        guard let departure = train.scheduledDepartureDate, departure > now else { return 5 * 60 }
+        return 30 * 60
+    }
+
+    private func archiveFinishedTrains(_ savedTrains: [SavedTrain]) {
+        let now = Date()
+
+        for saved in savedTrains where !saved.isPast {
+            guard let train = saved.service else { continue }
+
+            // Cancelled trains go straight to Rail History. Otherwise a train moves there
+            // once its real (with-delay) arrival time has passed, or four hours after it
+            // was due to leave when no arrival time is known.
+            let finishedAt: Date?
+            if train.isCancelledService {
+                finishedAt = now
+            } else if let arrival = train.expectedArrivalDate {
+                finishedAt = now >= arrival ? arrival : nil
+            } else {
+                let departure = train.scheduledDepartureDate ?? saved.addedAt
+                finishedAt = now.timeIntervalSince(departure) > 4 * 3600 ? now : nil
+            }
+
+            if let finishedAt = finishedAt {
+                saved.isPast = true
+                saved.movedToPastAt = finishedAt
+                LiveActivityManager.shared.endTracking(for: train)
+            }
+        }
+    }
+}

@@ -1,36 +1,12 @@
 import SwiftUI
+import SwiftUI
 import MapKit
 import SwiftData
-
-// MARK: - Train Status Colors
-
-enum TrainStatus {
-    case onTime, delayed, cancelled, arriving
-
-    var label: String {
-        switch self {
-        case .onTime:   return "ON TIME"
-        case .delayed:  return "DELAYED"
-        case .cancelled: return "CANCELLED"
-        case .arriving: return "ARRIVING"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .onTime:   return .green
-        case .delayed:  return .orange
-        case .cancelled: return Color(red: 0.95, green: 0.25, blue: 0.25)
-        case .arriving: return Color(red: 0.35, green: 0.75, blue: 1.0)
-        }
-    }
-}
-
 
 // MARK: - My Train Card
 
 struct MyTrainCard: View {
-    let train: RTTAPIService
+    let train: DarwinServiceAdapter
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -64,10 +40,10 @@ struct MyTrainCard: View {
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
                         Text(train.scheduledDeparture)
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(train.delayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
-                            .strikethrough(train.delayMinutes > 0)
-                        
-                        if train.delayMinutes > 0 {
+                            .foregroundColor(train.departureDelayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .strikethrough(train.departureDelayMinutes > 0)
+
+                        if train.departureDelayMinutes > 0 {
                             Text(train.realtimeDeparture)
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.orange)
@@ -84,39 +60,42 @@ struct MyTrainCard: View {
                         .font(.system(size: 20, weight: .black))
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
-                        if train.delayMinutes > 0 {
-                            Text(train.userSearchDestinationArrivalTime ?? train.realtimeDeparture)
+                        if train.arrivalDelayMinutes > 0 {
+                            Text(train.userSearchDestinationArrivalTime ?? "--:--")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.orange)
                         }
-                        
-                        Text(train.userSearchDestinationScheduledArrivalTime ?? train.userSearchDestinationArrivalTime ?? train.scheduledDeparture)
+
+                        Text(train.userSearchDestinationScheduledArrivalTime ?? train.userSearchDestinationArrivalTime ?? "--:--")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(train.delayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
-                            .strikethrough(train.delayMinutes > 0)
+                            .foregroundColor(train.arrivalDelayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .strikethrough(train.arrivalDelayMinutes > 0)
                     }
                 }
             }
             .padding(.bottom, 12)
 
-            // Progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(AdaptiveColor.track.resolve(in: colorScheme))
-                        .frame(height: 4)
-                    Capsule()
-                        .fill(train.trainStatus.color)
-                        // Mocking progress for live departure boards
-                        .frame(width: geo.size.width * 0.1, height: 4)
+            // Progress bar — how far between departure and arrival the train is right now
+            TimelineView(.periodic(from: .now, by: 30)) { timeline in
+                GeometryReader { geo in
+                    let travelled = geo.size.width * train.progress(at: timeline.date)
 
-                    Image(systemName: "tram.fill")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(4)
-                        .background(train.trainStatus.color)
-                        .clipShape(Circle())
-                        .offset(x: max(0, geo.size.width * 0.1 - 11), y: -15)
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(AdaptiveColor.track.resolve(in: colorScheme))
+                            .frame(height: 4)
+                        Capsule()
+                            .fill(train.trainStatus.color)
+                            .frame(width: travelled, height: 4)
+
+                        Image(systemName: "tram.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(4)
+                            .background(train.trainStatus.color)
+                            .clipShape(Circle())
+                            .offset(x: min(max(0, travelled - 11), geo.size.width - 22), y: -15)
+                    }
                 }
             }
             .frame(height: 28)
@@ -365,13 +344,13 @@ struct HomeSheetView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
 
-    @State private var selectedTrain: RTTAPIService?
+    @State private var selectedTrain: DarwinServiceAdapter?
     @State private var trainToDelete: SavedTrain?
     @State private var showingDeleteConfirmation = false
 
     // HomeSheetView owns the query so it can delete entries
     @Query(filter: #Predicate<SavedTrain> { $0.isPast == false }) private var mySavedTrains: [SavedTrain]
-    private var liveServices: [RTTAPIService] { mySavedTrains.compactMap { $0.service } }
+    private var liveServices: [DarwinServiceAdapter] { mySavedTrains.compactMap { $0.service } }
 
     @Binding var currentDetent: SheetDetent
     @Binding var selectedTab: Int

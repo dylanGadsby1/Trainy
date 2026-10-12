@@ -99,6 +99,9 @@ struct TrainJourney {
     let delayMinutes: Int
     let platform: String
     let trainType: String
+    var isCancelled: Bool = false
+    /// Only the timetable is known: no live feed is reporting on the train yet
+    var isScheduledOnly: Bool = false
 }
 
 let mockJourney = TrainJourney(
@@ -144,6 +147,34 @@ struct StatusHeaderCard: View {
     @Environment(\.colorScheme) private var colorScheme
     let journey: TrainJourney
 
+    private var headline: String {
+        if journey.isCancelled { return "CANCELLED" }
+        if journey.delayMinutes > 0 { return "\(journey.delayMinutes)M DELAY PREDICTED" }
+        return journey.isScheduledOnly ? "SCHEDULED" : "ON TIME"
+    }
+
+    private var headlineColor: Color {
+        if journey.isCancelled || journey.delayMinutes > 0 { return .red }
+        return journey.isScheduledOnly ? TrainStatus.scheduled.color : .green
+    }
+
+    /// What the origin station's departure board currently shows for this train.
+    private var boardStatus: (text: String, color: Color) {
+        if journey.isCancelled { return ("CANCELLED", .red) }
+        if journey.origin.scheduled != journey.origin.actual { return ("EXPECTED \(journey.origin.actual)", .orange) }
+        return ("ON TIME", .green)
+    }
+
+    private var boardLine: String {
+        journey.isScheduledOnly && !journey.isCancelled
+            ? "TIMETABLE ONLY (not live yet)"
+            : "\(boardStatus.text) (per departure board)"
+    }
+
+    private var boardLineColor: Color {
+        journey.isScheduledOnly && !journey.isCancelled ? TrainStatus.scheduled.color : boardStatus.color
+    }
+
     var body: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 10) {
@@ -152,10 +183,10 @@ struct StatusHeaderCard: View {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Image(systemName: "tram.fill")
                                 .font(.system(size: 22, weight: .bold))
-                                .foregroundColor(journey.delayMinutes > 0 ? .red : .green)
-                            Text(journey.delayMinutes > 0 ? "\(journey.delayMinutes)M DELAY PREDICTED" : "ON TIME")
+                                .foregroundColor(headlineColor)
+                            Text(headline)
                                 .font(.system(size: 24, weight: .black))
-                                .foregroundColor(journey.delayMinutes > 0 ? .red : .green)
+                                .foregroundColor(headlineColor)
                         }
                         Text("SCHEDULED DEPARTURE: \(journey.scheduledDeparture)")
                             .font(.system(size: 11, weight: .semibold))
@@ -177,13 +208,13 @@ struct StatusHeaderCard: View {
 
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(Color.green)
+                        .fill(boardLineColor)
                         .frame(width: 8, height: 8)
-                    Text("ON TIME (per departure board)")
+                    Text(boardLine)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.green)
+                        .foregroundColor(boardLineColor)
                     Spacer()
-                    Text("LIVE")
+                    Text(journey.isScheduledOnly ? "PLANNED" : "LIVE")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.appBlue)
                         .padding(.horizontal, 7)
@@ -332,7 +363,7 @@ struct JourneyDashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let journey: TrainJourney
-    var rawService: RTTAPIService? = nil
+    var rawService: DarwinServiceAdapter? = nil
 
     var body: some View {
         ZStack {
@@ -406,23 +437,28 @@ struct JourneyDashboardView: View {
     JourneyDashboardView(journey: mockJourney)
 }
 
-extension RTTAPIService {
+extension DarwinServiceAdapter {
     func toTrainJourney() -> TrainJourney {
         let originCode = userSearchOriginCRS ?? (originCRS.isEmpty ? "UNK" : originCRS)
         let destCode = userSearchDestinationCRS ?? (destinationCRS.isEmpty ? "UNK" : destinationCRS)
-        
+
+        let scheduledArrival = userSearchDestinationScheduledArrivalTime ?? userSearchDestinationArrivalTime ?? "--:--"
+        let expectedArrival = userSearchDestinationArrivalTime ?? scheduledArrival
+
         let originStation = TrainStation(code: originCode, name: originCode, scheduled: scheduledDeparture, actual: realtimeDeparture)
-        let destStation = TrainStation(code: destCode, name: destCode, scheduled: userSearchDestinationArrivalTime ?? scheduledDeparture, actual: userSearchDestinationArrivalTime ?? scheduledDeparture)
-        
+        let destStation = TrainStation(code: destCode, name: destCode, scheduled: scheduledArrival, actual: expectedArrival)
+
         return TrainJourney(
             origin: originStation,
             destination: destStation,
             scheduledDeparture: "\(scheduledDeparture) \(originCode)-\(destCode)",
-            predictedArrival: userSearchDestinationArrivalTime ?? scheduledDeparture,
-            actualArrival: userSearchDestinationArrivalTime ?? scheduledDeparture,
+            predictedArrival: expectedArrival,
+            actualArrival: expectedArrival,
             delayMinutes: delayMinutes,
             platform: platform,
-            trainType: atocName ?? "Unknown Service"
+            trainType: atocName ?? "Unknown Service",
+            isCancelled: isCancelledService,
+            isScheduledOnly: isAwaitingLiveData == true
         )
     }
 }
@@ -529,9 +565,11 @@ struct ContentView: View {
     @Query(filter: #Predicate<SavedTrain> { $0.isPast == false }) private var mySavedTrains: [SavedTrain]
     @Environment(\.modelContext) private var modelContext
     
-    private var liveServices: [RTTAPIService] {
+    private var liveServices: [DarwinServiceAdapter] {
         mySavedTrains.compactMap { $0.service }
     }
+
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var cameraDistance: Double = 500000
     @State private var selectedStationCRS: String? = nil
@@ -558,7 +596,7 @@ struct ContentView: View {
     }
     
     private var visibleUnhighlightedUKStations: [UKStation] {
-        guard cameraDistance < 15000 else { return [] }
+        guard cameraDistance < 5000 else { return [] }  // Reduced from 15000
         let highlighted = highlightedStations
         return ukStations.filter { !highlighted.contains($0.crs) }
     }
@@ -609,11 +647,11 @@ struct ContentView: View {
 
                     HomeSheetView(currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
                 }
-                .onAppear {
-                    checkPastTrains()
+                .task {
+                    await TrainSync.shared.sync(in: modelContext)
                 }
-                .onReceive(archiveTimer) { _ in
-                    checkPastTrains()
+                .onReceive(refreshTimer) { _ in
+                    Task { await TrainSync.shared.sync(in: modelContext) }
                 }
             }
 
@@ -661,6 +699,12 @@ struct ContentView: View {
         .sheet(isPresented: $showingProfile) {
             ProfileView()
         }
+        .onChange(of: scenePhase) { _, phase in
+            // Catch up as soon as the app comes back: a train may have come into Darwin's reach meanwhile
+            if phase == .active {
+                Task { await TrainSync.shared.sync(in: modelContext) }
+            }
+        }
         .onChange(of: selectedTab) { _, _ in
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             if let cam = currentCamera {
@@ -698,85 +742,8 @@ struct ContentView: View {
             }
         }
     }
-    /// Fires every 60 seconds to auto-archive trains that have arrived.
-    private let archiveTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
-
-    private func checkPastTrains() {
-        let now = Date()
-        let calendar = Calendar.current
-
-        for train in mySavedTrains {
-            guard let service = train.service else { continue }
-
-            // --- Cancelled trains go straight to Rail History ---
-            if service.isCancelledService {
-                if !train.isPast {
-                    train.isPast = true
-                    train.movedToPastAt = now
-                }
-                continue
-            }
-
-            // --- Parse the real (with-delay) arrival time ---
-            // Prefer the user-search destination realtime arrival, then scheduled arrival.
-            let arrivalTimeString: String? =
-                service.userSearchDestinationArrivalTime
-                ?? service.userSearchDestinationScheduledArrivalTime
-
-            guard let timeStr = arrivalTimeString, timeStr.count == 5,
-                  let hour = Int(timeStr.prefix(2)),
-                  let minute = Int(timeStr.suffix(2)) else {
-                // No usable arrival time — fall back: archive if added > 4 hours ago
-                if now.timeIntervalSince(train.addedAt) > 4 * 3600 && !train.isPast {
-                    train.isPast = true
-                    train.movedToPastAt = now
-                }
-                continue
-            }
-
-            // Build the base date using the run date if available, otherwise fallback to today
-            var baseDate = now
-            if let runDateString = service.scheduleMetadata?.departureDate {
-                let df = DateFormatter()
-                df.dateFormat = "yyyy-MM-dd"
-                if let runDate = df.date(from: runDateString) {
-                    baseDate = runDate
-                }
-            }
-
-            var components = calendar.dateComponents([.year, .month, .day], from: baseDate)
-            components.hour = hour
-            components.minute = minute
-            components.second = 0
-
-            guard var arrivalDate = calendar.date(from: components) else { continue }
-
-            if service.scheduleMetadata?.departureDate == nil {
-                // If the arrival time is more than 12 hours in the future relative to now,
-                // the service probably departed yesterday — shift back one day.
-                if arrivalDate.timeIntervalSince(now) > 12 * 3600 {
-                    arrivalDate = calendar.date(byAdding: .day, value: -1, to: arrivalDate) ?? arrivalDate
-                }
-            } else {
-                // Check if arrival crossed midnight relative to scheduled departure
-                let depTimeStr = service.scheduledDeparture
-                if depTimeStr.count >= 5,
-                   let depHour = Int(depTimeStr.prefix(2)) {
-                    if hour < depHour && (depHour - hour) > 4 {
-                        arrivalDate = calendar.date(byAdding: .day, value: 1, to: arrivalDate) ?? arrivalDate
-                    }
-                }
-            }
-
-            // Move to Rail History once the real arrival time has passed.
-            if now >= arrivalDate && !train.isPast {
-                train.isPast = true
-                train.movedToPastAt = arrivalDate
-            }
-        }
-
-        try? modelContext.save()
-    }
+    /// Fires every 60 seconds so TrainSync can refresh live times and archive trains that have arrived.
+    private let refreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 }
 
 
@@ -788,8 +755,8 @@ struct ContentView: View {
 struct DeparturesBoardView: View {
     let crs: String
     
-    @State private var allServices: [RTTServiceModel] = []
-    @State private var displayedServices: [RTTServiceModel] = []
+    @State private var allServices: [DarwinServiceModel] = []
+    @State private var displayedServices: [DarwinServiceModel] = []
     @State private var displayLimit: Int = 10
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
@@ -888,8 +855,8 @@ struct DeparturesBoardView: View {
         isLoading = true
         errorMessage = nil
         do {
-            let response = try await RTTService.shared.departures(from: crs)
-            let services = response.services ?? []
+            let board = try await DarwinService.shared.departures(from: crs, numRows: 150)
+            let services = board.trainServices ?? []
             allServices = services
             displayedServices = Array(allServices.prefix(displayLimit))
         } catch {
@@ -900,7 +867,7 @@ struct DeparturesBoardView: View {
 }
 
 struct DepartureServiceCard: View {
-    let service: RTTServiceModel
+    let service: DarwinServiceModel
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
@@ -912,7 +879,7 @@ struct DepartureServiceCard: View {
                             .font(.system(size: 18, weight: .bold))
                             .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                         
-                        Text(service.atocName ?? "Unknown Operator")
+                        Text(service.operator ?? "Unknown Operator")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                     }
@@ -920,15 +887,15 @@ struct DepartureServiceCard: View {
                     Spacer()
                     
                     VStack(alignment: .trailing, spacing: 4) {
-                        Text(service.scheduledDeparture)
+                        Text(service.std ?? "N/A")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                            .strikethrough(service.trainStatus != .onTime, color: .secondary)
+                            .strikethrough(service.status != .onTime, color: .secondary)
                         
-                        if service.trainStatus != .onTime {
-                            Text(service.realtimeDeparture)
+                        if service.status != .onTime {
+                            Text(service.etd ?? "N/A")
                                 .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(service.trainStatus == .cancelled ? .red : .orange)
+                                .foregroundColor(service.status == .cancelled ? .red : .orange)
                         }
                     }
                 }
@@ -940,7 +907,7 @@ struct DepartureServiceCard: View {
                         Text("Plat")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                        Text(service.platform)
+                        Text(service.platform ?? "TBC")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                     }
@@ -960,20 +927,18 @@ struct DepartureServiceCard: View {
     }
     
     private var statusText: String {
-        switch service.trainStatus {
+        switch service.status {
         case .onTime: return "ON TIME"
         case .delayed: return "DELAYED"
         case .cancelled: return "CANCELLED"
-        case .arriving: return "ARRIVING"
         }
     }
     
     private var statusColor: Color {
-        switch service.trainStatus {
+        switch service.status {
         case .onTime: return .green
         case .delayed: return .orange
         case .cancelled: return .red
-        case .arriving: return .blue
         }
     }
 }

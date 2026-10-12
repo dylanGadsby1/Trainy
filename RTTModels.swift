@@ -1,5 +1,36 @@
 import Foundation
 
+import Foundation
+import CoreLocation
+import SwiftUI
+
+// MARK: - Train Status
+
+enum TrainStatus {
+    /// `scheduled` is a timetabled train that no live feed is reporting on yet
+    case onTime, delayed, cancelled, arriving, scheduled
+
+    var label: String {
+        switch self {
+        case .onTime:   return "ON TIME"
+        case .scheduled: return "SCHEDULED"
+        case .delayed:  return "DELAYED"
+        case .cancelled: return "CANCELLED"
+        case .arriving: return "ARRIVING"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .onTime:   return .green
+        case .scheduled: return Color(red: 0.45, green: 0.50, blue: 0.58)
+        case .delayed:  return .orange
+        case .cancelled: return Color(red: 0.95, green: 0.25, blue: 0.25)
+        case .arriving: return Color(red: 0.35, green: 0.75, blue: 1.0)
+        }
+    }
+}
+
 // MARK: - RTT API Models
 
 struct RTTSearchResponse: Codable {
@@ -132,6 +163,8 @@ struct RTTServiceModel: Codable, Identifiable {
 struct RTTTemporalData: Codable {
     let arrival: RTTTimeNode?
     let departure: RTTTimeNode?
+    /// "CALL", "PASS", "ORIGIN" and so on
+    let displayAs: String?
 }
 
 struct RTTTimeNode: Codable {
@@ -141,12 +174,45 @@ struct RTTTimeNode: Codable {
     let isCancelled: Bool?
 }
 
+extension RTTTimeNode {
+    /// "HH:mm" from an RTT local date-time such as "2026-10-12T19:05:00"
+    static func clock(_ dateTime: String?) -> String? {
+        guard let time = dateTime?.split(separator: "T").last, time.count >= 5 else { return nil }
+        return String(time.prefix(5))
+    }
+
+    /// The public timetable time
+    var scheduledClock: String? {
+        Self.clock(scheduleAdvertised)
+    }
+
+    /// The actual time if the train has been through, otherwise the forecast when it is later
+    /// than the timetable, otherwise the timetable. An early forecast is only the working
+    /// timetable's slack, so it is not shown as a change.
+    var expectedClock: String? {
+        if let actual = Self.clock(realtimeActual) {
+            return actual
+        }
+        if let forecast = Self.clock(realtimeForecast),
+           DarwinTime.delay(scheduled: scheduledClock, expected: forecast) > 0 {
+            return forecast
+        }
+        return scheduledClock ?? Self.clock(realtimeForecast)
+    }
+
+    /// The day of the timetable time, "yyyy-MM-dd"
+    var scheduledDay: String? {
+        scheduleAdvertised.map { String($0.prefix(10)) }
+    }
+}
+
 struct RTTLocationMetadata: Codable {
     let platform: RTTPlatformNode?
 }
 
 struct RTTPlatformNode: Codable {
     let planned: String?
+    let forecast: String?
     let actual: String?
 }
 
@@ -154,13 +220,19 @@ struct RTTScheduleMetadata: Codable {
     let uniqueIdentity: String?
     let operatorName: RTTOperator?
     let identity: String?
+    /// The day the train leaves its own origin, which can be the day before it reaches the user's station
     let departureDate: String?
+    /// "TRAIN", "BUS" and so on
+    let modeType: String?
+    let inPassengerService: Bool?
     
     enum CodingKeys: String, CodingKey {
         case uniqueIdentity
         case operatorName = "operator"
         case identity
         case departureDate
+        case modeType
+        case inPassengerService
     }
 }
 
@@ -231,4 +303,9 @@ struct RTTServiceDetailInner: Codable {
 struct RTTCall: Codable {
     let location: RTTLocationNode?
     let temporalData: RTTTemporalData?
+    let locationMetadata: RTTLocationMetadata?
+
+    func isCall(at crs: String) -> Bool {
+        location?.shortCodes?.contains(crs) == true
+    }
 }

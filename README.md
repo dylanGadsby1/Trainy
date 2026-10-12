@@ -20,7 +20,7 @@
 
 Trainy is a native iOS app that lets you track your UK train journeys in real time. Pin the trains you care about, watch live departure and arrival updates, and review your complete Rail History — all wrapped in a clean, map-first interface.
 
-Data is powered by the **[Realtime Trains (RTT)](https://www.realtimetrains.co.uk/)** Next Generation API, giving you accurate live running information across the entire National Rail network.
+Data comes from two feeds. National Rail's **Darwin Live Departure Boards** API, from the [Rail Data Marketplace](https://raildata.org.uk/), gives live times for trains leaving within about four hours. **[Realtime Trains](https://www.realtimetrains.co.uk/)** gives the timetable for anything later. A train saved from the timetable switches to Darwin automatically once Darwin lists it.
 
 ---
 
@@ -30,13 +30,13 @@ Data is powered by the **[Realtime Trains (RTT)](https://www.realtimetrains.co.u
 |---|---|
 | 🗺️ **Map-first Home** | Interactive UK map with a draggable bottom sheet showing your saved trains |
 | 🚆 **My Trains** | Pin upcoming departures and see live status cards with operator branding |
-| 🔍 **Add Journey** | Search any origin → destination pair with date/time picker and live departure feed |
-| ⏱️ **Live Status** | On time / Delayed / Cancelled / Arriving badges updated via the RTT API |
+| 🔍 **Add Journey** | Search any origin → destination pair, from now to any future date, as one list with no duplicates |
+| ⏱️ **Live Status** | On time / Delayed / Cancelled badges refreshed every minute, and Scheduled for trains not yet live |
 | 📊 **Journey Dashboard** | Per-train detail view with scheduled vs realtime times and platform info |
 | 📜 **Rail History** | Automatic archiving of completed and cancelled journeys |
 | 🚂 **Operator Branding** | Logos and brand colours for 26 UK rail operators |
 | 💸 **Delay Repay** | Deep links to every operator's Delay Repay compensation page |
-| 🔄 **Multi-leg Routing** | Support for journeys that require connections and interchanges |
+| 📍 **Live Activities** | Follow a train from the Lock Screen and Dynamic Island |
 | 📱 **SwiftData Persistence** | Saved trains and history survive app restarts |
 
 ---
@@ -59,18 +59,23 @@ Trainy/
 ├── RailHistoryView.swift    # Archived past journeys
 ├── ProfileView.swift        # User profile & stats
 │
-├── RTTService.swift         # Realtime Trains API client (async/await)
-├── RTTModels.swift          # Codable response models
+├── DarwinAPI.swift          # Darwin API client, response models & the app's train model
+├── TrainSearch.swift        # One search across Darwin and Realtime Trains, merged
+├── TrainSync.swift          # Refreshes saved trains and hands them from the timetable to Darwin
+├── LiveActivityManager.swift # Starts and updates the Live Activity
+├── RTTService.swift         # Realtime Trains API client (timetable search and fallback updates)
+├── RTTModels.swift          # Train status, UK station list & legacy RTT models
 ├── OperatorBranding.swift   # ATOC operator logos & brand colours
 ├── SavedTrain.swift         # SwiftData model for persisted trains
-└── ukStations_generated.swift  # Complete UK station list (CRS codes)
+└── Secrets.swift            # Your API keys (git-ignored, see Getting Started)
 ```
 
 ### Key Design Decisions
 
 - **SwiftUI + SwiftData** — fully declarative UI with native persistence
 - **Async/await** — all network calls use structured concurrency; no callbacks
-- **Token auth** — RTT Next Generation API uses a JWT refresh/access token flow cached in memory
+- **Two feeds, one train** — Darwin and Realtime Trains share no ID, so a train is matched across them by origin, destination, date, scheduled departure and operator
+- **Few requests per search** — Darwin boards are requested with calling points, and Realtime Trains needs two requests whatever the number of trains, which keeps it inside its limit of 10 requests a minute
 - **Custom bottom sheet** — `MapBottomSheet` is a hand-crafted draggable overlay with four snap detents (compact → peek → mid → full) and rubber-band overscroll physics, rather than the stock `.sheet()` modifier
 
 ---
@@ -79,8 +84,8 @@ Trainy/
 
 | Requirement | Version |
 |---|---|
-| iOS | 17.0+ |
-| Xcode | 15.0+ |
+| iOS | 18.0+ |
+| Xcode | 16.0+ |
 | Swift | 5.9+ |
 
 ---
@@ -94,25 +99,32 @@ git clone https://github.com/dylanGadsby1/Trainy.git
 cd Trainy
 ```
 
-### 2. RTT API credentials
+### 2. API keys
 
-Trainy uses the **Realtime Trains Next Generation API**. You'll need your own credentials:
+Trainy needs a key for each feed:
 
-1. Sign up at [https://api-portal.rtt.io](https://api-portal.rtt.io)
-2. Obtain a **refresh token** (JWT)
-3. Open `RTTService.swift` and replace the placeholder token:
+1. Sign up at [https://raildata.org.uk](https://raildata.org.uk) and subscribe to **Live Departure Board**
+2. Sign up at [https://api-portal.rtt.io](https://api-portal.rtt.io) for a Realtime Trains **refresh token**
+3. Copy the template and add both:
 
-```swift
-// RTTService.swift
-private let refreshToken = "YOUR_RTT_REFRESH_TOKEN_HERE"
+```bash
+cp Secrets.swift.example Secrets.swift
 ```
 
-> ⚠️ **Never commit your refresh token to a public repository.** Consider loading it from a `.xcconfig` file or environment variable for production use.
+```swift
+// Secrets.swift
+static let railDataKey = "YOUR_RAIL_DATA_API_KEY"
+static let rttRefreshToken = "YOUR_RTT_REFRESH_TOKEN"
+```
+
+`Secrets.swift` is git-ignored, so your keys stay out of the repository.
+
+> ⚠️ Realtime Trains does not allow its token to be shipped inside an app that is distributed to other people. That is fine for running Trainy on your own device, but a public release would need to send those requests through your own server.
 
 ### 3. Open in Xcode
 
 ```bash
-open Trainy/Trainy.xcodeproj
+open Trainy.xcodeproj
 ```
 
 Select your target device or simulator and press **Run** (⌘R).
@@ -172,6 +184,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 ## Acknowledgements
 
-- Live train data provided by [Realtime Trains](https://www.realtimetrains.co.uk/)
+- Live train data provided by [National Rail](https://www.nationalrail.co.uk/) via the Rail Data Marketplace
+- Timetable data provided by [Realtime Trains](https://www.realtimetrains.co.uk/)
 - Operator logos are trademarks of their respective owners
 - Built with ❤️ using SwiftUI, MapKit, and SwiftData

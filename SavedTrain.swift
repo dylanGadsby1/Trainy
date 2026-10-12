@@ -18,7 +18,12 @@ final class SavedTrain {
         self.movedToPastAt = nil
     }
     
-    var service: RTTAPIService? {
-        try? JSONDecoder().decode(RTTAPIService.self, from: serviceData)
+    var service: DarwinServiceAdapter? {
+        let decoder = JSONDecoder()
+        if let train = try? decoder.decode(DarwinServiceAdapter.self, from: serviceData) {
+            return train
+        }
+        // Trains saved before the Darwin migration were stored as RTT models
+        return (try? decoder.decode(RTTServiceModel.self, from: serviceData)).map(DarwinServiceAdapter.init(legacy:))
     }
 }

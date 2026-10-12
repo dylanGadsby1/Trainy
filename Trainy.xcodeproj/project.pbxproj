@@ -23,7 +23,11 @@
 		BA6DA46430350815003AC6CF /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BA6DA46330350815003AC6CF /* WidgetKit.framework */; };
 		BA6DA46630350815003AC6CF /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BA6DA46530350815003AC6CF /* SwiftUI.framework */; };
 		BA6DA47730350817003AC6CF /* Trainy RTT API Live ActivitiesExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BA6DA46130350815003AC6CF /* Trainy RTT API Live ActivitiesExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BA94508F307C5911009275DA /* DarwinAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA94508E307C5911009275DA /* DarwinAPI.swift */; };
+		BA945091307C593E009275DA /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA945090307C593E009275DA /* Secrets.swift */; };
 		C2C48C0F0173FB4AECC60545 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22892EF3392043EF2D7B04D /* LiveActivityManager.swift */; };
+		BA9450A1307C6000009275DA /* TrainSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A0307C6000009275DA /* TrainSearch.swift */; };
+		BA9450A3307C6000009275DA /* TrainSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A2307C6000009275DA /* TrainSync.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,10 +72,14 @@
 		BA6DA46130350815003AC6CF /* Trainy RTT API Live ActivitiesExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Trainy RTT API Live ActivitiesExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BA6DA46330350815003AC6CF /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		BA6DA46530350815003AC6CF /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		BA94508E307C5911009275DA /* DarwinAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarwinAPI.swift; sourceTree = "<group>"; };
+		BA945090307C593E009275DA /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
+		BA9450A0307C6000009275DA /* TrainSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainSearch.swift; sourceTree = "<group>"; };
+		BA9450A2307C6000009275DA /* TrainSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainSync.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		BA6DA47B30350817003AC6CF /* Exceptions for "Trainy RTT API Live Activities" folder in "Trainy RTT API Live ActivitiesExtension" target */ = {
+		BA6DA47B30350817003AC6CF /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -81,18 +89,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		BA6DA46730350815003AC6CF /* Trainy RTT API Live Activities */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				BA6DA47B30350817003AC6CF /* Exceptions for "Trainy RTT API Live Activities" folder in "Trainy RTT API Live ActivitiesExtension" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "Trainy RTT API Live Activities";
-			sourceTree = "<group>";
-		};
+		BA6DA46730350815003AC6CF /* Trainy RTT API Live Activities */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (BA6DA47B30350817003AC6CF /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = "Trainy RTT API Live Activities"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -124,9 +121,10 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		AA000022 /*  */ = {
+		AA000022 = {
 			isa = PBXGroup;
 			children = (
+				BA945090307C593E009275DA /* Secrets.swift */,
 				AA000006 /* TrainyApp.swift */,
 				AA000002 /* ContentView.swift */,
 				AA000030 /* HomeView.swift */,
@@ -134,13 +132,16 @@
 				AA000034 /* RailHistoryView.swift */,
 				AA000036 /* AddTrainView.swift */,
 				AA000004 /* Assets.xcassets */,
+				BA94508E307C5911009275DA /* DarwinAPI.swift */,
+				BA9450A2307C6000009275DA /* TrainSync.swift */,
+				BA9450A0307C6000009275DA /* TrainSearch.swift */,
 			);
 			sourceTree = "<group>";
 		};
 		AA000023 = {
 			isa = PBXGroup;
 			children = (
-				AA000022 /*  */,
+				AA000022,
 				BA6DA46730350815003AC6CF /* Trainy RTT API Live Activities */,
 				BA6DA46230350815003AC6CF /* Frameworks */,
 				AA000009 /* Products */,
@@ -265,6 +266,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BA94508F307C5911009275DA /* DarwinAPI.swift in Sources */,
+				BA9450A3307C6000009275DA /* TrainSync.swift in Sources */,
+				BA9450A1307C6000009275DA /* TrainSearch.swift in Sources */,
 				AA000005 /* TrainyApp.swift in Sources */,
 				AA000001 /* ContentView.swift in Sources */,
 				AA000031 /* HomeView.swift in Sources */,
@@ -273,6 +277,7 @@
 				AA000037 /* AddTrainView.swift in Sources */,
 				8AD4447DB914C555DFD11808 /* RTTModels.swift in Sources */,
 				45B24B1EA4FC824505A9A5C7 /* RTTService.swift in Sources */,
+				BA945091307C593E009275DA /* Secrets.swift in Sources */,
 				9907490B16FC0F72C05C4B5F /* SavedTrain.swift in Sources */,
 				A4B9E8FF73AB11BA734B18DA /* OperatorBranding.swift in Sources */,
 				C2C48C0F0173FB4AECC60545 /* LiveActivityManager.swift in Sources */,

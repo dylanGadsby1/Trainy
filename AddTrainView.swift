@@ -58,28 +58,7 @@ struct AddTrainSheetContent: View {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 showingOriginPicker = true
                             } label: {
-                                HStack(spacing: 14) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.green.opacity(0.20))
-                                            .frame(width: 36, height: 36)
-                                        Circle()
-                                            .fill(Color.green)
-                                            .frame(width: 10, height: 10)
-                                    }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("FROM")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                            .tracking(1)
-                                        Text(originStation?.name ?? "Select origin station")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(originStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
-                                    }
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
+                                fromStationRow
                             }
                             .sheet(isPresented: $showingOriginPicker) {
                                 StationPickerView(selectedStation: $originStation)
@@ -93,28 +72,7 @@ struct AddTrainSheetContent: View {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 showingDestinationPicker = true
                             } label: {
-                                HStack(spacing: 14) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.orange.opacity(0.20))
-                                            .frame(width: 36, height: 36)
-                                        Circle()
-                                            .fill(Color.orange)
-                                            .frame(width: 10, height: 10)
-                                    }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("TO")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                            .tracking(1)
-                                        Text(destinationStation?.name ?? "Select arriving station")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(destinationStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
-                                    }
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
+                                toStationRow
                             }
                             .sheet(isPresented: $showingDestinationPicker) {
                                 StationPickerView(selectedStation: $destinationStation)
@@ -136,6 +94,7 @@ struct AddTrainSheetContent: View {
                                 DatePicker(
                                     "Journey Time",
                                     selection: $journeyDate,
+                                    in: Date()...,
                                     displayedComponents: [.date, .hourAndMinute]
                                 )
                                 .labelsHidden()
@@ -187,6 +146,58 @@ struct AddTrainSheetContent: View {
             }
         }
         .animation(.spring(response: 0.25, dampingFraction: 0.55), value: showingResults)
+    }
+    
+    // MARK: - Subviews
+    
+    private var fromStationRow: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.20))
+                    .frame(width: 36, height: 36)
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 10, height: 10)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("FROM")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                    .tracking(1)
+                Text(originStation?.name ?? "Select origin station")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(originStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+    }
+    
+    private var toStationRow: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.20))
+                    .frame(width: 36, height: 36)
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 10, height: 10)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("TO")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                    .tracking(1)
+                Text(destinationStation?.name ?? "Select arriving station")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(destinationStation == nil ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.primary.resolve(in: colorScheme))
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
 
@@ -329,13 +340,12 @@ struct LiveDeparturesFeed: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var savedTrains: [SavedTrain]
 
-    @State private var services: [RTTServiceModel] = []
-    @State private var allFetchedRawServices: [RTTServiceModel] = []
-    @State private var loadedRawCount = 0
-    @State private var isFetchingMore = false
+    @State private var services: [DarwinServiceAdapter] = []
+    @State private var allFetchedServices: [DarwinServiceAdapter] = []
+    @State private var loadedCount = 0
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var focusedTrain: RTTServiceModel.ID?
+    @State private var focusedTrain: DarwinServiceAdapter.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -356,7 +366,7 @@ struct LiveDeparturesFeed: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("DEPARTURES")
+                    Text(heading)
                         .font(.system(size: 11, weight: .black))
                         .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
                         .tracking(1.5)
@@ -372,7 +382,7 @@ struct LiveDeparturesFeed: View {
 
             if isLoading {
                 VStack {
-                    ProgressView("Searching live departures...")
+                    ProgressView("Searching departures...")
                         .padding(.top, 40)
                 }
                 .frame(maxWidth: .infinity)
@@ -408,7 +418,7 @@ struct LiveDeparturesFeed: View {
                     ForEach(services) { service in
                         Button {
                             UINotificationFeedbackGenerator().notificationOccurred(.success)
-                            if !savedTrains.contains(where: { $0.id == service.id }) {
+                            if !savedTrains.contains(where: { $0.service?.isSameJourney(as: service) == true }) {
                                 if let data = try? JSONEncoder().encode(service) {
                                     let newSavedTrain = SavedTrain(id: service.id, serviceData: data)
                                     modelContext.insert(newSavedTrain)
@@ -420,34 +430,25 @@ struct LiveDeparturesFeed: View {
                             }
                             selectedTab = 0
                         } label: {
-                            MyTrainCard(train: service)
+                            DarwinTrainCard(train: service)
                         }
                         .buttonStyle(.plain)
                         .id(service.id)
                     }
                     
-                    if loadedRawCount < allFetchedRawServices.count {
+                    if loadedCount < allFetchedServices.count {
                         Button {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            Task {
-                                await fetchMoreDepartures()
-                            }
+                            showMoreDepartures()
                         } label: {
-                            if isFetchingMore {
-                                ProgressView()
-                                    .padding(.vertical, 16)
-                                    .frame(maxWidth: .infinity)
-                            } else {
-                                Text("See more trains +")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(Color.appleBlack)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            }
+                            Text("See more trains +")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color.appleBlack)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
-                        .disabled(isFetchingMore)
                         .padding(.top, 8)
                         .padding(.bottom, 20)
                     }
@@ -465,126 +466,164 @@ struct LiveDeparturesFeed: View {
         }
     }
 
+    /// Names the day when the search is not for today, since the cards only show times.
+    private var heading: String {
+        guard !Calendar.current.isDateInToday(date) else { return "DEPARTURES" }
+        let day = date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        return "DEPARTURES · \(day.uppercased())"
+    }
+
     private func fetchDepartures() async {
         isLoading = true
         errorMessage = nil
+        
         do {
-            let res = try await RTTService.shared.departures(from: origin.crs, on: date, to: destination.crs, timeWindow: 1439)
-            let rawServices = res.services ?? []
-            
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
-            let targetDateString = dateFormatter.string(from: date)
-            
-            let sameDayTrains = rawServices.filter { $0.scheduleMetadata?.departureDate == targetDateString }
-            let initialBatch = Array(sameDayTrains.prefix(10))
-            
-            let detailedServices = await resolveDetails(for: initialBatch)
+            // Live trains from Darwin and timetabled trains from Realtime Trains, as one list
+            let trains = try await TrainSearch.departures(from: origin.crs, to: destination.crs, at: date)
             
             await MainActor.run {
-                self.allFetchedRawServices = rawServices
-                self.loadedRawCount = initialBatch.count
-                self.services = detailedServices
+                self.allFetchedServices = trains
+                self.loadedCount = min(10, trains.count)
+                self.services = Array(trains.prefix(10))
+                self.isLoading = false
+            }
+        } catch let error as DarwinError {
+            await MainActor.run {
+                switch error {
+                case .httpError(500):
+                    self.errorMessage = "Darwin API server error. The National Rail service may be experiencing issues. Please try again later."
+                case .invalidAccessToken:
+                    self.errorMessage = "Invalid Darwin API credentials. Please check your API key."
+                case .rateLimitExceeded:
+                    self.errorMessage = "Too many requests. Please wait a moment and try again."
+                default:
+                    self.errorMessage = "Failed to load Darwin data: \(error.localizedDescription)"
+                }
+                self.isLoading = false
+            }
+        } catch let error as RTTError {
+            await MainActor.run {
+                switch error {
+                case .authFailed:
+                    self.errorMessage = "Invalid Realtime Trains credentials. Please check your refresh token."
+                case .rateLimitExceeded:
+                    self.errorMessage = "Too many timetable searches. Please wait a minute and try again."
+                default:
+                    self.errorMessage = "Failed to load the timetable: \(error.localizedDescription)"
+                }
                 self.isLoading = false
             }
         } catch {
             await MainActor.run {
-                self.errorMessage = "Failed to load live data. \(error.localizedDescription)"
+                self.errorMessage = "Failed to load train data: \(error.localizedDescription)"
                 self.isLoading = false
             }
         }
     }
     
-    private func fetchMoreDepartures() async {
-        guard loadedRawCount < allFetchedRawServices.count else { return }
-        
-        await MainActor.run { isFetchingMore = true }
-        
-        let nextBatchSize = min(10, allFetchedRawServices.count - loadedRawCount)
-        let nextBatch = Array(allFetchedRawServices[loadedRawCount ..< (loadedRawCount + nextBatchSize)])
-        
-        let newDetailedServices = await resolveDetails(for: nextBatch)
-        
-        await MainActor.run {
-            self.services.append(contentsOf: newDetailedServices)
-            self.loadedRawCount += nextBatchSize
-            self.isFetchingMore = false
-        }
-    }
-    
-    private func resolveDetails(for batch: [RTTServiceModel]) async -> [RTTServiceModel] {
-        let results = await withTaskGroup(of: (Int, RTTServiceModel?).self) { group in
-            for (index, service) in batch.enumerated() {
-                group.addTask {
-                    var mutableService = service
-                    mutableService.userSearchOriginCRS = origin.crs
-                    mutableService.userSearchDestinationCRS = destination.crs
-                    
-                    guard let identity = service.scheduleMetadata?.identity,
-                          let runDate = service.scheduleMetadata?.departureDate else {
-                        // Fallback mock
-                        let departureTimeStr = mutableService.scheduledDeparture
-                        let dateFormatter = DateFormatter()
-                        dateFormatter.dateFormat = "HH:mm"
-                        if let depTime = dateFormatter.date(from: departureTimeStr) {
-                            let mockArrivalTime = depTime.addingTimeInterval(3600)
-                            mutableService.userSearchDestinationArrivalTime = dateFormatter.string(from: mockArrivalTime)
-                        } else {
-                            mutableService.userSearchDestinationArrivalTime = "--:--"
-                        }
-                        return (index, mutableService)
-                    }
-                    
-                    do {
-                        let details = try await RTTService.shared.serviceDetails(identity: identity, date: runDate)
-                        if let calls = details.service?.locations,
-                           let destCall = calls.first(where: { $0.location?.shortCodes?.contains(destination.crs) == true }) {
-                            
-                            let arrival = destCall.temporalData?.arrival
-                            let actual = arrival?.realtimeActual
-                            let forecast = arrival?.realtimeForecast
-                            let scheduled = arrival?.scheduleAdvertised
-                            
-                            let bestTime = actual ?? forecast ?? scheduled ?? ""
-                            if bestTime.count >= 19 {
-                                let timePart = bestTime.split(separator: "T").last ?? ""
-                                if timePart.count >= 5 {
-                                    mutableService.userSearchDestinationArrivalTime = String(timePart.prefix(5))
-                                } else {
-                                    mutableService.userSearchDestinationArrivalTime = "--:--"
-                                }
-                            } else {
-                                mutableService.userSearchDestinationArrivalTime = "--:--"
-                            }
-                            
-                            if let sched = scheduled, sched.count >= 19 {
-                                let timePart = sched.split(separator: "T").last ?? ""
-                                if timePart.count >= 5 {
-                                    mutableService.userSearchDestinationScheduledArrivalTime = String(timePart.prefix(5))
-                                }
-                            }
-                        } else {
-                            mutableService.userSearchDestinationArrivalTime = "--:--"
-                        }
-                    } catch {
-                        mutableService.userSearchDestinationArrivalTime = "--:--"
-                    }
-                    
-                    return (index, mutableService)
-                }
-            }
-            
-            var unordered = [(Int, RTTServiceModel)]()
-            for await result in group {
-                if let s = result.1 { unordered.append((result.0, s)) }
-            }
-            return unordered.sorted { $0.0 < $1.0 }.map { $1 }
-        }
-        return results
+    private func showMoreDepartures() {
+        let nextCount = min(loadedCount + 10, allFetchedServices.count)
+        services = Array(allFetchedServices.prefix(nextCount))
+        loadedCount = nextCount
     }
 }
 
 #Preview {
     AddTrainSheetView(selectedTab: .constant(2), currentDetent: .constant(.compact))
+}
+
+// MARK: - Darwin Train Card
+/// A train card specifically for Darwin services (used in the search results)
+struct DarwinTrainCard: View {
+    let train: DarwinServiceAdapter
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Top: operator logo + status
+            HStack {
+                OperatorLogoBadge(atocCode: train.atocCode, compact: false)
+                if OperatorBrand.from(code: train.atocCode) == nil {
+                    Text(train.atocName ?? "Unknown")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                        .lineLimit(1)
+                }
+                Spacer()
+                Text(train.trainStatus.label)
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundColor(train.trainStatus.color)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(train.trainStatus.color.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+            .padding(.bottom, 10)
+
+            // Route
+            HStack(alignment: .center, spacing: 0) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(train.userSearchOriginCRS ?? (train.originCRS.isEmpty ? "UNK" : train.originCRS))
+                        .font(.system(size: 20, weight: .black))
+                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                    HStack(alignment: .lastTextBaseline, spacing: 6) {
+                        Text(train.scheduledDeparture)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(train.departureDelayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .strikethrough(train.departureDelayMinutes > 0)
+
+                        if train.departureDelayMinutes > 0 {
+                            Text(train.realtimeDeparture)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.orange)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                    .padding(.horizontal, 12)
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(train.userSearchDestinationCRS ?? (train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS))
+                        .font(.system(size: 20, weight: .black))
+                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                    if let arrivalTime = train.userSearchDestinationArrivalTime {
+                        Text(arrivalTime)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                    } else {
+                        Text("--:--")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                    }
+                }
+            }
+            .padding(.bottom, 12)
+
+            // Platform
+            HStack {
+                Text("Platform")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                Spacer()
+                Text(train.platform)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+            }
+        }
+        .padding(16)
+        .background(Color(red: 1, green: 1, blue: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
+        )
+    }
 }
 
