@@ -45,6 +45,12 @@ final class DarwinService {
         request.setValue(apiKey, forHTTPHeaderField: "x-apikey")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
+        // With a Trainy server the board comes through it, and the key stays there
+        if let relayed = TrainyServer.request("darwin/\(url.pathComponents.suffix(2).joined(separator: "/"))",
+                                              query: URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []) {
+            request = relayed
+        }
+
         let (data, response) = try await session.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
@@ -440,6 +446,27 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
     var isAwaitingLiveData: Bool?
     /// The train has been reported at the user's destination
     var hasArrived: Bool?
+    /// The stations the train calls at on the user's journey, origin and destination included.
+    /// Nil until a feed has listed them, and on trains saved before they were recorded.
+    var stops: [Stop]?
+
+    struct Stop: Codable, Equatable, Identifiable {
+        var crs: String
+        var name: String
+        /// "HH:mm": when the train is due to leave, or to arrive at the last stop
+        var scheduled: String
+        /// The expected time, or the actual one once the train has been through
+        var expected: String
+        /// The train has been reported at this stop
+        var hasCalled: Bool
+        var isCancelled: Bool
+
+        var id: String { crs + scheduled }
+
+        var delayMinutes: Int {
+            DarwinTime.delay(scheduled: scheduled, expected: expected)
+        }
+    }
 
     // Schedule metadata (for compatibility)
     var scheduleMetadata: ScheduleMetadata?
@@ -603,7 +630,47 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
             }
         }
 
+        // A board without details has no calling points: keep the ones already known
+        if let stops = darwinStops(of: service) {
+            self.stops = stops
+        }
+
         updateDelay()
+    }
+
+    /// The user's journey along a board entry: the board's own station, then the calling
+    /// points as far as the destination.
+    private func darwinStops(of service: DarwinServiceModel) -> [Stop]? {
+        let origin = userSearchOriginCRS ?? originCRS
+        let destination = userSearchDestinationCRS ?? destinationCRS
+
+        // A train that divides has several portions: follow the one that reaches the destination
+        guard let portion = service.subsequentCallingPoints?
+            .compactMap(\.callingPoint)
+            .first(where: { $0.contains { $0.crs == destination } }),
+              let last = portion.firstIndex(where: { $0.crs == destination }) else { return nil }
+
+        let first = Stop(
+            crs: origin,
+            name: ukStations.first { $0.crs == origin }?.name ?? origin,
+            scheduled: scheduledDeparture,
+            expected: realtimeDeparture,
+            // The board has no actual departure time, but a report further on means it has left
+            hasCalled: portion.contains { $0.at != nil },
+            isCancelled: service.isCancelled == true
+        )
+
+        return [first] + portion[...last].compactMap { point in
+            guard let crs = point.crs, let scheduled = DarwinTime.clock(point.st) else { return nil }
+            return Stop(
+                crs: crs,
+                name: point.locationName ?? crs,
+                scheduled: scheduled,
+                expected: DarwinTime.expected(scheduled: point.st, estimate: point.at ?? point.et) ?? scheduled,
+                hasCalled: point.at != nil,
+                isCancelled: point.isCancelled == true
+            )
+        }
     }
 
     /// Applies Realtime Trains' times for the user's origin and destination calls.
@@ -638,6 +705,17 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
     }
 
     // MARK: - Matching Across Feeds
+
+    /// Names the journey the same way before and after the train moves from the timetable
+    /// to Darwin, which changes its `id`. The server uses the same key.
+    var journeyKey: String {
+        [
+            scheduleMetadata?.departureDate ?? "",
+            scheduledDeparture,
+            userSearchOriginCRS ?? originCRS,
+            userSearchDestinationCRS ?? destinationCRS
+        ].joined(separator: "-")
+    }
 
     /// True when `other` is the same train on the same journey, whichever feed each came from.
     /// Darwin and Realtime Trains share no ID, but they agree on the public timetable.
@@ -735,6 +813,35 @@ extension DarwinServiceAdapter {
 
     var expectedArrivalDate: Date? {
         date(of: userSearchDestinationArrivalTime ?? userSearchDestinationScheduledArrivalTime)
+    }
+
+    /// Where the train is thought to be at `now`: the two stops it is between, and how far
+    /// from the first to the second. Worked out from the stops' expected times, so it is an
+    /// estimate rather than a report. Nil before the train leaves the user's origin, once
+    /// it is due at the destination, and when the stops are not known.
+    func position(at now: Date = Date()) -> (from: Stop, to: Stop, fraction: Double)? {
+        guard !isCancelledService, hasArrived != true else { return nil }
+
+        let timed = (stops ?? [])
+            .filter { !$0.isCancelled }
+            .compactMap { stop in date(of: stop.expected).map { (stop: stop, due: $0) } }
+        guard let next = timed.firstIndex(where: { $0.due > now }), next > 0 else { return nil }
+
+        let from = timed[next - 1], to = timed[next]
+        let leg = to.due.timeIntervalSince(from.due)
+        let fraction = leg > 0 ? now.timeIntervalSince(from.due) / leg : 0
+        return (from.stop, to.stop, min(1, max(0, fraction)))
+    }
+
+    /// How many of the stops the train has left behind at `now`, by report or by the clock.
+    func stopsPassed(at now: Date = Date()) -> Int {
+        guard let stops, !isCancelledService else { return 0 }
+        if hasArrived == true { return stops.count }
+
+        let lastPassed = stops.lastIndex { stop in
+            stop.hasCalled || (date(of: stop.expected).map { $0 <= now } ?? false)
+        }
+        return lastPassed.map { $0 + 1 } ?? 0
     }
 
     /// Fraction of the journey completed at `now`: 0 before departure, 1 after arrival.

@@ -1,11 +1,19 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 @main
 struct TrainyApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
+    init() {
+        UNUserNotificationCenter.current().delegate = TrainAlerts.shared
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             SavedTrain.self,
+            SavedRoute.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -24,5 +32,8 @@ struct TrainyApp: App {
                 .preferredColorScheme(.light)
         }
         .modelContainer(sharedModelContainer)
+        .backgroundTask(.appRefresh(BackgroundRefresh.identifier)) { [sharedModelContainer] in
+            await BackgroundRefresh.run(in: sharedModelContainer)
+        }
     }
 }

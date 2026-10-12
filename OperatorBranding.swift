@@ -16,6 +16,12 @@ struct OperatorBrand {
     /// URL for claiming Delay Repay
     let delayRepayURL: String?
 
+    /// Operators that only pay out from 30 minutes late; the rest pay from 15
+    private static let thirtyMinuteSchemes: Set<String> = ["GR", "XC", "SR", "HB", "GC", "CS", "ME", "LO", "XR"]
+
+    /// Minutes late at the destination from which a Delay Repay claim can be made
+    var delayRepayThreshold: Int { Self.thirtyMinuteSchemes.contains(code) ? 30 : 15 }
+
     static let all: [String: OperatorBrand] = {
         let entries: [OperatorBrand] = [
             OperatorBrand(code: "VT", shortName: "Avanti",       assetName: "logo_vt", fallbackColor: Color(red: 0.88, green: 0.08, blue: 0.10), needsDarkBackground: true, delayRepayURL: "https://www.avantiwestcoast.co.uk/help-and-support/delay-repay"),

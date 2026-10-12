@@ -309,3 +309,25 @@ struct RTTCall: Codable {
         location?.shortCodes?.contains(crs) == true
     }
 }
+
+extension DarwinServiceAdapter.Stop {
+    /// A Realtime Trains calling point. Nil for a place the train only passes through,
+    /// which has no public time.
+    /// - Parameter crs: The station code to use, when it is already known.
+    init?(rtt call: RTTCall, crs: String? = nil, isLast: Bool) {
+        let times = call.temporalData
+        guard times?.displayAs != "PASS",
+              let code = crs ?? call.location?.shortCodes?.first,
+              let time = isLast ? (times?.arrival ?? times?.departure) : (times?.departure ?? times?.arrival),
+              let scheduled = time.scheduledClock else { return nil }
+
+        self.init(
+            crs: code,
+            name: call.location?.description ?? code,
+            scheduled: scheduled,
+            expected: time.expectedClock ?? scheduled,
+            hasCalled: time.realtimeActual != nil,
+            isCancelled: time.isCancelled == true
+        )
+    }
+}

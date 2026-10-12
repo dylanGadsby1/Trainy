@@ -1,236 +1,455 @@
 import SwiftUI
+import SwiftData
+import StoreKit
+import ActivityKit
+import CoreLocation
+import UserNotifications
+
+private let profileNameKey = "profile.name"
 
 // MARK: - Profile View
 
 struct ProfileView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
-    @State private var showingSample = false
+    @Environment(\.openURL) private var openURL
+    @Environment(\.requestReview) private var requestReview
+    @Query(sort: \SavedTrain.addedAt) private var trains: [SavedTrain]
+
+    @AppStorage(profileNameKey) private var name = ""
+    @AppStorage(TrainAlerts.Kind.delays.rawValue) private var delayAlerts = true
+    @AppStorage(TrainAlerts.Kind.platforms.rawValue) private var platformAlerts = true
+    @AppStorage(TrainAlerts.Kind.delayRepay.rawValue) private var delayRepayReminders = true
+
+    private var notificationsAreOn: Bool {
+        TrainAlerts.shared.isAllowed && (delayAlerts || platformAlerts || delayRepayReminders)
+    }
+
+    private var initials: String {
+        name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
+    }
 
     var body: some View {
+        let stats = TravelStats(trains)
+
         NavigationStack {
-            ZStack {
-                Color(red: 1, green: 1, blue: 1)
-                .ignoresSafeArea()
+            List {
+                Section {
+                    header
+                }
+                .listRowBackground(Color.clear)
 
-                ScrollView {
-                    VStack(spacing: 24) {
-
-                        // Profile header
-                        VStack(spacing: 14) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.appleBlack)
-                                    .frame(width: 86, height: 86)
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 38, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
-
-                            VStack(spacing: 4) {
-                                Text("Dylan Gadsby")
-                                    .font(.system(size: 22, weight: .black))
-                                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                                Text("Trainy Member")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                            }
-
-                            // Stats row
-                            HStack(spacing: 0) {
-                                ProfileStatView(value: "47", label: "Journeys")
-                                Divider()
-                                    .frame(height: 32)
-                                    .background(AdaptiveColor.divider.resolve(in: colorScheme))
-                                ProfileStatView(value: "2.4k", label: "Miles")
-                                Divider()
-                                    .frame(height: 32)
-                                    .background(AdaptiveColor.divider.resolve(in: colorScheme))
-                                ProfileStatView(value: "£38", label: "Saved")
-                            }
-                            .padding(.vertical, 16)
-                            .background(Color(red: 1, green: 1, blue: 1))
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
-                            )
-                        }
-                        .padding(.top, 8)
-
-                        // Samples section
-                        ProfileSectionView(title: "EXPLORE") {
-                            ProfileRowButton(
-                                icon: "sparkles",
-                                iconColor: Color(red: 0.55, green: 0.35, blue: 1.0),
-                                label: "View Sample Dashboard",
-                                subtitle: "See Trainy's predictive intelligence"
-                            ) {
-                                showingSample = true
-                            }
-                        }
-
-                        // Settings section
-                        ProfileSectionView(title: "SETTINGS") {
-                            ProfileRowButton(
-                                icon: "bell.badge.fill",
-                                iconColor: .appBlue,
-                                label: "Notifications",
-                                subtitle: "Delay alerts, platform changes"
-                            ) {}
-                            Divider()
-                                .padding(.leading, 52)
-                                .background(AdaptiveColor.divider.resolve(in: colorScheme))
-                            ProfileRowButton(
-                                icon: "creditcard.fill",
-                                iconColor: .green,
-                                label: "Delay Repay",
-                                subtitle: "Auto-claim compensation"
-                            ) {}
-                            Divider()
-                                .padding(.leading, 52)
-                                .background(AdaptiveColor.divider.resolve(in: colorScheme))
-                            ProfileRowButton(
-                                icon: "lock.shield.fill",
-                                iconColor: Color(red: 0.2, green: 0.6, blue: 1.0),
-                                label: "Privacy",
-                                subtitle: "Location data & permissions"
-                            ) {}
-                        }
-
-                        // About section
-                        ProfileSectionView(title: "ABOUT") {
-                            ProfileRowButton(
-                                icon: "star.fill",
-                                iconColor: .yellow,
-                                label: "Rate Trainy",
-                                subtitle: "Love the app? Leave a review"
-                            ) {}
-                            Divider()
-                                .padding(.leading, 52)
-                                .background(AdaptiveColor.divider.resolve(in: colorScheme))
-                            ProfileRowButton(
-                                icon: "info.circle.fill",
-                                iconColor: Color(red: 0.35, green: 0.75, blue: 1.0),
-                                label: "About",
-                                subtitle: "Version 1.0 · Build 1"
-                            ) {}
-                        }
-
-                        Spacer(minLength: 40)
+                Section {
+                    HStack {
+                        StatTile(value: stats.journeys.formatted(), label: "Journeys")
+                        Divider()
+                        StatTile(value: stats.miles.formatted(.number.notation(.compactName)), label: "Miles")
+                        Divider()
+                        StatTile(value: stats.onTimeText, label: "On Time")
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.vertical, 6)
+                } header: {
+                    Text("Your Travel")
+                } footer: {
+                    Text("From your Rail History. Miles are measured in a straight line between stations.")
+                }
+
+                Section("Settings") {
+                    NavigationLink {
+                        NotificationSettingsView()
+                    } label: {
+                        SettingsRow("Notifications", systemImage: "bell.badge.fill", color: .red, value: notificationsAreOn ? "On" : "Off")
+                    }
+
+                    NavigationLink {
+                        DelayRepayClaimsView()
+                    } label: {
+                        SettingsRow("Delay Repay", systemImage: "sterlingsign", color: .green, value: stats.openClaims > 0 ? "\(stats.openClaims) to claim" : "")
+                    }
+
+                    NavigationLink {
+                        PrivacyView()
+                    } label: {
+                        SettingsRow("Privacy", systemImage: "hand.raised.fill", color: .blue)
+                    }
+                }
+
+                Section("About") {
+                    Button(action: rate) {
+                        SettingsRow("Rate Trainy", systemImage: "star.fill", color: .orange)
+                    }
+                    .tint(.primary)
+
+                    NavigationLink {
+                        AboutView()
+                    } label: {
+                        SettingsRow("About", systemImage: "info", color: .gray, value: AppInfo.version)
+                    }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.appBlue)
                 }
             }
+            .task {
+                await TrainAlerts.shared.refreshStatus()
+            }
         }
-        .sheet(isPresented: $showingSample) {
-            JourneyDashboardView(journey: mockJourney)
+    }
+
+    private var header: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(Color.appleBlack)
+                if initials.isEmpty {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 36, weight: .semibold))
+                } else {
+                    Text(initials)
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(width: 86, height: 86)
+
+            TextField("Add Your Name", text: $name)
+                .font(.title2.bold())
+                .multilineTextAlignment(.center)
+                .textContentType(.name)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+
+            Text(trains.first.map { "Tracking trains since \($0.addedAt.formatted(.dateTime.month(.wide).year()))" } ?? "No trains tracked yet")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// A rating the user asks to give goes to the App Store page; until Trainy has one,
+    /// the system prompt is the only place to leave it.
+    private func rate() {
+        if let id = AppInfo.appStoreID, let url = URL(string: "https://apps.apple.com/app/id\(id)?action=write-review") {
+            openURL(url)
+        } else {
+            requestReview()
         }
     }
 }
 
-// MARK: - Profile Stat View
+// MARK: - Travel Stats
 
-struct ProfileStatView: View {
-    @Environment(\.colorScheme) private var colorScheme
+/// What the Rail History adds up to.
+private struct TravelStats {
+    /// Journeys that ran. A cancelled train was not travelled on.
+    var journeys = 0
+    var onTime = 0
+    var miles = 0
+    var openClaims = 0
+
+    init(_ trains: [SavedTrain]) {
+        var metres = 0.0
+
+        for train in trains where train.isPast {
+            if train.delayRepay?.isOpen == true { openClaims += 1 }
+
+            guard let service = train.service, !service.isCancelledService else { continue }
+            journeys += 1
+            if service.delayMinutes == 0 { onTime += 1 }
+
+            if let origin = knownStationCoordinates[service.userSearchOriginCRS ?? service.originCRS],
+               let destination = knownStationCoordinates[service.userSearchDestinationCRS ?? service.destinationCRS] {
+                metres += CLLocation(latitude: origin.latitude, longitude: origin.longitude)
+                    .distance(from: CLLocation(latitude: destination.latitude, longitude: destination.longitude))
+            }
+        }
+
+        miles = Int((metres / 1609.344).rounded())
+    }
+
+    var onTimeText: String {
+        guard journeys > 0 else { return "–" }
+        return (Double(onTime) / Double(journeys)).formatted(.percent.precision(.fractionLength(0)))
+    }
+}
+
+private struct StatTile: View {
     let value: String
     let label: String
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 20, weight: .black))
-                .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                .font(.title2.bold())
             Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Profile Section Container
-
-struct ProfileSectionView<Content: View>: View {
-    @Environment(\.colorScheme) private var colorScheme
+/// A row as in the Settings app: an icon on a coloured tile, a title, and the current value.
+private struct SettingsRow: View {
     let title: String
-    let content: Content
+    let systemImage: String
+    let color: Color
+    let value: String
 
-    init(title: String, @ViewBuilder content: () -> Content) {
+    init(_ title: String, systemImage: String, color: Color, value: String = "") {
         self.title = title
-        self.content = content()
+        self.systemImage = systemImage
+        self.color = color
+        self.value = value
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                .tracking(1.2)
-                .padding(.leading, 4)
-
-            VStack(spacing: 0) {
-                content
+        LabeledContent {
+            Text(value)
+        } label: {
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 29, height: 29)
+                    .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
-            .background(Color(red: 1, green: 1, blue: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
-            )
         }
     }
 }
 
-// MARK: - Profile Row Button
+// MARK: - Notifications
 
-struct ProfileRowButton: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let icon: String
-    let iconColor: Color
-    let label: String
-    let subtitle: String
-    let action: () -> Void
+struct NotificationSettingsView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+
+    @AppStorage(TrainAlerts.Kind.delays.rawValue) private var delayAlerts = true
+    @AppStorage(TrainAlerts.Kind.platforms.rawValue) private var platformAlerts = true
+    @AppStorage(TrainAlerts.Kind.delayRepay.rawValue) private var delayRepayReminders = true
+
+    private var alerts: TrainAlerts { .shared }
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(iconColor.opacity(0.18))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(iconColor)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(label)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    Text(subtitle)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+        Form {
+            permissionSection
+
+            Section {
+                Toggle("Delays and Cancellations", isOn: $delayAlerts)
+                Toggle("Platform Changes", isOn: $platformAlerts)
+            } header: {
+                Text("Your Trains")
+            } footer: {
+                Text(TrainyServer.baseURL == nil
+                     ? "Sent when Trainy sees a change, while it is open or when iOS refreshes it in the background. Alerts can arrive a few minutes after the change."
+                     : "Sent by Trainy's server within about a minute of a change, whether or not the app is open.")
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .disabled(!alerts.isAllowed)
+
+            Section {
+                Toggle("Claim Reminders", isOn: $delayRepayReminders)
+            } header: {
+                Text("Delay Repay")
+            } footer: {
+                Text("A reminder the morning after a late or cancelled train, and again three days before the claim window closes.")
+            }
+            .disabled(!alerts.isAllowed)
+        }
+        .navigationTitle("Notifications")
+        .navigationBarTitleDisplayMode(.inline)
+        // Permission can change in Settings while the app is in the background
+        .task(id: scenePhase) {
+            await alerts.refreshStatus()
+        }
+        .onChange(of: delayRepayReminders) {
+            Task { await alerts.refreshDelayRepayReminders(in: modelContext) }
+        }
+    }
+
+    @ViewBuilder
+    private var permissionSection: some View {
+        switch alerts.status {
+        case .notDetermined:
+            Section {
+                Button("Allow Notifications") {
+                    Task {
+                        await alerts.requestPermission()
+                        await alerts.refreshDelayRepayReminders(in: modelContext)
+                    }
+                }
+            } footer: {
+                Text("iOS will ask whether Trainy may send you notifications.")
+            }
+        case .denied:
+            Section {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                        openURL(url)
+                    }
+                }
+            } footer: {
+                Text("Notifications are turned off for Trainy. Turn them on in Settings to get alerts.")
+            }
+        default:
+            EmptyView()
+        }
+    }
+}
+
+// MARK: - Privacy
+
+struct PrivacyView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+    @Query private var trains: [SavedTrain]
+    @Query private var routes: [SavedRoute]
+    @AppStorage(profileNameKey) private var name = ""
+
+    @State private var confirmingErase = false
+    @State private var liveActivitiesAreOn = ActivityAuthorizationInfo().areActivitiesEnabled
+
+    private var notificationStatus: String {
+        switch TrainAlerts.shared.status {
+        case .notDetermined: return "Not Asked"
+        case .denied: return "Off"
+        default: return "On"
+        }
+    }
+
+    var body: some View {
+        List {
+            Section {
+                Label("Your trains, Rail History, saved routes and name are kept on this iPhone. Trainy has no accounts, analytics or adverts.", systemImage: "iphone")
+                Label("To find and follow trains, Trainy sends the stations and times you look up to National Rail and Realtime Trains. It does not send your name or your history.", systemImage: "network")
+                if TrainyServer.baseURL != nil {
+                    Label("While notifications are on, Trainy's server holds this iPhone's notification address and the trains you are following, so it can tell you when they change. A train is removed once it has run.", systemImage: "bell.badge")
+                }
+            } header: {
+                Text("Your Data")
+            }
+
+            Section {
+                LabeledContent("Notifications", value: notificationStatus)
+                LabeledContent("Live Activities", value: liveActivitiesAreOn ? "On" : "Off")
+                LabeledContent("Location", value: "Not Used")
+                Button("Open Trainy Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
+                }
+            } header: {
+                Text("Permissions")
+            }
+
+            Section {
+                Button("Erase All Trainy Data", role: .destructive) {
+                    confirmingErase = true
+                }
+                .disabled(trains.isEmpty && routes.isEmpty && name.isEmpty)
+                .confirmationDialog("Erase all Trainy data?", isPresented: $confirmingErase, titleVisibility: .visible) {
+                    Button("Erase Everything", role: .destructive, action: erase)
+                } message: {
+                    Text("Your saved trains, Rail History, saved routes and name will be removed from this iPhone. This cannot be undone.")
+                }
+            } footer: {
+                Text("Removes your saved trains, Rail History, saved routes and name from this iPhone.")
+            }
+        }
+        .navigationTitle("Privacy")
+        .navigationBarTitleDisplayMode(.inline)
+        // Permissions can change in Settings while the app is in the background
+        .task(id: scenePhase) {
+            await TrainAlerts.shared.refreshStatus()
+            liveActivitiesAreOn = ActivityAuthorizationInfo().areActivitiesEnabled
+        }
+    }
+
+    private func erase() {
+        for train in trains {
+            modelContext.delete(train)
+        }
+        for route in routes {
+            modelContext.delete(route)
+        }
+        try? modelContext.save()
+        name = ""
+
+        LiveActivityManager.shared.endTracking()
+        TrainAlerts.shared.removeAll()
+        Task { await TrainyServer.shared.forget() }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+}
+
+// MARK: - About
+
+private enum AppInfo {
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–"
+    static let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "–"
+
+    /// Trainy's numeric App Store id, once it is listed
+    static let appStoreID: String? = nil
+}
+
+struct AboutView: View {
+    var body: some View {
+        List {
+            Section {
+                VStack(spacing: 8) {
+                    // The app icon itself cannot be loaded by name, so the asset catalog holds a copy
+                    Image("AppLogo")
+                        .resizable()
+                        .frame(width: 76, height: 76)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    Text("Trainy")
+                        .font(.title2.bold())
+                    Text("Version \(AppInfo.version) (\(AppInfo.build))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .listRowBackground(Color.clear)
+
+            Section {
+                dataSource("National Rail Enquiries", detail: "Live departures and arrivals", url: "https://www.nationalrail.co.uk")
+                dataSource("Realtime Trains", detail: "Timetables for later trains", url: "https://www.realtimetrains.co.uk")
+            } header: {
+                Text("Train Data")
+            } footer: {
+                Text("Live times come from National Rail's Darwin feed, which covers trains leaving within about four hours. Realtime Trains provides the timetable for anything later.")
+            }
+        }
+        .navigationTitle("About")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func dataSource(_ name: String, detail: String, url: String) -> some View {
+        if let url = URL(string: url) {
+            Link(destination: url) {
+                LabeledContent {
+                    Image(systemName: "arrow.up.right")
+                } label: {
+                    Text(name)
+                    Text(detail)
+                }
+            }
+            .tint(.primary)
         }
     }
 }
 
 #Preview {
     ProfileView()
+        .modelContainer(for: [SavedTrain.self, SavedRoute.self], inMemory: true)
 }

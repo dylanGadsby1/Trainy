@@ -28,6 +28,8 @@
 		C2C48C0F0173FB4AECC60545 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22892EF3392043EF2D7B04D /* LiveActivityManager.swift */; };
 		BA9450A1307C6000009275DA /* TrainSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A0307C6000009275DA /* TrainSearch.swift */; };
 		BA9450A3307C6000009275DA /* TrainSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A2307C6000009275DA /* TrainSync.swift */; };
+		BA9450A5307C6000009275DA /* TrainAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A4307C6000009275DA /* TrainAlerts.swift */; };
+		BA9450A8307C6000009275DA /* TrainyServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A7307C6000009275DA /* TrainyServer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,6 +78,9 @@
 		BA945090307C593E009275DA /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
 		BA9450A0307C6000009275DA /* TrainSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainSearch.swift; sourceTree = "<group>"; };
 		BA9450A2307C6000009275DA /* TrainSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainSync.swift; sourceTree = "<group>"; };
+		BA9450A4307C6000009275DA /* TrainAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainAlerts.swift; sourceTree = "<group>"; };
+		BA9450A7307C6000009275DA /* TrainyServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainyServer.swift; sourceTree = "<group>"; };
+		BA9450A6307C6000009275DA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -134,7 +139,10 @@
 				AA000004 /* Assets.xcassets */,
 				BA94508E307C5911009275DA /* DarwinAPI.swift */,
 				BA9450A2307C6000009275DA /* TrainSync.swift */,
+				BA9450A4307C6000009275DA /* TrainAlerts.swift */,
+				BA9450A7307C6000009275DA /* TrainyServer.swift */,
 				BA9450A0307C6000009275DA /* TrainSearch.swift */,
+				BA9450A6307C6000009275DA /* Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -268,6 +276,8 @@
 			files = (
 				BA94508F307C5911009275DA /* DarwinAPI.swift in Sources */,
 				BA9450A3307C6000009275DA /* TrainSync.swift in Sources */,
+				BA9450A5307C6000009275DA /* TrainAlerts.swift in Sources */,
+				BA9450A8307C6000009275DA /* TrainyServer.swift in Sources */,
 				BA9450A1307C6000009275DA /* TrainSearch.swift in Sources */,
 				AA000005 /* TrainyApp.swift in Sources */,
 				AA000001 /* ContentView.swift in Sources */,
@@ -434,6 +444,7 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -464,6 +475,7 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

@@ -37,6 +37,11 @@ Data comes from two feeds. National Rail's **Darwin Live Departure Boards** API,
 | 🚂 **Operator Branding** | Logos and brand colours for 26 UK rail operators |
 | 💸 **Delay Repay** | Deep links to every operator's Delay Repay compensation page |
 | 📍 **Live Activities** | Follow a train from the Lock Screen and Dynamic Island |
+| 🔔 **Notifications** | Delay, cancellation and platform alerts for saved trains, and reminders to claim Delay Repay |
+| 🚏 **Calling Points** | Every stop on the journey with live times, the route on the map and the train's estimated position |
+| ⭐ **Saved Routes** | Star a route to search it in one tap, with a shortcut for the return journey |
+| 📤 **Share Journey** | Send someone your train and when it is now due in |
+| ☁️ **Optional Server** | A Cloudflare Worker that pushes changes while the app is closed and keeps the feed keys out of the app ([server/](server/README.md)) |
 | 📱 **SwiftData Persistence** | Saved trains and history survive app restarts |
 
 ---
@@ -57,16 +62,18 @@ Trainy/
 ├── HomeView.swift           # Map view + draggable bottom sheet
 ├── AddTrainView.swift       # Station picker + live departure search
 ├── RailHistoryView.swift    # Archived past journeys
-├── ProfileView.swift        # User profile & stats
+├── ProfileView.swift        # Travel stats, notification settings, privacy & about
 │
 ├── DarwinAPI.swift          # Darwin API client, response models & the app's train model
 ├── TrainSearch.swift        # One search across Darwin and Realtime Trains, merged
 ├── TrainSync.swift          # Refreshes saved trains and hands them from the timetable to Darwin
+├── TrainAlerts.swift        # Delay, platform and Delay Repay notifications
+├── TrainyServer.swift       # Optional: push registration and the feeds through server/
 ├── LiveActivityManager.swift # Starts and updates the Live Activity
 ├── RTTService.swift         # Realtime Trains API client (timetable search and fallback updates)
 ├── RTTModels.swift          # Train status, UK station list & legacy RTT models
 ├── OperatorBranding.swift   # ATOC operator logos & brand colours
-├── SavedTrain.swift         # SwiftData model for persisted trains
+├── SavedTrain.swift         # SwiftData models for saved trains and saved routes
 └── Secrets.swift            # Your API keys (git-ignored, see Getting Started)
 ```
 

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import BackgroundTasks
 
 // MARK: - Train Sync
 // Keeps every saved train up to date and decides which feed it is read from:
@@ -48,10 +49,15 @@ final class TrainSync {
             saved.serviceData = data
             saved.id = updated.id
             LiveActivityManager.shared.updateTracking(with: updated)
+            if !saved.isPast {
+                TrainAlerts.shared.trainChanged(from: train, to: updated)
+            }
         }
 
         archiveFinishedTrains(savedTrains)
         try? context.save()
+        await TrainAlerts.shared.refreshDelayRepayReminders(in: context)
+        await TrainyServer.shared.sync(in: context)
     }
 
     /// The latest version of `train` from whichever feed can see it, or nil if neither can right now.
@@ -119,5 +125,32 @@ final class TrainSync {
                 LiveActivityManager.shared.endTracking(for: train)
             }
         }
+    }
+}
+
+// MARK: - Background Refresh
+
+/// Lets iOS wake the app now and then to refresh the saved trains, so alerts and the Live
+/// Activity keep up while the app is closed. iOS decides when, so this is best effort.
+enum BackgroundRefresh {
+
+    /// Also listed under BGTaskSchedulerPermittedIdentifiers in Info.plist
+    static let identifier = "com.dylangadsby.Trainy.refresh"
+
+    /// Asks for the next wake-up, if there is still a train to follow.
+    @MainActor
+    static func schedule(in container: ModelContainer) {
+        let upcoming = FetchDescriptor<SavedTrain>(predicate: #Predicate { !$0.isPast })
+        guard ((try? container.mainContext.fetchCount(upcoming)) ?? 0) > 0 else { return }
+
+        let request = BGAppRefreshTaskRequest(identifier: identifier)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    @MainActor
+    static func run(in container: ModelContainer) async {
+        schedule(in: container)
+        await TrainSync.shared.sync(in: container.mainContext)
     }
 }

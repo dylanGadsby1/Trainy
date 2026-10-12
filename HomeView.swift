@@ -335,7 +335,9 @@ struct HomeSheetView: View {
             homeContent
         }
         .sheet(item: $selectedTrain) { train in
-            JourneyDashboardView(journey: train.toTrainJourney(), rawService: train)
+            // Show the saved train as it is now, not as it was when the sheet opened
+            let current = liveServices.first { $0.isSameJourney(as: train) } ?? train
+            JourneyDashboardView(journey: current.toTrainJourney(), rawService: current)
         }
         .confirmationDialog(
             "Remove Train",
@@ -345,6 +347,9 @@ struct HomeSheetView: View {
             Button("Remove", role: .destructive) {
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
                 if let train = trainToDelete {
+                    if let service = train.service {
+                        LiveActivityManager.shared.endTracking(for: service)
+                    }
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         modelContext.delete(train)
                         try? modelContext.save()

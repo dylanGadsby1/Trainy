@@ -304,6 +304,137 @@ struct TimelineCard: View {
     }
 }
 
+// MARK: - Calling Points Card
+
+/// The stations on the user's journey with their live times, and where the train is among them.
+struct CallingPointsCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let train: DarwinServiceAdapter
+
+    var body: some View {
+        GlassCard {
+            // The train moves on between refreshes, so the card follows the clock
+            TimelineView(.periodic(from: .now, by: 30)) { timeline in
+                let stops = train.stops ?? []
+                let passed = train.stopsPassed(at: timeline.date)
+
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("CALLING POINTS", systemImage: "list.bullet")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                        .tracking(1)
+
+                    if let position = train.position(at: timeline.date) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "tram.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(5)
+                                .background(train.trainStatus.color)
+                                .clipShape(Circle())
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Between \(position.from.name) and \(position.to.name)")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                                Text("Estimated from the train's times")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                            }
+                        }
+                    }
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
+                            CallingPointRow(
+                                stop: stop,
+                                place: index < passed ? .passed : (index == passed ? .next : .ahead),
+                                isFirst: index == 0,
+                                isLast: index == stops.count - 1,
+                                color: train.trainStatus.color
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct CallingPointRow: View {
+    /// Where a stop is relative to the train
+    enum Place {
+        case passed, next, ahead
+    }
+
+    @Environment(\.colorScheme) private var colorScheme
+    let stop: DarwinServiceAdapter.Stop
+    let place: Place
+    let isFirst: Bool
+    let isLast: Bool
+    /// The colour of the part of the line already travelled
+    let color: Color
+
+    private var track: Color { AdaptiveColor.track.resolve(in: colorScheme) }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // The line: travelled as far as the last stop the train left
+            ZStack {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(isFirst ? .clear : (place == .passed ? color : track))
+                    Rectangle()
+                        .fill(isLast ? .clear : (place == .passed ? color : track))
+                }
+                .frame(width: 3)
+
+                Circle()
+                    .fill(place == .passed ? color : Color.white)
+                    .frame(width: 12, height: 12)
+                    .overlay(
+                        Circle().stroke(place == .ahead ? track : color, lineWidth: 2.5)
+                    )
+            }
+            .frame(width: 14)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(stop.name)
+                    .font(.system(size: 14, weight: place == .next ? .black : .semibold))
+                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                    .lineLimit(1)
+                if stop.isCancelled {
+                    Text("Not calling here")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.red)
+                } else if place == .next {
+                    Text(isFirst ? "Departs from here" : "Next stop")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(color)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if !stop.isCancelled {
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    Text(stop.scheduled)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(stop.delayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                        .strikethrough(stop.delayMinutes > 0)
+                    if stop.delayMinutes > 0 {
+                        Text(stop.expected)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.orange)
+                    }
+                }
+                .monospacedDigit()
+            }
+        }
+        .frame(height: 44)
+        .opacity(place == .passed ? 0.55 : 1)
+    }
+}
+
 // MARK: - Arrival Context Card
 
 struct ArrivalContextCard: View {
@@ -387,6 +518,16 @@ struct JourneyDashboardView: View {
 
                         HStack(spacing: 10) {
                             if let service = rawService {
+                                ShareLink(item: service.shareMessage()) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.appBlue)
+                                        .padding(10)
+                                        .background(Color(red: 1, green: 1, blue: 1))
+                                        .clipShape(Circle())
+                                }
+                                .accessibilityLabel("Share journey")
+
                                 Button(action: {
                                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                     LiveActivityManager.shared.startTracking(service: service)
@@ -414,6 +555,10 @@ struct JourneyDashboardView: View {
 
                     StatusHeaderCard(journey: journey)
                     TimelineCard(journey: journey)
+
+                    if let service = rawService, (service.stops?.count ?? 0) > 1 {
+                        CallingPointsCard(train: service)
+                    }
 
                     HStack {
                         Text("ARRIVAL CONTEXT")
@@ -460,6 +605,75 @@ extension DarwinServiceAdapter {
             isCancelled: isCancelledService,
             isScheduledOnly: isAwaitingLiveData == true
         )
+    }
+}
+
+// MARK: - On the Map
+
+extension DarwinServiceAdapter {
+    /// The line to draw for the journey: through every stop whose location is known, or
+    /// straight from origin to destination while the stops are not.
+    var routeCoordinates: [CLLocationCoordinate2D] {
+        let codes = stops?.map(\.crs)
+            ?? [userSearchOriginCRS ?? originCRS, userSearchDestinationCRS ?? destinationCRS]
+        return codes.compactMap { knownStationCoordinates[$0] }
+    }
+
+    /// The train's estimated place, on the straight line between the two stops it is between.
+    func coordinate(at now: Date) -> CLLocationCoordinate2D? {
+        guard let position = position(at: now),
+              let from = knownStationCoordinates[position.from.crs],
+              let to = knownStationCoordinates[position.to.crs] else { return nil }
+        return CLLocationCoordinate2D(
+            latitude: from.latitude + (to.latitude - from.latitude) * position.fraction,
+            longitude: from.longitude + (to.longitude - from.longitude) * position.fraction
+        )
+    }
+}
+
+/// A saved train's estimated position on the map.
+struct TrainPositionMarker: View {
+    let color: Color
+
+    var body: some View {
+        Image(systemName: "tram.fill")
+            .font(.system(size: 13, weight: .bold))
+            .foregroundColor(.white)
+            .padding(7)
+            .background(color)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
+            .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+    }
+}
+
+// MARK: - Sharing
+
+extension DarwinServiceAdapter {
+    /// The journey as it stands, in a sentence for someone who is waiting for the traveller.
+    func shareMessage(at now: Date = Date()) -> String {
+        func name(_ crs: String) -> String { ukStations.first { $0.crs == crs }?.name ?? crs }
+        let origin = name(userSearchOriginCRS ?? originCRS)
+        let destination = name(userSearchDestinationCRS ?? destinationCRS)
+
+        // Name the day unless the train is today's, or is a few hours off just past midnight
+        var day = ""
+        if let date = scheduledDepartureDate, !Calendar.current.isDateInToday(date),
+           date.timeIntervalSince(now) > 12 * 3600 {
+            day = " on \(date.formatted(.dateTime.weekday(.wide).day().month(.wide)))"
+        }
+
+        if isCancelledService {
+            return "My \(scheduledDeparture) from \(origin) to \(destination)\(day) has been cancelled."
+        }
+
+        let hasLeft = (expectedDepartureDate ?? .distantFuture) <= now
+        let opening = "\(hasLeft ? "I'm on" : "I'm getting") the \(scheduledDeparture) from \(origin)\(day)"
+        guard let arrival = userSearchDestinationArrivalTime ?? userSearchDestinationScheduledArrivalTime else {
+            return "\(opening) to \(destination)."
+        }
+        let lateness = delayMinutes > 0 ? " (running \(delayMinutes) min late)" : ""
+        return "\(opening), due into \(destination) at \(arrival)\(lateness)."
     }
 }
 
@@ -648,10 +862,8 @@ struct ContentView: View {
         )
     )
 
-    @State private var selectedTrainId: UUID? = nil
-    @State private var routeCoordinates: [CLLocationCoordinate2D] = []
-    @State private var isLoadingRoute: Bool = false
-    @State private var routeCache: [UUID: [CLLocationCoordinate2D]] = [:]
+    /// The moment the trains' positions on the map were last worked out for
+    @State private var positionClock = Date()
 
     @Query(filter: #Predicate<SavedTrain> { $0.isPast == false }) private var mySavedTrains: [SavedTrain]
     @Environment(\.modelContext) private var modelContext
@@ -743,9 +955,18 @@ struct ContentView: View {
             .annotationTitles(.hidden)
         }
 
-        if routeCoordinates.count > 1 {
-            MapPolyline(coordinates: routeCoordinates)
+        ForEach(liveServices.filter { $0.routeCoordinates.count > 1 }) { train in
+            MapPolyline(coordinates: train.routeCoordinates)
                 .stroke(Color.appBlue, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+        }
+
+        ForEach(liveServices) { train in
+            if let coordinate = train.coordinate(at: positionClock) {
+                Annotation("", coordinate: coordinate, anchor: .center) {
+                    TrainPositionMarker(color: train.trainStatus.color)
+                }
+                .annotationTitles(.hidden)
+            }
         }
     }
 
@@ -786,6 +1007,9 @@ struct ContentView: View {
         .onReceive(refreshTimer) { _ in
             Task { await TrainSync.shared.sync(in: modelContext) }
         }
+        .onReceive(positionTimer) { now in
+            if !liveServices.isEmpty { positionClock = now }
+        }
         .sheet(isPresented: $showingProfile) {
             ProfileView()
         }
@@ -793,6 +1017,8 @@ struct ContentView: View {
             // Catch up as soon as the app comes back: a train may have come into Darwin's reach meanwhile
             if phase == .active {
                 Task { await TrainSync.shared.sync(in: modelContext) }
+            } else if phase == .background {
+                BackgroundRefresh.schedule(in: modelContext.container)
             }
         }
         .onChange(of: selectedTab) { _, _ in
@@ -844,6 +1070,9 @@ struct ContentView: View {
 
     /// Fires every 60 seconds so TrainSync can refresh live times and archive trains that have arrived.
     private let refreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
+    /// Moves the train markers along between refreshes.
+    private let positionTimer = Timer.publish(every: 15, on: .main, in: .common).autoconnect()
 }
 
 

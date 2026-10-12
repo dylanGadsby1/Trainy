@@ -16,6 +16,8 @@ struct AddTrainSheetView: View {
 
 struct AddTrainSheetContent: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SavedRoute.addedAt, order: .reverse) private var savedRoutes: [SavedRoute]
     @Binding var selectedTab: Int
 
     @State private var originStation: UKStation?
@@ -38,14 +40,20 @@ struct AddTrainSheetContent: View {
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             } else {
                 VStack(alignment: .leading, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("NEW JOURNEY")
-                            .font(.system(size: 11, weight: .black))
-                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                            .tracking(1.5)
-                        Text("Add Train")
-                            .font(.system(size: 22, weight: .black))
-                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("NEW JOURNEY")
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                .tracking(1.5)
+                            Text("Add Train")
+                                .font(.system(size: 22, weight: .black))
+                                .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                        }
+                        Spacer()
+                        if let origin = originStation, let destination = destinationStation {
+                            SaveRouteButton(originCRS: origin.crs, destinationCRS: destination.crs)
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
@@ -110,6 +118,12 @@ struct AddTrainSheetContent: View {
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
                         )
+                        // Sits on the line between From and To
+                        .overlay(alignment: .topTrailing) {
+                            swapButton
+                                .padding(.trailing, 16)
+                                .padding(.top, Self.stationRowHeight - 18)
+                        }
 
                         // Search button
                         Button {
@@ -136,7 +150,11 @@ struct AddTrainSheetContent: View {
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
                         .disabled(originStation == nil || destinationStation == nil)
-                        
+
+                        if !savedRoutes.isEmpty {
+                            savedRoutesSection
+                        }
+
                         Spacer(minLength: 40)
                     }
                     .padding(.horizontal, 20)
@@ -148,6 +166,127 @@ struct AddTrainSheetContent: View {
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: showingResults)
     }
     
+    // MARK: - Saved Routes
+
+    /// Height of the From and To rows, which the swap button is placed against
+    private static let stationRowHeight: CGFloat = 64
+
+    /// Turns the journey round, for the way back.
+    private var swapButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                swap(&originStation, &destinationStation)
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                .frame(width: 36, height: 36)
+                .background(Color(red: 1, green: 1, blue: 1))
+                .clipShape(Circle())
+                .overlay(Circle().stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1))
+        }
+        .disabled(originStation == nil && destinationStation == nil)
+        .accessibilityLabel("Swap stations")
+    }
+
+    private var savedRoutesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("SAVED ROUTES")
+                .font(.system(size: 11, weight: .black))
+                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                .tracking(1.5)
+
+            VStack(spacing: 0) {
+                ForEach(Array(savedRoutes.enumerated()), id: \.element.id) { index, route in
+                    if index > 0 {
+                        Divider()
+                            .padding(.leading, 66)
+                    }
+                    savedRouteRow(route)
+                }
+            }
+            .background(Color(red: 1, green: 1, blue: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func savedRouteRow(_ route: SavedRoute) -> some View {
+        if let origin = route.origin, let destination = route.destination {
+            HStack(spacing: 0) {
+                // The route as saved: one tap searches it from now
+                Button {
+                    search(from: origin, to: destination)
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.yellow.opacity(0.22))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.orange)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(origin.name)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                                .lineLimit(1)
+                            Text("to \(destination.name)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                    }
+                    .padding(.leading, 16)
+                    .padding(.vertical, 12)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                // The way back
+                Button {
+                    search(from: destination, to: origin)
+                } label: {
+                    Label("Return", systemImage: "arrow.uturn.left")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(AdaptiveColor.subtleFill.resolve(in: colorScheme))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 16)
+                .accessibilityLabel("Search return journey")
+            }
+            .contextMenu {
+                Button("Remove Route", systemImage: "star.slash", role: .destructive) {
+                    modelContext.delete(route)
+                    try? modelContext.save()
+                }
+            }
+        }
+    }
+
+    /// Fills in the stations and shows trains leaving from now.
+    private func search(from origin: UKStation, to destination: UKStation) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        originStation = origin
+        destinationStation = destination
+        journeyDate = Date()
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+            showingResults = true
+        }
+    }
+
     // MARK: - Subviews
     
     private var fromStationRow: some View {
@@ -198,6 +337,42 @@ struct AddTrainSheetContent: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+    }
+}
+
+// MARK: - Save Route Button
+
+/// A star that saves the route between two stations, or removes it once saved.
+struct SaveRouteButton: View {
+    let originCRS: String
+    let destinationCRS: String
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
+    @Query private var routes: [SavedRoute]
+
+    private var saved: SavedRoute? {
+        routes.first { $0.originCRS == originCRS && $0.destinationCRS == destinationCRS }
+    }
+
+    var body: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if let saved {
+                modelContext.delete(saved)
+            } else {
+                modelContext.insert(SavedRoute(originCRS: originCRS, destinationCRS: destinationCRS))
+            }
+            try? modelContext.save()
+        } label: {
+            Image(systemName: saved == nil ? "star" : "star.fill")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(saved == nil ? AdaptiveColor.primary.resolve(in: colorScheme) : .orange)
+                .padding(8)
+                .background(AdaptiveColor.subtleFill.resolve(in: colorScheme))
+                .clipShape(Circle())
+        }
+        .accessibilityLabel(saved == nil ? "Save route" : "Remove saved route")
     }
 }
 
@@ -375,6 +550,7 @@ struct LiveDeparturesFeed: View {
                         .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
                 }
                 Spacer()
+                SaveRouteButton(originCRS: origin.crs, destinationCRS: destination.crs)
             }
             .padding(.horizontal, 20)
             .padding(.top, 4)

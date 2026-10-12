@@ -3,6 +3,7 @@ import ActivityKit
 import SwiftUI
 import Combine
 
+@MainActor
 @Observable
 class LiveActivityManager {
     static let shared = LiveActivityManager()
@@ -10,6 +11,8 @@ class LiveActivityManager {
     var currentActivity: Activity<TrainyActivityAttributes>?
     private var updateTimer: AnyCancellable?
     private var currentService: DarwinServiceAdapter?
+    /// Passes the activity's push address on to the Trainy server as iOS issues it
+    private var pushTokenTask: Task<Void, Never>?
 
     func startTracking(service: DarwinServiceAdapter) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
@@ -17,7 +20,7 @@ class LiveActivityManager {
             return
         }
 
-        // End any existing
+        // One at a time: end any other
         endTracking()
 
         // The Live Activity shows the user's journey, not the train's full route
@@ -30,18 +33,27 @@ class LiveActivityManager {
             operatorCode: service.atocCode ?? "NA"
         )
 
-        currentActivity = try? Activity.request(
+        // With a Trainy server the activity is also updated by push, which reaches it
+        // while the app is closed
+        let activity = try? Activity.request(
             attributes: attributes,
-            content: .init(state: contentState(for: service), staleDate: nil)
+            content: .init(state: contentState(for: service), staleDate: nil),
+            pushType: TrainyServer.shared.canPushLiveActivities ? .token : nil
         )
-        currentService = service
-        print("Started Live Activity: \(currentActivity?.id ?? "")")
+        print("Started Live Activity: \(activity?.id ?? "")")
 
-        // Start polling every 30 seconds
-        startPolling()
+        if let activity {
+            follow(activity, showing: service)
+        }
     }
 
     func updateTracking(with service: DarwinServiceAdapter) {
+        // An activity started before the app was last closed is still on the Lock Screen,
+        // though this object no longer holds it: pick it up again
+        if currentActivity == nil, let running = activities(showing: service).first {
+            follow(running, showing: service)
+        }
+
         // Matched by journey, because a train's id changes when it moves from the timetable to Darwin
         guard let activity = currentActivity, currentService?.isSameJourney(as: service) == true else { return }
 
@@ -53,29 +65,64 @@ class LiveActivityManager {
         }
     }
 
-    /// Ends the Live Activity if it is tracking the given train.
+    /// Ends the Live Activity showing the given train, if there is one.
     func endTracking(for train: DarwinServiceAdapter) {
-        guard currentService?.isSameJourney(as: train) == true else { return }
-        endTracking()
+        for activity in activities(showing: train) {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+        }
+        if currentService?.isSameJourney(as: train) == true {
+            stopFollowing()
+        }
     }
 
+    /// Ends every Live Activity, including one this object lost track of when the app closed.
     func endTracking() {
-        guard let activity = currentActivity else { return }
-
-        Task {
-            let state = TrainyActivityAttributes.ContentState(
-                scheduledDeparture: "--:--",
-                expectedDeparture: "--:--",
-                delayMinutes: 0,
-                platform: "",
-                isCancelled: false
-            )
-            await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .immediate)
+        for activity in Activity<TrainyActivityAttributes>.activities {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
         }
+        stopFollowing()
+    }
+
+    /// Keeps `activity` up to date while the app is open, and hands its push address to
+    /// the Trainy server so it is kept up to date while the app is closed.
+    private func follow(_ activity: Activity<TrainyActivityAttributes>, showing service: DarwinServiceAdapter) {
+        currentActivity = activity
+        currentService = service
+        startPolling()
+
+        pushTokenTask?.cancel()
+        guard TrainyServer.shared.canPushLiveActivities else { return }
+
+        let journeyKey = service.journeyKey
+        pushTokenTask = Task { @MainActor in
+            for await token in activity.pushTokenUpdates {
+                TrainyServer.shared.setLiveActivity(
+                    journeyKey: journeyKey,
+                    token: token.map { String(format: "%02x", $0) }.joined()
+                )
+            }
+        }
+    }
+
+    private func stopFollowing() {
+        if let service = currentService, pushTokenTask != nil {
+            TrainyServer.shared.setLiveActivity(journeyKey: service.journeyKey, token: nil)
+        }
+        pushTokenTask?.cancel()
+        pushTokenTask = nil
         currentActivity = nil
         currentService = nil
         updateTimer?.cancel()
         updateTimer = nil
+    }
+
+    /// The running activities for a train, found by what they show.
+    private func activities(showing service: DarwinServiceAdapter) -> [Activity<TrainyActivityAttributes>] {
+        Activity<TrainyActivityAttributes>.activities.filter {
+            $0.attributes.originCRS == service.originCRS
+                && $0.attributes.destinationCRS == service.destinationCRS
+                && $0.content.state.scheduledDeparture == service.scheduledDeparture
+        }
     }
 
     private func contentState(for service: DarwinServiceAdapter) -> TrainyActivityAttributes.ContentState {

@@ -81,7 +81,8 @@ struct PastTrainsView: View {
                                                     atocCode: service.atocCode,
                                                     delayMinutes: service.delayMinutes,
                                                     isCancelled: service.isCancelledService,
-                                                    statusColor: service.trainStatus.color
+                                                    statusColor: service.trainStatus.color,
+                                                    claim: savedTrain.delayRepay
                                                 )
                                             }
                                             .simultaneousGesture(TapGesture().onEnded {
@@ -159,6 +160,7 @@ struct PastJourneyRow: View {
     let delayMinutes: Int
     let isCancelled: Bool
     let statusColor: Color
+    var claim: DelayRepayClaim? = nil
 
     var body: some View {
         HStack(spacing: 16) {
@@ -192,6 +194,16 @@ struct PastJourneyRow: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
                     }
+                }
+                if let claim, claim.isOpen {
+                    Label("Delay Repay · \(claim.daysLeftText)", systemImage: "sterlingsign.circle.fill")
+                        .lineLimit(1)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.orange)
+                } else if claim?.claimedAt != nil {
+                    Label("Delay Repay claimed", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.green)
                 }
             }
 
@@ -316,7 +328,8 @@ private struct PastTrainsSheetContent: View {
                                          atocCode: service.atocCode,
                                          delayMinutes: service.delayMinutes,
                                          isCancelled: service.isCancelledService,
-                                         statusColor: service.trainStatus.color
+                                         statusColor: service.trainStatus.color,
+                                         claim: savedTrain.delayRepay
                                      )
                                  }
                                  .simultaneousGesture(TapGesture().onEnded {
@@ -478,46 +491,8 @@ struct RailHistoryDetailView: View {
                                 .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
                         )
                         
-                        // Delay Repay Section
-                        if service.delayMinutes >= 15,
-                           let brand = OperatorBrand.from(code: service.atocCode),
-                           let delayRepayString = brand.delayRepayURL,
-                           let delayRepayURL = URL(string: delayRepayString) {
-                            
-                            VStack(spacing: 12) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.system(size: 32))
-                                    .foregroundColor(.orange)
-                                
-                                Text("You may be entitled to compensation")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                                    .multilineTextAlignment(.center)
-                                
-                                Text("This train was delayed by \(service.delayMinutes) minutes. You can claim Delay Repay from \(brand.shortName).")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 20)
-                                
-                                Link(destination: delayRepayURL) {
-                                    Text("Claim Delay Repay")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 16)
-                                        .background(Color.appBlue)
-                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                }
-                                .padding(.top, 8)
-                            }
-                            .padding(24)
-                            .background(Color.orange.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                            )
+                        if let claim = train.delayRepay {
+                            DelayRepaySection(train: train, claim: claim)
                         }
                     }
                 }
@@ -525,6 +500,151 @@ struct RailHistoryDetailView: View {
             }
         }
         .navigationTitle("Journey Details")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Delay Repay
+
+/// The claim card on a past journey: claim link while the window is open, then claimed or closed.
+private struct DelayRepaySection: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
+    let train: SavedTrain
+    let claim: DelayRepayClaim
+
+    private var tint: Color {
+        if claim.claimedAt != nil { return .green }
+        return claim.isOpen ? .orange : .gray
+    }
+
+    private var title: String {
+        if claim.claimedAt != nil { return "Delay Repay claimed" }
+        return claim.isOpen ? "You may be entitled to compensation" : "Delay Repay window closed"
+    }
+
+    private var message: String {
+        if let claimedAt = claim.claimedAt {
+            return "Marked as claimed on \(claimedAt.formatted(date: .abbreviated, time: .omitted))."
+        }
+        guard claim.isOpen else {
+            return "\(claim.brand.shortName) accepts claims for \(DelayRepayClaim.claimWindowDays) days after the journey."
+        }
+        if claim.isCancelled {
+            return "This train was cancelled. If you reached your destination \(claim.brand.delayRepayThreshold) or more minutes late on another train, you can claim Delay Repay from \(claim.brand.shortName)."
+        }
+        return "This train was delayed by \(claim.delayMinutes) minutes. You can claim Delay Repay from \(claim.brand.shortName)."
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: claim.claimedAt != nil ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .font(.system(size: 32))
+                .foregroundColor(tint)
+
+            Text(title)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                .multilineTextAlignment(.center)
+
+            Text(message)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+
+            if claim.isOpen {
+                Text(claim.daysLeftText.uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.orange)
+                    .tracking(0.5)
+
+                Link(destination: claim.url) {
+                    Text("Claim Delay Repay")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.appBlue)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .padding(.top, 8)
+
+                Button("Mark as claimed") { setClaimed(Date()) }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.appBlue)
+                    .padding(.top, 4)
+            } else if claim.claimedAt != nil {
+                Button("Undo") { setClaimed(nil) }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.appBlue)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+        .background(tint.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(tint.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private func setClaimed(_ date: Date?) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        train.delayRepayClaimedAt = date
+        try? modelContext.save()
+        Task { await TrainAlerts.shared.refreshDelayRepayReminders(in: modelContext) }
+    }
+}
+
+/// Every past journey with a Delay Repay claim still to make. Opened from Profile.
+struct DelayRepayClaimsView: View {
+    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
+
+    private var claimable: [SavedTrain] {
+        pastTrains.filter { $0.delayRepay?.isOpen == true }
+    }
+
+    var body: some View {
+        ZStack {
+            Color(red: 1, green: 1, blue: 1)
+                .ignoresSafeArea()
+
+            ScrollView {
+                if claimable.isEmpty {
+                    ContentUnavailableView(
+                        "Nothing to Claim",
+                        systemImage: "sterlingsign.circle",
+                        description: Text("Late and cancelled journeys you can claim Delay Repay for appear here.")
+                    )
+                    .padding(.top, 60)
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(claimable) { savedTrain in
+                            if let service = savedTrain.service {
+                                NavigationLink(destination: RailHistoryDetailView(train: savedTrain)) {
+                                    PastJourneyRow(
+                                        originCode: service.userSearchOriginCRS ?? service.originCRS,
+                                        destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,
+                                        date: DateFormatter.localizedString(from: savedTrain.movedToPastAt ?? savedTrain.addedAt, dateStyle: .short, timeStyle: .none),
+                                        operator_: service.atocName ?? "Unknown",
+                                        atocCode: service.atocCode,
+                                        delayMinutes: service.delayMinutes,
+                                        isCancelled: service.isCancelledService,
+                                        statusColor: service.trainStatus.color,
+                                        claim: savedTrain.delayRepay
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(20)
+                }
+            }
+        }
+        .navigationTitle("Delay Repay")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

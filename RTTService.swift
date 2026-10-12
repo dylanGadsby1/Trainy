@@ -75,15 +75,22 @@ actor RTTService {
             throw RTTError.rateLimitExceeded
         }
 
-        let token = try await getValidAccessToken()
+        var request: URLRequest
+        if let relayed = TrainyServer.request("rtt\(path)", query: query) {
+            // With a Trainy server the timetable comes through it, and the token stays there
+            request = relayed
+        } else {
+            let token = try await getValidAccessToken()
 
-        var components = URLComponents(string: "\(baseURL)\(path)")
-        components?.queryItems = query
-        guard let url = components?.url else { throw RTTError.invalidResponse }
+            var components = URLComponents(string: "\(baseURL)\(path)")
+            components?.queryItems = query
+            guard let url = components?.url else { throw RTTError.invalidResponse }
 
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request = URLRequest(url: url)
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+        }
+        guard let url = request.url else { throw RTTError.invalidResponse }
 
         let (data, response) = try await session.data(for: request)
 
@@ -214,14 +221,21 @@ actor RTTService {
             $0.isCall(at: origin) && $0.temporalData?.departure?.scheduledClock == train.scheduledDeparture
         }) ?? calls.firstIndex(where: { $0.isCall(at: origin) }) else { return nil }
 
-        let to = calls[(from + 1)...].first { $0.isCall(at: destination) }
+        let to = calls[(from + 1)...].firstIndex { $0.isCall(at: destination) }
 
         var updated = train
         updated.applyRTT(
             departure: calls[from].temporalData?.departure,
-            arrival: to?.temporalData?.arrival,
+            arrival: to.flatMap { calls[$0].temporalData?.arrival },
             platform: calls[from].locationMetadata?.platform
         )
+        if let to {
+            updated.stops = calls[from...to].enumerated().compactMap { offset, call in
+                // The two ends keep the codes the user searched with
+                let crs = offset == 0 ? origin : (offset == to - from ? destination : nil)
+                return DarwinServiceAdapter.Stop(rtt: call, crs: crs, isLast: offset == to - from)
+            }
+        }
         return updated
     }
 
