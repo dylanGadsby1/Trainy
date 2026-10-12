@@ -612,6 +612,8 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var cameraDistance: Double = 500000
+    /// The part of the map on screen, as of the last time the camera came to rest
+    @State private var visibleRegion: MKCoordinateRegion? = nil
     @State private var selectedStationCRS: String? = nil
     
     @State private var showingStationOptions = false
@@ -636,9 +638,15 @@ struct ContentView: View {
     }
     
     private var visibleUnhighlightedUKStations: [UKStation] {
-        guard cameraDistance < 5000 else { return [] }  // Reduced from 15000
+        guard cameraDistance < 5000, let region = visibleRegion else { return [] }  // Reduced from 15000
         let highlighted = highlightedStations
-        return ukStations.filter { !highlighted.contains($0.crs) }
+        // A full span either side of the centre: what is on screen plus half a screen of
+        // margin, so a station just past the edge is already there after a small pan
+        let latitudes = (region.center.latitude - region.span.latitudeDelta)...(region.center.latitude + region.span.latitudeDelta)
+        let longitudes = (region.center.longitude - region.span.longitudeDelta)...(region.center.longitude + region.span.longitudeDelta)
+        return ukStations.filter {
+            latitudes.contains($0.lat) && longitudes.contains($0.lon) && !highlighted.contains($0.crs)
+        }
     }
 
     @MapContentBuilder
@@ -674,6 +682,7 @@ struct ContentView: View {
                     .ignoresSafeArea()
                     .onMapCameraChange(frequency: .onEnd) { context in
                         cameraDistance = context.camera.distance
+                        visibleRegion = context.region
                     }
 
                     MapToggleButton()
