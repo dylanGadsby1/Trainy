@@ -307,7 +307,7 @@ private struct PastTrainsSheetContent: View {
                     ForEach(pastTrains) { savedTrain in
                          if let service = savedTrain.service {
                              ZStack(alignment: .topTrailing) {
-                                 NavigationLink(destination: RailHistoryDetailView(train: savedTrain)) {
+                                 NavigationLink(value: savedTrain) {
                                      PastJourneyRow(
                                          originCode: service.userSearchOriginCRS ?? service.originCRS,
                                          destinationCode: service.userSearchDestinationCRS ?? service.destinationCRS,

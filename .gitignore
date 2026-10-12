@@ -22,3 +22,6 @@ __pycache__/
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+# Setup notes that quote part of an API key
+Trainy.xcodeproj/MIGRATION_COMPLETE.md

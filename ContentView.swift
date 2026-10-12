@@ -463,17 +463,56 @@ extension DarwinServiceAdapter {
     }
 }
 
-// MARK: - UITabBarController: Transparent Tab Content Backgrounds
-// SwiftUI's TabView wraps each Tab's content in a UIHostingController.
-// Those hosting controllers have opaque white/black UIView backgrounds by
-// default, which covers the universal Map sitting behind the TabView.
-// We can't override @objc methods on UIHostingController directly because it
-// is a generic class. Instead we reach each child via its parent
-// UITabBarController — which is concrete and allows @objc overrides.
-extension UITabBarController {
-    open override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        viewControllers?.forEach { $0.view.backgroundColor = .clear }
+// MARK: - Floating Tab Bar
+
+/// The system tab bar on its own, with no tab content behind it, so it can float over the
+/// map and whichever sheet is showing. A SwiftUI TabView would bring a full-screen container
+/// that covers the map and takes its touches; here anything that misses the bar falls through.
+struct FloatingTabBar: UIViewRepresentable {
+    struct Item {
+        let title: String
+        let systemImage: String
+    }
+
+    let items: [Item]
+    @Binding var selection: Int
+    /// Called when the tab that is already selected is tapped again
+    var onReselect: () -> Void = {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> UITabBar {
+        let bar = PassthroughTabBar()
+        bar.items = items.enumerated().map { index, item in
+            UITabBarItem(title: item.title, image: UIImage(systemName: item.systemImage), tag: index)
+        }
+        bar.delegate = context.coordinator
+        return bar
+    }
+
+    func updateUIView(_ bar: UITabBar, context: Context) {
+        context.coordinator.parent = self
+        bar.selectedItem = bar.items?.first { $0.tag == selection }
+    }
+
+    final class Coordinator: NSObject, UITabBarDelegate {
+        var parent: FloatingTabBar
+        init(_ parent: FloatingTabBar) { self.parent = parent }
+
+        func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
+            if parent.selection == item.tag {
+                parent.onReselect()
+            } else {
+                parent.selection = item.tag
+            }
+        }
+    }
+
+    private final class PassthroughTabBar: UITabBar {
+        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+            let hit = super.hitTest(point, with: event)
+            return hit === self ? nil : hit
+        }
     }
 }
 
@@ -545,6 +584,8 @@ struct ContentView: View {
     @State private var selectedTab: Int = 0
     @State private var globalSheetDetent: SheetDetent = .compact
     @State private var showingProfile: Bool = false
+    /// The journey pushed from Past Trains, if any
+    @State private var historyPath: [SavedTrain] = []
 
     /// Single persistent camera state — never recreated on tab switch.
     @State private var cameraPosition: MapCameraPosition = .camera(
@@ -555,7 +596,6 @@ struct ContentView: View {
             pitch: 0
         )
     )
-    @State private var currentCamera: MapCamera? = nil
 
     @State private var selectedTrainId: UUID? = nil
     @State private var routeCoordinates: [CLLocationCoordinate2D] = []
@@ -622,15 +662,10 @@ struct ContentView: View {
     }
 
     var body: some View {
-        // ── iOS 26 liquid glass pattern ───────────────────────────────────
-        // The Map lives *inside* the My Trains tab content, co-located with
-        // the bottom sheet in a ZStack. This is exactly how Apple Maps works
-        // on iOS 26: the liquid glass tab bar floats natively over the tab
-        // content — no background-stripping tricks required.
-        // Camera state lives here in ContentView so the map position is
-        // preserved when the user switches tabs and comes back.
-        TabView(selection: $selectedTab) {
-            Tab("My Trains", systemImage: "tram.fill", value: 0) {
+        // One Map for the whole app. It sits at the root and is never rebuilt, so switching
+        // tab only swaps the sheet floating over it.
+        ZStack {
+            NavigationStack(path: $historyPath) {
                 ZStack {
                     Map(position: $cameraPosition, selection: $selectedStationCRS) {
                         stationsMapContent
@@ -639,62 +674,28 @@ struct ContentView: View {
                     .ignoresSafeArea()
                     .onMapCameraChange(frequency: .onEnd) { context in
                         cameraDistance = context.camera.distance
-                        currentCamera = context.camera
                     }
-                    
+
                     MapToggleButton()
                     ProfileToggleButton(showingProfile: $showingProfile)
 
-                    HomeSheetView(currentDetent: $globalSheetDetent, selectedTab: $selectedTab)
+                    tabSheet(0) { HomeSheetView(currentDetent: $globalSheetDetent, selectedTab: $selectedTab) }
+                    tabSheet(1) { PastTrainsSheetView(currentDetent: $globalSheetDetent) }
+                    tabSheet(2) { AddTrainSheetView(selectedTab: $selectedTab, currentDetent: $globalSheetDetent) }
                 }
-                .task {
-                    await TrainSync.shared.sync(in: modelContext)
-                }
-                .onReceive(refreshTimer) { _ in
-                    Task { await TrainSync.shared.sync(in: modelContext) }
-                }
-            }
-
-            Tab("Past Trains", systemImage: "clock.arrow.circlepath", value: 1) {
-                NavigationStack {
-                    ZStack {
-                        Map(position: $cameraPosition, selection: $selectedStationCRS) {
-                            stationsMapContent
-                        }
-                        .mapStyle(isSatelliteMap ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
-                        .ignoresSafeArea()
-                        .onMapCameraChange(frequency: .onEnd) { context in
-                            cameraDistance = context.camera.distance
-                            currentCamera = context.camera
-                        }
-                        
-                        MapToggleButton()
-                        ProfileToggleButton(showingProfile: $showingProfile)
-
-                        PastTrainsSheetView(currentDetent: $globalSheetDetent)
-                    }
-                    .toolbar(.hidden, for: .navigationBar)
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: SavedTrain.self) { train in
+                    RailHistoryDetailView(train: train)
                 }
             }
 
-            Tab("Add Train", systemImage: "plus", value: 2) {
-                ZStack {
-                    Map(position: $cameraPosition, selection: $selectedStationCRS) {
-                        stationsMapContent
-                    }
-                    .mapStyle(isSatelliteMap ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
-                    .ignoresSafeArea()
-                    .onMapCameraChange(frequency: .onEnd) { context in
-                        cameraDistance = context.camera.distance
-                        currentCamera = context.camera
-                    }
-                    
-                    MapToggleButton()
-                    ProfileToggleButton(showingProfile: $showingProfile)
-
-                    AddTrainSheetView(selectedTab: $selectedTab, currentDetent: $globalSheetDetent)
-                }
-            }
+            tabBar
+        }
+        .task {
+            await TrainSync.shared.sync(in: modelContext)
+        }
+        .onReceive(refreshTimer) { _ in
+            Task { await TrainSync.shared.sync(in: modelContext) }
         }
         .sheet(isPresented: $showingProfile) {
             ProfileView()
@@ -707,9 +708,8 @@ struct ContentView: View {
         }
         .onChange(of: selectedTab) { _, _ in
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            if let cam = currentCamera {
-                cameraPosition = .camera(cam)
-            }
+            // A pushed journey belongs to Past Trains: don't leave it covering another tab
+            historyPath.removeAll()
         }
         .onChange(of: selectedStationCRS) { _, newValue in
             guard let newValue = newValue else { return }
@@ -742,6 +742,39 @@ struct ContentView: View {
             }
         }
     }
+
+    /// Every tab's sheet stays mounted, so what it holds (a half-filled search, a scroll
+    /// position) survives switching away. Only the selected one is shown and touchable.
+    private func tabSheet<Content: View>(_ tab: Int, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            // Swap instantly even when the tab changes inside an animation, so two
+            // half-faded sheets never let the map show through
+            .animation(nil) { $0.opacity(selectedTab == tab ? 1 : 0) }
+            .allowsHitTesting(selectedTab == tab)
+            .accessibilityHidden(selectedTab != tab)
+    }
+
+    private var tabBar: some View {
+        GeometryReader { geo in
+            FloatingTabBar(
+                items: [
+                    .init(title: "My Trains", systemImage: "tram.fill"),
+                    .init(title: "Past Trains", systemImage: "clock.arrow.circlepath"),
+                    .init(title: "Add Train", systemImage: "plus")
+                ],
+                selection: $selectedTab,
+                // Same as the system: tapping the current tab again goes back to its root
+                onReselect: { historyPath.removeAll() }
+            )
+            // UIKit's own tab bar height, plus the home indicator area it extends into
+            .frame(height: 49 + geo.safeAreaInsets.bottom)
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .ignoresSafeArea(edges: .bottom)
+        }
+        // Stay put behind the keyboard rather than riding up on top of it
+        .ignoresSafeArea(.keyboard)
+    }
+
     /// Fires every 60 seconds so TrainSync can refresh live times and archive trains that have arrived.
     private let refreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 }
