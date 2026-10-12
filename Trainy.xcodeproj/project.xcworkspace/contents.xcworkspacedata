@@ -4,4 +4,25 @@
    <FileRef
       location = "self:">
    </FileRef>
+   <FileRef
+      location = "group:DarwinService.swift">
+   </FileRef>
+   <FileRef
+      location = "group:Secrets.swift">
+   </FileRef>
+   <FileRef
+      location = "group:DarwinTestView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:DARWIN_SETUP.md">
+   </FileRef>
+   <FileRef
+      location = "group:DarwinServiceAdapter.swift">
+   </FileRef>
+   <FileRef
+      location = "group:MIGRATION_COMPLETE.md">
+   </FileRef>
+   <FileRef
+      location = "group:DarwinAPI.swift">
+   </FileRef>
 </Workspace>
