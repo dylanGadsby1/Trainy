@@ -1,0 +1,21 @@
+name = "trainy-server"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+# Checks every watched train once a minute
+[triggers]
+crons = ["* * * * *"]
+
+# Holds one record per registered device. Create it with
+#   npx wrangler kv namespace create TRAINY
+# and paste the id it prints here.
+[[kv_namespaces]]
+binding = "TRAINY"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[vars]
+# The app's bundle identifier
+APNS_TOPIC = "com.dylangadsby.Trainy"
+
+# Secrets, set with `npx wrangler secret put NAME` (see README.md):
+#   DARWIN_KEY, RTT_REFRESH_TOKEN, APNS_KEY, APNS_KEY_ID, APNS_TEAM_ID, APP_KEY (optional)
