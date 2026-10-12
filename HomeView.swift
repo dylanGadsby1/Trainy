@@ -147,215 +147,302 @@ struct MyTrainCard: View {
 
 // MARK: - Shared Bottom Sheet Container
 
-enum SheetDetent {
+enum SheetDetent: CaseIterable {
     case compact, peek, mid, full
-}
 
-struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
+    /// Share of the available height the sheet occupies when resting here.
+    var fraction: CGFloat {
+        switch self {
+        case .compact: return 0.22
+        case .peek:    return 0.38
+        case .mid:     return 0.62
+        case .full:    return 0.90
+        }
     }
 }
 
 /// A generic draggable bottom sheet that floats above the map with side margins.
+///
+/// Motion model:
+/// • The sheet is laid out once at its tallest size and slid with `offset`, so
+///   dragging never relayouts the content.
+/// • While a finger is down the sheet tracks it 1:1 — no animation lag.
+/// • Grabbing the sheet mid-flight catches it exactly where it is on screen.
+/// • On release we project where the fling would coast to, snap to the nearest
+///   detent and hand the finger's velocity to a lively spring, so the motion
+///   carries straight through and lands with a little bounce.
 struct MapBottomSheet<Content: View>: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     let content: Content
-    init(detent: Binding<SheetDetent>, @ViewBuilder content: () -> Content) { 
+    init(detent: Binding<SheetDetent>, @ViewBuilder content: () -> Content) {
         self._currentDetent = detent
-        self.content = content() 
+        self.content = content()
     }
 
     @Binding var currentDetent: SheetDetent
-    @State private var dragOffset: CGFloat = 0
-    @State private var scrollOffset: CGFloat = 0
-    @State private var isDraggingSheet: Bool = false
-    @State private var sheetDragStartHeight: CGFloat = 0
+
+    /// Height the sheet rests at, or is springing towards. nil until first layout.
+    @State private var restHeight: CGFloat?
+    /// Finger travel since the sheet was grabbed (+ = downwards).
+    @State private var dragTranslation: CGFloat = 0
+    /// Gesture translation at the moment the sheet was grabbed; nil when not dragging.
+    @State private var dragOrigin: CGFloat?
+    /// Gesture translation at which the list handed a pull-down over to the sheet.
+    @State private var handoffStart: CGFloat?
+    @State private var isScrolledToTop = true
+    @State private var availableHeight: CGFloat = 0
+    @State private var inFlight: SettleSpring?
+
+    // Reset by SwiftUI when a gesture ends *or* is cancelled, so we never get stuck mid-drag.
+    @GestureState private var isHandleGestureActive = false
+    @GestureState private var isScrollGestureActive = false
 
     private let sideMargin: CGFloat = 10
     private let cornerRadius: CGFloat = 38
+    /// Sheet that hangs below the screen edge so overshoot never reveals a gap.
+    private let bottomOverhang: CGFloat = 160
+    /// Snappy with a small overshoot — the "ping" when the sheet lands.
+    private let spring = Spring(duration: 0.42, bounce: 0.24)
+    /// How far ahead (in seconds of coasting) a fling is projected when picking a detent.
+    private let flingProjection: CGFloat = 0.2
+    private let maxFlingVelocity: CGFloat = 2400
 
-    // Rubber-band resistance factor — smaller = more resistance at extremes
-    private let rubberBandFactor: CGFloat = 0.35
+    private struct SettleSpring {
+        let from: CGFloat
+        let to: CGFloat
+        let velocity: CGFloat // points/s, + = growing
+        let start: Date
+    }
 
     var body: some View {
         GeometryReader { geo in
-            let screenH = geo.size.height
-            let compactH: CGFloat = screenH * 0.22
-            let peekH:    CGFloat = screenH * 0.38
-            let midH:     CGFloat = screenH * 0.62
-            let fullH:    CGFloat = screenH * 0.90
-
-            let target = detentHeight(currentDetent, compact: compactH, peek: peekH, mid: midH, full: fullH)
-
-            // Apply rubber-band resistance at the extremes
-            let rawH = target - dragOffset
-            let sheetH: CGFloat = {
-                if rawH > fullH {
-                    // Over-pulling upward: rubber-band
-                    let over = rawH - fullH
-                    return fullH + over * rubberBandFactor
-                } else if rawH < compactH {
-                    // Over-pulling downward: rubber-band
-                    let under = compactH - rawH
-                    return compactH - under * rubberBandFactor
-                }
-                return rawH
-            }()
-
-            let handleDragGesture = DragGesture(minimumDistance: 4)
-                .onChanged { v in
-                    withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
-                        dragOffset = v.translation.height
-                    }
-                }
-                .onEnded { v in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        dragOffset = 0
-                        currentDetent = nextDetent(
-                            currentDetent,
-                            translation: v.translation.height,
-                            velocity: v.predictedEndTranslation.height
-                        )
-                    }
-                }
-
-            let sheetDragGesture = DragGesture(minimumDistance: 4)
-                .onChanged { v in
-                    guard currentDetent == .full else { return }
-                    if scrollOffset >= -1 && v.translation.height > 0 {
-                        if !isDraggingSheet {
-                            isDraggingSheet = true
-                            sheetDragStartHeight = v.translation.height
-                        }
-                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
-                        if effectiveTranslation > 0 {
-                            withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
-                                dragOffset = effectiveTranslation
-                            }
-                        }
-                    } else if isDraggingSheet {
-                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
-                        withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
-                            dragOffset = max(0, effectiveTranslation)
-                        }
-                    }
-                }
-                .onEnded { v in
-                    guard currentDetent == .full else { return }
-                    if isDraggingSheet {
-                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            dragOffset = 0
-                            currentDetent = nextDetent(
-                                currentDetent,
-                                translation: effectiveTranslation,
-                                velocity: v.predictedEndTranslation.height
-                            )
-                        }
-                    }
-                    isDraggingSheet = false
-                    sheetDragStartHeight = 0
-                }
+            let available = geo.size.height
+            let sheetShape = UnevenRoundedRectangle(topLeadingRadius: cornerRadius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: cornerRadius, style: .continuous)
 
             VStack(spacing: 0) {
-                Spacer()
+                grabber
+                    .gesture(handleDrag)
+                    .onTapGesture { cycleDetent() }
 
-                VStack(spacing: 0) {
-                    // Drag handle
-                    Capsule()
-                        .fill(Color.primary.opacity(0.18))
-                        .frame(width: 36, height: 4)
-                        .padding(.top, 10)
-                        .padding(.bottom, 8)
-                        .contentShape(Rectangle()) // Make it easily draggable
-                        .gesture(handleDragGesture)
-
-                    // Content — scrollable only when fully expanded
-                    ScrollView(.vertical, showsIndicators: false) {
-                        ZStack(alignment: .top) {
-                            GeometryReader { proxy in
-                                Color.clear.preference(key: ScrollOffsetKey.self, value: proxy.frame(in: .named("bottomSheetScroll")).minY)
-                            }.frame(height: 0)
-                            
-                            VStack(alignment: .leading, spacing: 20) {
-                                content
-                            }
-                            .padding(.bottom, 40)
-                        }
+                // Content — scrollable only when fully expanded
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        content
                     }
-                    .coordinateSpace(name: "bottomSheetScroll")
-                    .onPreferenceChange(ScrollOffsetKey.self) { value in
-                        scrollOffset = value
+                    .padding(.bottom, 40 + bottomOverhang)
+                    .visualEffect { effect, proxy in
+                        // Pulling down at the top of the list moves the sheet, so cancel
+                        // the scroll view's own bounce there to keep content pinned to it.
+                        effect.offset(x: 0, y: -max(0, proxy.frame(in: .scrollView).minY))
                     }
-                    .simultaneousGesture(sheetDragGesture, including: currentDetent == .full ? .all : .none)
-                    .scrollDisabled(currentDetent != .full)
                 }
-                .frame(height: max(compactH * 0.4, sheetH))
-                .frame(maxWidth: .infinity)
-                .background(
-                    UnevenRoundedRectangle(topLeadingRadius: cornerRadius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: cornerRadius, style: .continuous)
-                        .fill(Color(red: 1, green: 1, blue: 1))
-                )
-                .clipShape(UnevenRoundedRectangle(topLeadingRadius: cornerRadius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: cornerRadius, style: .continuous))
-                .padding(.horizontal, sideMargin)
-                .gesture(handleDragGesture, including: currentDetent == .full ? .subviews : .all)
+                .onScrollGeometryChange(for: Bool.self) { scroll in
+                    scroll.contentOffset.y + scroll.contentInsets.top <= 0.5
+                } action: { _, atTop in
+                    isScrolledToTop = atTop
+                }
+                .scrollDisabled(currentDetent != .full)
+                .simultaneousGesture(scrollPullDrag, including: currentDetent == .full ? .all : .none)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: height(of: .full, in: available) + bottomOverhang, alignment: .top)
+            .background(sheetShape.fill(Color(red: 1, green: 1, blue: 1)))
+            .clipShape(sheetShape)
+            .padding(.horizontal, sideMargin)
+            .gesture(handleDrag, including: currentDetent == .full ? .subviews : .all)
+            .offset(y: available - visibleHeight(in: available))
+            .onChange(of: available, initial: true) { _, newHeight in
+                availableHeight = newHeight
+                if dragOrigin == nil {
+                    restHeight = height(of: currentDetent, in: newHeight)
+                }
             }
         }
         .ignoresSafeArea(edges: .bottom)
-    }
-
-    private func detentHeight(_ d: SheetDetent, compact: CGFloat, peek: CGFloat, mid: CGFloat, full: CGFloat) -> CGFloat {
-        switch d {
-        case .compact: return compact
-        case .peek:    return peek
-        case .mid:     return mid
-        case .full:    return full
+        .onChange(of: currentDetent) { _, newDetent in
+            // Detent changed from outside (another tab, a button) — glide there.
+            guard dragOrigin == nil, let current = restHeight else { return }
+            let target = height(of: newDetent, in: availableHeight)
+            guard abs(target - current) > 0.5 else { return }
+            settle(from: current, to: target, velocity: 0)
+        }
+        .onChange(of: isHandleGestureActive) { _, active in
+            if !active { finishCancelledDrag() }
+        }
+        .onChange(of: isScrollGestureActive) { _, active in
+            if !active { finishCancelledDrag() }
         }
     }
 
-    private func nextDetent(_ current: SheetDetent, translation: CGFloat, velocity: CGFloat) -> SheetDetent {
-        // Use predicted end translation for snapping decision
-        let gesture = velocity
+    private var grabber: some View {
+        Capsule()
+            .fill(Color.primary.opacity(0.18))
+            .frame(width: 36, height: 5)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle()) // Whole top strip is grabbable
+            .accessibilityElement()
+            .accessibilityLabel("Resize sheet")
+            .accessibilityAddTraits(.isButton)
+    }
 
-        // Swiping up (negative translation = growing)
-        if gesture < -100 {
-            switch current {
-            case .compact: return .peek
-            case .peek:    return .mid
-            case .mid:     return .full
-            case .full:    return .full
+    // MARK: Gestures
+
+    /// Drags the sheet from the grabber, or from anywhere when not fully expanded.
+    private var handleDrag: some Gesture {
+        // Global space: the sheet moves under the finger, so local coordinates would feed back.
+        DragGesture(minimumDistance: 4, coordinateSpace: .global)
+            .updating($isHandleGestureActive) { _, active, _ in active = true }
+            .onChanged { v in
+                track(v.translation.height)
+            }
+            .onEnded { v in
+                release(velocity: v.velocity.height)
+            }
+    }
+
+    /// When fully expanded, a pull-down that starts with the list at its top drags the sheet.
+    private var scrollPullDrag: some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .global)
+            .updating($isScrollGestureActive) { _, active, _ in active = true }
+            .onChanged { v in
+                guard currentDetent == .full else { return }
+                if handoffStart == nil {
+                    guard isScrolledToTop, v.translation.height > 0 else { return }
+                    handoffStart = v.translation.height
+                }
+                // Pushing back up past the hand-off point returns control to the list.
+                track(max(0, v.translation.height - (handoffStart ?? 0)))
+            }
+            .onEnded { v in
+                guard handoffStart != nil else { return }
+                handoffStart = nil
+                release(velocity: v.velocity.height)
+            }
+    }
+
+    // MARK: Motion
+
+    private func track(_ translation: CGFloat) {
+        if dragOrigin == nil {
+            // Catch the sheet exactly where it is on screen, even mid-spring.
+            // Setting it without animation also stops the spring in flight.
+            let caught = presentedHeight()
+            var grab = Transaction(animation: nil)
+            grab.disablesAnimations = true
+            withTransaction(grab) {
+                restHeight = caught
+                dragTranslation = 0
+                dragOrigin = translation
+                inFlight = nil
+            }
+            return
+        }
+        dragTranslation = translation - (dragOrigin ?? 0)
+    }
+
+    private func release(velocity fingerVelocity: CGFloat) {
+        guard dragOrigin != nil else { return }
+        let from = visibleHeight(in: availableHeight)
+
+        // Finger moving down shrinks the sheet; dampen it while rubber-banding.
+        var velocity = -fingerVelocity
+        if from > height(of: .full, in: availableHeight) || from < height(of: .compact, in: availableHeight) {
+            velocity *= 0.35
+        }
+        velocity = min(max(velocity, -maxFlingVelocity), maxFlingVelocity)
+
+        let target = targetDetent(from: from, velocity: velocity)
+        if target != currentDetent {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        dragOrigin = nil
+        settle(from: from, to: height(of: target, in: availableHeight), velocity: velocity)
+        currentDetent = target
+    }
+
+    /// A drag that was cancelled (never got `onEnded`) still has to land somewhere.
+    private func finishCancelledDrag() {
+        guard !isHandleGestureActive, !isScrollGestureActive else { return }
+        handoffStart = nil
+        if dragOrigin != nil { release(velocity: 0) }
+    }
+
+    private func settle(from: CGFloat, to: CGFloat, velocity: CGFloat) {
+        let distance = to - from
+        // SwiftUI wants velocity relative to the distance being animated.
+        let relativeVelocity = abs(distance) > 1 ? velocity / distance : 0
+        inFlight = SettleSpring(from: from, to: to, velocity: relativeVelocity * distance, start: Date())
+        withAnimation(.interpolatingSpring(spring, initialVelocity: Double(relativeVelocity))) {
+            restHeight = to
+            dragTranslation = 0
+        }
+    }
+
+    private func targetDetent(from current: CGFloat, velocity: CGFloat) -> SheetDetent {
+        let detents = SheetDetent.allCases
+        let projected = current + velocity * flingProjection
+        var target = detents.min {
+            abs(height(of: $0, in: availableHeight) - projected) < abs(height(of: $1, in: availableHeight) - projected)
+        } ?? currentDetent
+
+        // A deliberate flick never snaps back against its own direction.
+        if velocity > 300, height(of: target, in: availableHeight) < current {
+            target = detents.first { height(of: $0, in: availableHeight) > current } ?? .full
+        } else if velocity < -300, height(of: target, in: availableHeight) > current {
+            target = detents.last { height(of: $0, in: availableHeight) < current } ?? .compact
+        }
+        return target
+    }
+
+    private func cycleDetent() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        switch currentDetent {
+        case .compact: currentDetent = .peek
+        case .peek:    currentDetent = .mid
+        case .mid:     currentDetent = .full
+        case .full:    currentDetent = .peek
+        }
+    }
+
+    // MARK: Geometry
+
+    private func height(of detent: SheetDetent, in available: CGFloat) -> CGFloat {
+        available * detent.fraction
+    }
+
+    /// The height the sheet is laid out at for the current state (animations aside).
+    private func visibleHeight(in available: CGFloat) -> CGFloat {
+        let base = restHeight ?? height(of: currentDetent, in: available)
+        return rubberBand(base - dragTranslation,
+                          lower: height(of: .compact, in: available),
+                          upper: height(of: .full, in: available))
+    }
+
+    /// Where the sheet actually is on screen right now — including a spring in flight.
+    private func presentedHeight() -> CGFloat {
+        if let s = inFlight {
+            let elapsed = Date().timeIntervalSince(s.start)
+            if elapsed < 1.5 {
+                return CGFloat(spring.value(fromValue: Double(s.from),
+                                            toValue: Double(s.to),
+                                            initialVelocity: Double(s.velocity),
+                                            time: elapsed))
             }
         }
-        // Swiping down
-        if gesture > 100 {
-            switch current {
-            case .compact: return .compact
-            case .peek:    return .compact
-            case .mid:     return .peek
-            case .full:    return .mid
-            }
+        return visibleHeight(in: availableHeight)
+    }
+
+    /// UIScrollView-style resistance past the ends: gives easily, then stiffens.
+    private func rubberBand(_ value: CGFloat, lower: CGFloat, upper: CGFloat) -> CGFloat {
+        func resist(_ overshoot: CGFloat) -> CGFloat {
+            let limit: CGFloat = 120
+            return (1 - 1 / (overshoot * 0.55 / limit + 1)) * limit
         }
-        // Small movement — snap based on drag distance threshold
-        if translation < -60 {
-            switch current {
-            case .compact: return .peek
-            case .peek:    return .mid
-            case .mid:     return .full
-            case .full:    return .full
-            }
-        }
-        if translation > 60 {
-            switch current {
-            case .compact: return .compact
-            case .peek:    return .compact
-            case .mid:     return .peek
-            case .full:    return .mid
-            }
-        }
-        return current
+        if value > upper { return upper + resist(value - upper) }
+        if value < lower { return lower - resist(lower - value) }
+        return value
     }
 }
 
