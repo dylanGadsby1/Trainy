@@ -127,7 +127,7 @@ struct MyTrainCard: View {
 // MARK: - Shared Bottom Sheet Container
 
 enum SheetDetent {
-    case compact, peek, mid, full
+    case compact, mid, full
 }
 
 struct ScrollOffsetKey: PreferenceKey {
@@ -161,23 +161,27 @@ struct MapBottomSheet<Content: View>: View {
 
     private let snapAnimation: Animation = .spring(response: 0.38, dampingFraction: 0.86)
 
+    /// The sheet is laid out edge to edge, so its own safe-area insets read as zero; ask the window instead.
+    private var statusBarInset: CGFloat {
+        let scene = UIApplication.shared.connectedScenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
+        return scene?.keyWindow?.safeAreaInsets.top ?? 0
+    }
+
     var body: some View {
         GeometryReader { geo in
             let screenH = geo.size.height
             let compactH: CGFloat = screenH * 0.22
-            let peekH:    CGFloat = screenH * 0.38
             let midH:     CGFloat = screenH * 0.62
-            let fullH:    CGFloat = screenH * 0.90
+            let fullH:    CGFloat = screenH
 
-            let target = detentHeight(currentDetent, compact: compactH, peek: peekH, mid: midH, full: fullH)
+            let target = detentHeight(currentDetent, compact: compactH, mid: midH, full: fullH)
 
             // Apply rubber-band resistance at the extremes
             let rawH = target - dragOffset
             let sheetH: CGFloat = {
                 if rawH > fullH {
-                    // Over-pulling upward: rubber-band
-                    let over = rawH - fullH
-                    return fullH + over * rubberBandFactor
+                    // Already covering the screen: nowhere further to go
+                    return fullH
                 } else if rawH < compactH {
                     // Over-pulling downward: rubber-band
                     let under = compactH - rawH
@@ -186,7 +190,14 @@ struct MapBottomSheet<Content: View>: View {
                 return rawH
             }()
 
-            let detents: [(SheetDetent, CGFloat)] = [(.compact, compactH), (.peek, peekH), (.mid, midH), (.full, fullH)]
+            // 0 at the medium detent, 1 when covering the screen. Past medium the card sheds its
+            // side margins and rounded corners and grows under the status bar.
+            let expansion = min(max((sheetH - midH) / (fullH - midH), 0), 1)
+            let margin = sideMargin * (1 - expansion)
+            let radius = cornerRadius * (1 - expansion)
+            let topInset = statusBarInset * expansion
+
+            let detents: [(SheetDetent, CGFloat)] = [(.compact, compactH), (.mid, midH), (.full, fullH)]
 
             // The sheet tracks the finger 1:1 while dragging (no animation, so no lag);
             // only the release is animated, from wherever the finger left it.
@@ -228,14 +239,14 @@ struct MapBottomSheet<Content: View>: View {
                 }
 
             VStack(spacing: 0) {
-                Spacer()
+                Spacer(minLength: 0)
 
                 VStack(spacing: 0) {
                     // Drag handle
                     Capsule()
                         .fill(Color.primary.opacity(0.18))
                         .frame(width: 36, height: 4)
-                        .padding(.top, 10)
+                        .padding(.top, 10 + topInset)
                         .padding(.bottom, 8)
                         .frame(maxWidth: .infinity)
                         .contentShape(Rectangle()) // Make it easily draggable
@@ -265,21 +276,20 @@ struct MapBottomSheet<Content: View>: View {
                 .frame(height: max(compactH * 0.4, sheetH))
                 .frame(maxWidth: .infinity)
                 .background(
-                    UnevenRoundedRectangle(topLeadingRadius: cornerRadius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: cornerRadius, style: .continuous)
+                    UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: radius, style: .continuous)
                         .fill(Color(red: 1, green: 1, blue: 1))
                 )
-                .clipShape(UnevenRoundedRectangle(topLeadingRadius: cornerRadius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: cornerRadius, style: .continuous))
-                .padding(.horizontal, sideMargin)
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: radius, style: .continuous))
+                .padding(.horizontal, margin)
                 .gesture(handleDragGesture, including: currentDetent == .full ? .subviews : .all)
             }
         }
-        .ignoresSafeArea(edges: .bottom)
+        .ignoresSafeArea(edges: [.top, .bottom])
     }
 
-    private func detentHeight(_ d: SheetDetent, compact: CGFloat, peek: CGFloat, mid: CGFloat, full: CGFloat) -> CGFloat {
+    private func detentHeight(_ d: SheetDetent, compact: CGFloat, mid: CGFloat, full: CGFloat) -> CGFloat {
         switch d {
         case .compact: return compact
-        case .peek:    return peek
         case .mid:     return mid
         case .full:    return full
         }
@@ -472,7 +482,7 @@ struct HomeView: View {
             span: MKCoordinateSpan(latitudeDelta: 5.5, longitudeDelta: 5.5)
         )
     )
-    @State private var currentDetent: SheetDetent = .peek
+    @State private var currentDetent: SheetDetent = .compact
     @State private var selectedTab: Int = 0
 
     var body: some View {

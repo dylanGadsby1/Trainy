@@ -543,7 +543,7 @@ struct ContentView: View {
     @AppStorage("isSatelliteMap") private var isSatelliteMap: Bool = true
     
     @State private var selectedTab: Int = 0
-    @State private var globalSheetDetent: SheetDetent = .peek
+    @State private var globalSheetDetent: SheetDetent = .compact
     @State private var showingProfile: Bool = false
 
     /// Single persistent camera state — never recreated on tab switch.
