@@ -115,7 +115,7 @@ struct AddTrainSheetContent: View {
                         Button {
                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             guard originStation != nil && destinationStation != nil else { return }
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
+                            withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
                                 showingResults = true
                             }
                         } label: {
@@ -145,7 +145,7 @@ struct AddTrainSheetContent: View {
                 .transition(.move(edge: .leading).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.25, dampingFraction: 0.55), value: showingResults)
+        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: showingResults)
     }
     
     // MARK: - Subviews
@@ -353,7 +353,7 @@ struct LiveDeparturesFeed: View {
             HStack(spacing: 16) {
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
                         showingResults = false
                     }
                 } label: {

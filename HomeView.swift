@@ -159,6 +159,8 @@ struct MapBottomSheet<Content: View>: View {
     // Rubber-band resistance factor — smaller = more resistance at extremes
     private let rubberBandFactor: CGFloat = 0.35
 
+    private let snapAnimation: Animation = .spring(response: 0.38, dampingFraction: 0.86)
+
     var body: some View {
         GeometryReader { geo in
             let screenH = geo.size.height
@@ -184,57 +186,43 @@ struct MapBottomSheet<Content: View>: View {
                 return rawH
             }()
 
-            let handleDragGesture = DragGesture(minimumDistance: 4)
+            let detents: [(SheetDetent, CGFloat)] = [(.compact, compactH), (.peek, peekH), (.mid, midH), (.full, fullH)]
+
+            // The sheet tracks the finger 1:1 while dragging (no animation, so no lag);
+            // only the release is animated, from wherever the finger left it.
+            let settle: (CGFloat, CGFloat) -> Void = { translation, predicted in
+                let next = nextDetent(from: target, translation: translation, predicted: predicted, detents: detents)
+                withAnimation(snapAnimation) {
+                    dragOffset = 0
+                    currentDetent = next
+                }
+            }
+
+            let handleDragGesture = DragGesture(minimumDistance: 4, coordinateSpace: .global)
                 .onChanged { v in
-                    withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
-                        dragOffset = v.translation.height
-                    }
+                    dragOffset = v.translation.height
                 }
                 .onEnded { v in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        dragOffset = 0
-                        currentDetent = nextDetent(
-                            currentDetent,
-                            translation: v.translation.height,
-                            velocity: v.predictedEndTranslation.height
-                        )
-                    }
+                    settle(v.translation.height, v.predictedEndTranslation.height)
                 }
 
-            let sheetDragGesture = DragGesture(minimumDistance: 4)
+            let sheetDragGesture = DragGesture(minimumDistance: 4, coordinateSpace: .global)
                 .onChanged { v in
                     guard currentDetent == .full else { return }
-                    if scrollOffset >= -1 && v.translation.height > 0 {
-                        if !isDraggingSheet {
-                            isDraggingSheet = true
-                            sheetDragStartHeight = v.translation.height
-                        }
-                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
-                        if effectiveTranslation > 0 {
-                            withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
-                                dragOffset = effectiveTranslation
-                            }
-                        }
-                    } else if isDraggingSheet {
-                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
-                        withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.86)) {
-                            dragOffset = max(0, effectiveTranslation)
-                        }
+                    if !isDraggingSheet {
+                        // Only take over from the scroll view once it is at its top and being pulled down
+                        guard scrollOffset >= -1 && v.translation.height > 0 else { return }
+                        isDraggingSheet = true
+                        sheetDragStartHeight = v.translation.height
                     }
+                    dragOffset = max(0, v.translation.height - sheetDragStartHeight)
                 }
                 .onEnded { v in
-                    guard currentDetent == .full else { return }
-                    if isDraggingSheet {
-                        let effectiveTranslation = v.translation.height - sheetDragStartHeight
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            dragOffset = 0
-                            currentDetent = nextDetent(
-                                currentDetent,
-                                translation: effectiveTranslation,
-                                velocity: v.predictedEndTranslation.height
-                            )
-                        }
-                    }
+                    guard isDraggingSheet else { return }
+                    settle(
+                        max(0, v.translation.height - sheetDragStartHeight),
+                        v.predictedEndTranslation.height - sheetDragStartHeight
+                    )
                     isDraggingSheet = false
                     sheetDragStartHeight = 0
                 }
@@ -249,6 +237,7 @@ struct MapBottomSheet<Content: View>: View {
                         .frame(width: 36, height: 4)
                         .padding(.top, 10)
                         .padding(.bottom, 8)
+                        .frame(maxWidth: .infinity)
                         .contentShape(Rectangle()) // Make it easily draggable
                         .gesture(handleDragGesture)
 
@@ -270,7 +259,8 @@ struct MapBottomSheet<Content: View>: View {
                         scrollOffset = value
                     }
                     .simultaneousGesture(sheetDragGesture, including: currentDetent == .full ? .all : .none)
-                    .scrollDisabled(currentDetent != .full)
+                    // Freeze the list while the sheet itself is being pulled down, so the two don't move at once
+                    .scrollDisabled(currentDetent != .full || isDraggingSheet)
                 }
                 .frame(height: max(compactH * 0.4, sheetH))
                 .frame(maxWidth: .infinity)
@@ -295,46 +285,21 @@ struct MapBottomSheet<Content: View>: View {
         }
     }
 
-    private func nextDetent(_ current: SheetDetent, translation: CGFloat, velocity: CGFloat) -> SheetDetent {
-        // Use predicted end translation for snapping decision
-        let gesture = velocity
+    /// Snaps to the detent nearest to where the sheet would coast to, so a long drag or a
+    /// flick can cross several detents, and a short deliberate drag still moves one step.
+    private func nextDetent(from height: CGFloat, translation: CGFloat, predicted: CGFloat, detents: [(SheetDetent, CGFloat)]) -> SheetDetent {
+        let released = height - translation
+        let projected = height - predicted
+        let nearest = { (h: CGFloat) in detents.min { abs($0.1 - h) < abs($1.1 - h) }!.0 }
 
-        // Swiping up (negative translation = growing)
-        if gesture < -100 {
-            switch current {
-            case .compact: return .peek
-            case .peek:    return .mid
-            case .mid:     return .full
-            case .full:    return .full
-            }
-        }
-        // Swiping down
-        if gesture > 100 {
-            switch current {
-            case .compact: return .compact
-            case .peek:    return .compact
-            case .mid:     return .peek
-            case .full:    return .mid
-            }
-        }
-        // Small movement — snap based on drag distance threshold
-        if translation < -60 {
-            switch current {
-            case .compact: return .peek
-            case .peek:    return .mid
-            case .mid:     return .full
-            case .full:    return .full
-            }
-        }
-        if translation > 60 {
-            switch current {
-            case .compact: return .compact
-            case .peek:    return .compact
-            case .mid:     return .peek
-            case .full:    return .mid
-            }
-        }
-        return current
+        let byPosition = nearest(projected)
+        if byPosition != currentDetent { return byPosition }
+
+        // Didn't coast far enough to reach another detent: a clear flick still steps one along
+        let flick = predicted - translation
+        guard abs(flick) > 120, let i = detents.firstIndex(where: { $0.0 == currentDetent }) else { return nearest(released) }
+        let step = flick < 0 ? i + 1 : i - 1
+        return detents[min(max(step, 0), detents.count - 1)].0
     }
 }
 
@@ -446,7 +411,7 @@ struct HomeSheetView: View {
                 // Add card — always last, to the right of trains
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
                         selectedTab = 2
                         currentDetent = .full
                     }
