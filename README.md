@@ -58,6 +58,7 @@ Data comes from two feeds. National Rail's **Darwin Live Departure Boards** API,
 Trainy/
 ├── TrainyApp.swift          # App entry point & SwiftData model container
 ├── ContentView.swift        # Tab bar + top-level navigation
+├── Theme.swift              # Colours (light and dark), the card style, shared buttons and labels
 │
 ├── HomeView.swift           # Map view + draggable bottom sheet
 ├── AddTrainView.swift       # Station picker + live departure search

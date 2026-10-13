@@ -52,40 +52,44 @@ struct ProfileView: View {
                 } footer: {
                     Text("From your Rail History. Miles are measured in a straight line between stations.")
                 }
+                .listRowBackground(Color.card)
 
                 Section("Settings") {
                     NavigationLink {
                         NotificationSettingsView()
                     } label: {
-                        SettingsRow("Notifications", systemImage: "bell.badge.fill", color: .red, value: notificationsAreOn ? "On" : "Off")
+                        SettingsRow("Notifications", systemImage: "bell.badge.fill", value: notificationsAreOn ? "On" : "Off")
                     }
 
                     NavigationLink {
                         DelayRepayClaimsView()
                     } label: {
-                        SettingsRow("Delay Repay", systemImage: "sterlingsign", color: .green, value: stats.openClaims > 0 ? "\(stats.openClaims) to claim" : "")
+                        SettingsRow("Delay Repay", systemImage: "sterlingsign", value: stats.openClaims > 0 ? "\(stats.openClaims) to claim" : "")
                     }
 
                     NavigationLink {
                         PrivacyView()
                     } label: {
-                        SettingsRow("Privacy", systemImage: "hand.raised.fill", color: .blue)
+                        SettingsRow("Privacy", systemImage: "hand.raised.fill")
                     }
                 }
+                .listRowBackground(Color.card)
 
                 Section("About") {
                     Button(action: rate) {
-                        SettingsRow("Rate Trainy", systemImage: "star.fill", color: .orange)
+                        SettingsRow("Rate Trainy", systemImage: "star.fill")
                     }
                     .tint(.primary)
 
                     NavigationLink {
                         AboutView()
                     } label: {
-                        SettingsRow("About", systemImage: "info", color: .gray, value: AppInfo.version)
+                        SettingsRow("About", systemImage: "info", value: AppInfo.version)
                     }
                 }
+                .listRowBackground(Color.card)
             }
+            .appListSurface()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
@@ -104,16 +108,17 @@ struct ProfileView: View {
         VStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(Color.appleBlack)
+                    .fill(Color.ink)
                 if initials.isEmpty {
                     Image(systemName: "person.fill")
                         .font(.system(size: 36, weight: .semibold))
                 } else {
                     Text(initials)
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .font(.system(size: 32, weight: .bold))
                 }
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.onInk)
+            .accessibilityHidden(true)
             .frame(width: 86, height: 86)
 
             TextField("Add Your Name", text: $name)
@@ -194,17 +199,16 @@ private struct StatTile: View {
     }
 }
 
-/// A row as in the Settings app: an icon on a coloured tile, a title, and the current value.
+/// A row as in the Settings app: an icon on a tile, a title, and the current value. The tiles
+/// are all ink, so no colour here competes with the ones that mean a train's status.
 private struct SettingsRow: View {
     let title: String
     let systemImage: String
-    let color: Color
     let value: String
 
-    init(_ title: String, systemImage: String, color: Color, value: String = "") {
+    init(_ title: String, systemImage: String, value: String = "") {
         self.title = title
         self.systemImage = systemImage
-        self.color = color
         self.value = value
     }
 
@@ -217,9 +221,9 @@ private struct SettingsRow: View {
             } icon: {
                 Image(systemName: systemImage)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.onInk)
                     .frame(width: 29, height: 29)
-                    .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .background(Color.ink, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
         }
     }
@@ -253,6 +257,7 @@ struct NotificationSettingsView: View {
                      : "Sent by Trainy's server within about a minute of a change, whether or not the app is open.")
             }
             .disabled(!alerts.isAllowed)
+            .listRowBackground(Color.card)
 
             Section {
                 Toggle("Claim Reminders", isOn: $delayRepayReminders)
@@ -262,7 +267,11 @@ struct NotificationSettingsView: View {
                 Text("A reminder the morning after a late or cancelled train, and again three days before the claim window closes.")
             }
             .disabled(!alerts.isAllowed)
+            .listRowBackground(Color.card)
         }
+        .appListSurface()
+        // Switches are ink when on: green is kept for a train that is on time
+        .tint(Color.ink)
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
         // Permission can change in Settings while the app is in the background
@@ -288,6 +297,7 @@ struct NotificationSettingsView: View {
             } footer: {
                 Text("iOS will ask whether Trainy may send you notifications.")
             }
+            .listRowBackground(Color.card)
         case .denied:
             Section {
                 Button("Open Settings") {
@@ -298,6 +308,7 @@ struct NotificationSettingsView: View {
             } footer: {
                 Text("Notifications are turned off for Trainy. Turn them on in Settings to get alerts.")
             }
+            .listRowBackground(Color.card)
         default:
             EmptyView()
         }
@@ -336,6 +347,7 @@ struct PrivacyView: View {
             } header: {
                 Text("Your Data")
             }
+            .listRowBackground(Color.card)
 
             Section {
                 LabeledContent("Notifications", value: notificationStatus)
@@ -349,6 +361,7 @@ struct PrivacyView: View {
             } header: {
                 Text("Permissions")
             }
+            .listRowBackground(Color.card)
 
             Section {
                 Button("Erase All Trainy Data", role: .destructive) {
@@ -363,7 +376,9 @@ struct PrivacyView: View {
             } footer: {
                 Text("Removes your saved trains, Rail History, saved routes and name from this iPhone.")
             }
+            .listRowBackground(Color.card)
         }
+        .appListSurface()
         .navigationTitle("Privacy")
         .navigationBarTitleDisplayMode(.inline)
         // Permissions can change in Settings while the app is in the background
@@ -428,7 +443,9 @@ struct AboutView: View {
             } footer: {
                 Text("Live times come from National Rail's Darwin feed, which covers trains leaving within about four hours. Realtime Trains provides the timetable for anything later.")
             }
+            .listRowBackground(Color.card)
         }
+        .appListSurface()
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
     }

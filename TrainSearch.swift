@@ -57,6 +57,23 @@ enum TrainSearch {
         }
     }
 
+    /// What to tell the user when a search or a departure board fails. The cause is for the
+    /// console: a key or a status code is nothing the user can act on.
+    static func message(for error: Error) -> String {
+        print("❌ Train lookup failed: \(error)")
+
+        if let error = error as? URLError,
+           [.notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .timedOut].contains(error.code) {
+            return "You seem to be offline. Check your connection and try again."
+        }
+        switch error {
+        case DarwinError.rateLimitExceeded, RTTError.rateLimitExceeded:
+            return "Trainy is busy right now. Wait a minute and try again."
+        default:
+            return "Train times aren't available right now. Please try again."
+        }
+    }
+
     private static func attempt<T>(_ work: () async throws -> T) async -> Result<T, Error> {
         do {
             return .success(try await work())

@@ -4,83 +4,6 @@ import SwiftData
 
 
 
-// MARK: - Adaptive Colour Helpers
-
-/// Returns a colour that adapts based on the current colour scheme.
-struct AdaptiveColor {
-    let light: Color
-    let dark: Color
-
-    func resolve(in colorScheme: ColorScheme) -> Color {
-        colorScheme == .dark ? dark : light
-    }
-}
-
-// MARK: - App Brand Colour (Apple #1D1D1F)
-
-/// Apple's canonical near-black — used everywhere instead of arbitrary navy or pure black.
-extension Color {
-    static let appleBlack    = Color(red: 29/255, green: 29/255, blue: 31/255)  // #1D1D1F
-    // Keep these names so existing call-sites compile unchanged
-    static let appBlue       = Color.appleBlack
-    static let appBlueBright = Color.appleBlack
-}
-
-extension AdaptiveColor {
-    // Background gradient — clean white in light mode
-    static let bgTop    = AdaptiveColor(light: Color(red: 0.97, green: 0.97, blue: 0.97),
-                                        dark:  Color(red: 0.03, green: 0.07, blue: 0.16))
-    static let bgBottom = AdaptiveColor(light: Color(red: 1.0,  green: 1.0,  blue: 1.0),
-                                        dark:  Color(red: 0.01, green: 0.03, blue: 0.09))
-
-    // Card surface / stroke
-    static let cardStroke = AdaptiveColor(light: Color.appleBlack.opacity(0.08),
-                                          dark:  Color.white.opacity(0.08))
-
-    // Primary text — Apple #1D1D1F
-    static let primary = AdaptiveColor(light: Color.appleBlack,
-                                       dark:  Color.white)
-
-    // Secondary / muted text
-    static let secondary = AdaptiveColor(light: Color.appleBlack.opacity(0.45),
-                                         dark:  Color.white.opacity(0.50))
-
-    static let tertiary  = AdaptiveColor(light: Color.appleBlack.opacity(0.30),
-                                         dark:  Color.white.opacity(0.35))
-
-    // Divider
-    static let divider = AdaptiveColor(light: Color.appleBlack.opacity(0.08),
-                                       dark:  Color.white.opacity(0.10))
-
-    // Subtle fills
-    static let subtleFill = AdaptiveColor(light: Color.appleBlack.opacity(0.04),
-                                          dark:  Color.white.opacity(0.05))
-
-    // Timeline track
-    static let track = AdaptiveColor(light: Color.appleBlack.opacity(0.10),
-                                     dark:  Color.white.opacity(0.12))
-
-    // Station dot (unvisited)
-    static let dotUnvisited = AdaptiveColor(light: Color.appleBlack.opacity(0.20),
-                                            dark:  Color.white.opacity(0.30))
-
-    // Station code text
-    static let stationCode = AdaptiveColor(light: Color.appleBlack,
-                                           dark:  Color.white)
-
-    // Rolling stock icon gradient
-    static let equipmentIconTop    = AdaptiveColor(light: Color.appleBlack.opacity(0.70),
-                                                   dark:  Color.white.opacity(0.90))
-    static let equipmentIconBottom = AdaptiveColor(light: Color.appleBlack.opacity(0.30),
-                                                   dark:  Color.white.opacity(0.40))
-
-    // Platform number gradient
-    static let platformTop    = AdaptiveColor(light: Color.appleBlack,
-                                              dark:  Color.white)
-    static let platformBottom = AdaptiveColor(light: Color.appleBlack.opacity(0.45),
-                                              dark:  Color.white.opacity(0.70))
-}
-
 // MARK: - Mock Data Models
 
 struct TrainStation {
@@ -115,112 +38,82 @@ let mockJourney = TrainJourney(
     trainType: "AVANTI PENDOLINO"
 )
 
-// MARK: - Bar chart data
-
-private let barHeights: [CGFloat] = [0.3, 0.5, 0.6, 0.8, 0.7, 0.9, 1.0, 0.85, 0.6, 0.4]
-private let timelineFractions: [CGFloat] = [0.0, 0.45, 1.0]
-
-// MARK: - Reusable Card Background
-
-struct GlassCard<Content: View>: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
-
-    var body: some View {
-        content
-            .padding(16)
-            .background(Color(red: 1, green: 1, blue: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
-            )
-    }
-}
-
-
-
 // MARK: - Status Header Card
 
 struct StatusHeaderCard: View {
-    @Environment(\.colorScheme) private var colorScheme
     let journey: TrainJourney
 
     private var headline: String {
-        if journey.isCancelled { return "CANCELLED" }
-        if journey.delayMinutes > 0 { return "\(journey.delayMinutes)M DELAY PREDICTED" }
-        return journey.isScheduledOnly ? "SCHEDULED" : "ON TIME"
+        if journey.isCancelled { return "Cancelled" }
+        if journey.delayMinutes > 0 { return "\(journey.delayMinutes) min delay predicted" }
+        return journey.isScheduledOnly ? "Scheduled" : "On time"
     }
 
     private var headlineColor: Color {
-        if journey.isCancelled || journey.delayMinutes > 0 { return .red }
-        return journey.isScheduledOnly ? TrainStatus.scheduled.color : .green
+        if journey.isCancelled { return .statusCancelled }
+        if journey.delayMinutes > 0 { return .statusDelayed }
+        return journey.isScheduledOnly ? .statusScheduled : .statusOnTime
     }
 
     /// What the origin station's departure board currently shows for this train.
     private var boardStatus: (text: String, color: Color) {
-        if journey.isCancelled { return ("CANCELLED", .red) }
-        if journey.origin.scheduled != journey.origin.actual { return ("EXPECTED \(journey.origin.actual)", .orange) }
-        return ("ON TIME", .green)
+        if journey.isCancelled { return ("Cancelled", .statusCancelled) }
+        if journey.origin.scheduled != journey.origin.actual { return ("Expected \(journey.origin.actual)", .statusDelayed) }
+        return ("On time", .statusOnTime)
     }
 
     private var boardLine: String {
         journey.isScheduledOnly && !journey.isCancelled
-            ? "TIMETABLE ONLY (not live yet)"
+            ? "Timetable only (not live yet)"
             : "\(boardStatus.text) (per departure board)"
     }
 
     private var boardLineColor: Color {
-        journey.isScheduledOnly && !journey.isCancelled ? TrainStatus.scheduled.color : boardStatus.color
+        journey.isScheduledOnly && !journey.isCancelled ? .statusScheduled : boardStatus.color
     }
 
     var body: some View {
-        GlassCard {
+        Card {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Image(systemName: "tram.fill")
-                                .font(.system(size: 22, weight: .bold))
-                                .foregroundColor(headlineColor)
+                                .font(.title3.weight(.semibold))
+                                .accessibilityHidden(true)
                             Text(headline)
-                                .font(.system(size: 24, weight: .black))
-                                .foregroundColor(headlineColor)
+                                .font(.title2.weight(.bold))
                         }
-                        Text("SCHEDULED DEPARTURE: \(journey.scheduledDeparture)")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                            .tracking(0.5)
+                        .foregroundStyle(headlineColor)
+
+                        Text("Scheduled departure: \(journey.scheduledDeparture)")
+                            .font(.footnote)
+                            .foregroundStyle(Color.inkSecondary)
                     }
                     Spacer()
                     ZStack {
                         Circle()
-                            .fill(Color.appBlue.opacity(0.15))
+                            .fill(Color.subtleFill)
                             .frame(width: 52, height: 52)
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(.appBlue)
+                            .foregroundStyle(Color.ink)
                     }
+                    .accessibilityHidden(true)
                 }
 
-                Divider().background(AdaptiveColor.divider.resolve(in: colorScheme))
+                Divider()
 
                 HStack(spacing: 8) {
                     Circle()
                         .fill(boardLineColor)
                         .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
                     Text(boardLine)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(boardLineColor)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(boardLineColor)
                     Spacer()
-                    Text(journey.isScheduledOnly ? "PLANNED" : "LIVE")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.appBlue)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Color.appBlue.opacity(0.18))
-                        .clipShape(Capsule())
+                    StatusPill(journey.isScheduledOnly ? "Planned" : "Live", color: .ink)
                 }
             }
         }
@@ -230,35 +123,35 @@ struct StatusHeaderCard: View {
 // MARK: - Station Time View
 
 struct StationTimeView: View {
-    @Environment(\.colorScheme) private var colorScheme
     let station: TrainStation
+
+    private var isRetimed: Bool { station.scheduled != station.actual }
 
     var body: some View {
         VStack(spacing: 2) {
             Text(station.scheduled)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                .strikethrough(station.scheduled != station.actual, color: Color.red.opacity(0.7))
+                .font(.caption)
+                .foregroundStyle(Color.inkSecondary)
+                .strikethrough(isRetimed)
             Text(station.actual)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(station.scheduled == station.actual ? .green : .orange)
+                .font(.footnote.weight(.bold))
+                .foregroundStyle(isRetimed ? Color.statusDelayed : Color.statusOnTime)
         }
+        .monospacedDigit()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isRetimed ? "Expected \(station.actual), scheduled \(station.scheduled)" : station.actual)
     }
 }
 
 // MARK: - Dynamic Timeline Card
 
 struct TimelineCard: View {
-    @Environment(\.colorScheme) private var colorScheme
     let journey: TrainJourney
 
     var body: some View {
-        GlassCard {
+        Card {
             VStack(alignment: .leading, spacing: 14) {
-                Label("LIVE JOURNEY", systemImage: "location.fill")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                    .tracking(1)
+                SectionLabel("Live journey", systemImage: "location.fill")
 
                 HStack {
                     StationTimeView(station: journey.origin)
@@ -271,34 +164,32 @@ struct TimelineCard: View {
 
                     ZStack(alignment: .leading) {
                         Capsule()
-                            .fill(AdaptiveColor.track.resolve(in: colorScheme))
+                            .fill(Color.track)
                             .frame(height: 5)
 
                         Circle()
-                            .fill(Color.green)
+                            .fill(Color.statusOnTime)
                             .frame(width: 12, height: 12)
-                            .overlay(Circle().stroke(Color.appleBlack.opacity(0.15), lineWidth: 1))
                             .offset(x: -6)
 
                         Circle()
-                            .fill(AdaptiveColor.dotUnvisited.resolve(in: colorScheme))
+                            .fill(Color.inkTertiary)
                             .frame(width: 12, height: 12)
-                            .overlay(Circle().stroke(Color.appleBlack.opacity(0.15), lineWidth: 1))
                             .offset(x: w - 6)
                     }
                 }
                 .frame(height: 12)
                 .padding(.vertical, 8)
+                .accessibilityHidden(true)
 
                 HStack {
                     Text(journey.origin.code)
-                        .font(.system(size: 13, weight: .black))
-                        .foregroundColor(AdaptiveColor.stationCode.resolve(in: colorScheme))
                     Spacer()
                     Text(journey.destination.code)
-                        .font(.system(size: 13, weight: .black))
-                        .foregroundColor(AdaptiveColor.stationCode.resolve(in: colorScheme))
                 }
+                .font(.footnote.weight(.bold))
+                .foregroundStyle(Color.ink)
+                .accessibilityHidden(true)
             }
         }
     }
@@ -308,39 +199,36 @@ struct TimelineCard: View {
 
 /// The stations on the user's journey with their live times, and where the train is among them.
 struct CallingPointsCard: View {
-    @Environment(\.colorScheme) private var colorScheme
     let train: DarwinServiceAdapter
 
     var body: some View {
-        GlassCard {
+        Card {
             // The train moves on between refreshes, so the card follows the clock
             TimelineView(.periodic(from: .now, by: 30)) { timeline in
                 let stops = train.stops ?? []
                 let passed = train.stopsPassed(at: timeline.date)
 
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("CALLING POINTS", systemImage: "list.bullet")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                        .tracking(1)
+                    SectionLabel("Calling points", systemImage: "list.bullet")
 
                     if let position = train.position(at: timeline.date) {
                         HStack(spacing: 8) {
                             Image(systemName: "tram.fill")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(5)
-                                .background(train.trainStatus.color)
-                                .clipShape(Circle())
+                                .background(train.trainStatus.color, in: Circle())
+                                .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("Between \(position.from.name) and \(position.to.name)")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(Color.ink)
                                 Text("Estimated from the train's times")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                                    .font(.caption)
+                                    .foregroundStyle(Color.inkSecondary)
                             }
                         }
+                        .accessibilityElement(children: .combine)
                     }
 
                     VStack(spacing: 0) {
@@ -366,7 +254,6 @@ struct CallingPointRow: View {
         case passed, next, ahead
     }
 
-    @Environment(\.colorScheme) private var colorScheme
     let stop: DarwinServiceAdapter.Stop
     let place: Place
     let isFirst: Bool
@@ -374,7 +261,16 @@ struct CallingPointRow: View {
     /// The colour of the part of the line already travelled
     let color: Color
 
-    private var track: Color { AdaptiveColor.track.resolve(in: colorScheme) }
+    private var note: String? {
+        if stop.isCancelled { return "Not calling here" }
+        if place == .next { return isFirst ? "Departs from here" : "Next stop" }
+        return nil
+    }
+
+    private var spokenTime: String {
+        if stop.isCancelled { return "" }
+        return stop.delayMinutes > 0 ? "expected \(stop.expected), scheduled \(stop.scheduled)" : stop.scheduled
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -382,106 +278,98 @@ struct CallingPointRow: View {
             ZStack {
                 VStack(spacing: 0) {
                     Rectangle()
-                        .fill(isFirst ? .clear : (place == .passed ? color : track))
+                        .fill(isFirst ? .clear : (place == .passed ? color : Color.track))
                     Rectangle()
-                        .fill(isLast ? .clear : (place == .passed ? color : track))
+                        .fill(isLast ? .clear : (place == .passed ? color : Color.track))
                 }
                 .frame(width: 3)
 
                 Circle()
-                    .fill(place == .passed ? color : Color.white)
+                    .fill(place == .passed ? color : Color.card)
                     .frame(width: 12, height: 12)
                     .overlay(
-                        Circle().stroke(place == .ahead ? track : color, lineWidth: 2.5)
+                        Circle().stroke(place == .ahead ? Color.inkTertiary : color, lineWidth: 2.5)
                     )
             }
             .frame(width: 14)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(stop.name)
-                    .font(.system(size: 14, weight: place == .next ? .black : .semibold))
-                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                    .lineLimit(1)
-                if stop.isCancelled {
-                    Text("Not calling here")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.red)
-                } else if place == .next {
-                    Text(isFirst ? "Departs from here" : "Next stop")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(color)
+                    .font(.subheadline.weight(place == .next ? .bold : .medium))
+                    // A stop left behind steps back, but stays readable
+                    .foregroundStyle(place == .passed ? Color.inkSecondary : Color.ink)
+                if let note {
+                    Text(note)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(stop.isCancelled ? Color.statusCancelled : color)
                 }
             }
+            .padding(.vertical, 6)
 
             Spacer(minLength: 8)
 
             if !stop.isCancelled {
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
                     Text(stop.scheduled)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(stop.delayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.inkSecondary)
                         .strikethrough(stop.delayMinutes > 0)
                     if stop.delayMinutes > 0 {
                         Text(stop.expected)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.orange)
+                            .font(.footnote.weight(.bold))
+                            .foregroundStyle(Color.statusDelayed)
                     }
                 }
                 .monospacedDigit()
             }
         }
-        .frame(height: 44)
-        .opacity(place == .passed ? 0.55 : 1)
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel([stop.name, note ?? (place == .passed ? "Passed" : ""), spokenTime].filter { !$0.isEmpty }.joined(separator: ", "))
     }
 }
 
 // MARK: - Arrival Context Card
 
 struct ArrivalContextCard: View {
-    @Environment(\.colorScheme) private var colorScheme
     let journey: TrainJourney
 
+    @ScaledMetric(relativeTo: .largeTitle) private var platformSize: CGFloat = 56
+
     var body: some View {
-        GlassCard {
+        Card {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("PLATFORM", systemImage: "signpost.right.fill")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
-                        .tracking(1)
+                    SectionLabel("Platform", systemImage: "signpost.right.fill")
 
                     Text("\(journey.platform)")
-                        .font(.system(size: 56, weight: .black))
-                        .foregroundColor(AdaptiveColor.platformTop.resolve(in: colorScheme))
+                        .font(.system(size: platformSize, weight: .bold))
+                        .foregroundStyle(Color.ink)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
 
                 if journey.delayMinutes >= 15 {
-                    Divider().background(AdaptiveColor.divider.resolve(in: colorScheme))
+                    Divider()
 
-                    HStack(alignment: .center, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "sterlingsign.circle.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.yellow)
-                                Text("DELAY REPAY ELIGIBLE")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.yellow)
-                                    .tracking(0.5)
-                            }
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Image(systemName: "sterlingsign.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Color.ink)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Delay Repay eligible")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.ink)
                             Text("\(journey.delayMinutes)+ min delay · \(journey.trainType)")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                                .font(.footnote)
+                                .foregroundStyle(Color.inkSecondary)
                         }
-                        Spacer()
+                        Spacer(minLength: 0)
                     }
                     .padding(12)
-                    .background(Color.yellow.opacity(0.07))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.yellow.opacity(0.20), lineWidth: 1)
-                    )
+                    .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .accessibilityElement(children: .combine)
                 }
             }
         }
@@ -491,67 +379,29 @@ struct ArrivalContextCard: View {
 // MARK: - Journey Dashboard View
 
 struct JourneyDashboardView: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     let journey: TrainJourney
     var rawService: DarwinServiceAdapter? = nil
+    /// Set when the train is a search result: the screen then offers to add it to My Trains
+    var onAdd: (() -> Void)? = nil
+    /// Where the user already has the search result ("In My Trains"), if they do
+    var savedNote: String? = nil
+    /// Set when the train is in My Trains: the screen then offers to remove it
+    var onRemove: (() -> Void)? = nil
+
+    @State private var confirmingRemoval = false
+
+    private var isSearchResult: Bool { onAdd != nil }
 
     var body: some View {
         ZStack {
-            Color(red: 1, green: 1, blue: 1)
-            .ignoresSafeArea()
+            Color.surface
+                .ignoresSafeArea()
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 14) {
-                    // Header row
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(journey.trainType.uppercased())
-                                .font(.system(size: 11, weight: .black))
-                                .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                                .tracking(1.5)
-                            Text("\(journey.origin.code) → \(journey.destination.code)")
-                                .font(.system(size: 22, weight: .black))
-                                .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                        }
-                        Spacer()
-
-                        HStack(spacing: 10) {
-                            if let service = rawService {
-                                ShareLink(item: service.shareMessage()) {
-                                    Image(systemName: "square.and.arrow.up")
-                                        .font(.system(size: 18))
-                                        .foregroundColor(.appBlue)
-                                        .padding(10)
-                                        .background(Color(red: 1, green: 1, blue: 1))
-                                        .clipShape(Circle())
-                                }
-                                .accessibilityLabel("Share journey")
-
-                                Button(action: {
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    LiveActivityManager.shared.startTracking(service: service)
-                                }) {
-                                    Image(systemName: "livephoto")
-                                        .font(.system(size: 18))
-                                        .foregroundColor(.red)
-                                        .padding(10)
-                                        .background(Color(red: 1, green: 1, blue: 1))
-                                        .clipShape(Circle())
-                                }
-                            }
-                            // Bell button
-                            Button(action: {}) {
-                                Image(systemName: "bell.badge.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.appBlue)
-                                    .padding(10)
-                                    .background(Color(red: 1, green: 1, blue: 1))
-                                    .clipShape(Circle())
-                            }
-                        }
-                    }
-                    .padding(.top, 4)
+                    header
+                        // As a sheet, clear of the drag indicator; pushed, the bar is above
+                        .padding(.top, isSearchResult ? 4 : 24)
 
                     StatusHeaderCard(journey: journey)
                     TimelineCard(journey: journey)
@@ -560,19 +410,79 @@ struct JourneyDashboardView: View {
                         CallingPointsCard(train: service)
                     }
 
-                    HStack {
-                        Text("ARRIVAL CONTEXT")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                            .tracking(1.5)
-                        Spacer()
-                    }
+                    SectionLabel("Arrival context")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
 
                     ArrivalContextCard(journey: journey)
+
+                    if let onRemove {
+                        Button("Remove from My Trains", role: .destructive) {
+                            confirmingRemoval = true
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minHeight: 44)
+                        .confirmationDialog("Remove this train from My Trains?", isPresented: $confirmingRemoval, titleVisibility: .visible) {
+                            Button("Remove", role: .destructive, action: onRemove)
+                        }
+                    }
 
                     Spacer(minLength: 32)
                 }
                 .padding(.horizontal, 20)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let onAdd {
+                Button(action: onAdd) {
+                    Label(savedNote ?? "Add to My Trains", systemImage: savedNote == nil ? "plus" : "checkmark")
+                }
+                .buttonStyle(.primary)
+                .disabled(savedNote != nil)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color.surface)
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Eyebrow(journey.trainType)
+                Text("\(journey.origin.code) → \(journey.destination.code)")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(Color.ink)
+                    .accessibilityLabel("\(UKStation.name(for: journey.origin.code)) to \(UKStation.name(for: journey.destination.code))")
+                    .accessibilityAddTraits(.isHeader)
+            }
+            Spacer()
+
+            HStack(spacing: 10) {
+                if let service = rawService {
+                    ShareLink(item: service.shareMessage()) {
+                        Label("Share journey", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.icon)
+
+                    // A Live Activity follows a saved train, so a search result has to be added first
+                    if !isSearchResult {
+                        Button {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            LiveActivityManager.shared.startTracking(service: service)
+                        } label: {
+                            Label("Start Live Activity", systemImage: "livephoto")
+                        }
+                        .buttonStyle(.icon)
+                    }
+                }
+                if !isSearchResult {
+                    // Bell button
+                    Button(action: {}) {
+                        Label("Alerts", systemImage: "bell.badge.fill")
+                    }
+                    .buttonStyle(.icon)
+                }
             }
         }
     }
@@ -677,6 +587,38 @@ extension DarwinServiceAdapter {
     }
 }
 
+// MARK: - Describing a Train
+
+extension DarwinServiceAdapter {
+    /// The scheduled time from the user's origin to their destination, such as "2h 13m".
+    var durationText: String? {
+        guard let departure = DarwinTime.minutes(scheduledDeparture),
+              let arrival = DarwinTime.minutes(userSearchDestinationScheduledArrivalTime ?? userSearchDestinationArrivalTime) else { return nil }
+        let minutes = (arrival - departure + 1440) % 1440
+        guard minutes > 0 else { return nil }
+        if minutes < 60 { return "\(minutes)m" }
+        return minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m"
+    }
+
+    /// The train in one sentence, for VoiceOver: a card's codes and struck-through times
+    /// make little sense read out one by one.
+    var spokenSummary: String {
+        let origin = UKStation.name(for: userSearchOriginCRS ?? originCRS)
+        let destination = UKStation.name(for: userSearchDestinationCRS ?? destinationCRS)
+
+        var parts = ["\(origin) to \(destination)"]
+        parts.append(departureDelayMinutes > 0
+            ? "departs \(realtimeDeparture), scheduled \(scheduledDeparture)"
+            : "departs \(scheduledDeparture)")
+        if let arrival = userSearchDestinationArrivalTime ?? userSearchDestinationScheduledArrivalTime {
+            parts.append("arrives \(arrival)")
+        }
+        parts.append(trainStatus.label)
+        parts.append(platform == "TBC" ? "platform to be confirmed" : "platform \(platform)")
+        return parts.joined(separator: ", ")
+    }
+}
+
 // MARK: - Floating Tab Bar
 
 /// The system tab bar on its own, with no tab content behind it, so it can float over the
@@ -745,19 +687,20 @@ struct StationCallout: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
+                // The bubble is white in both colour schemes, like the map's own callouts
                 VStack(spacing: 2) {
-                    Text(name.uppercased())
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundColor(Color.appleBlack.opacity(0.45))
-                        .tracking(1)
+                    Text(name)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.appleBlack.opacity(0.65))
                         .lineLimit(1)
                     HStack(spacing: 6) {
                         Text("See departures board")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.subheadline.weight(.semibold))
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.caption.weight(.bold))
+                            .accessibilityHidden(true)
                     }
-                    .foregroundColor(.appleBlack)
+                    .foregroundStyle(Color.appleBlack)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
@@ -791,7 +734,6 @@ struct MapToggleButton: View {
             HStack {
                 Spacer()
                 Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     withAnimation {
                         isSatelliteMap.toggle()
                     }
@@ -804,6 +746,7 @@ struct MapToggleButton: View {
                         .clipShape(Circle())
                         .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
                 }
+                .accessibilityLabel(isSatelliteMap ? "Show standard map" : "Show satellite map")
                 .padding(.trailing, 16)
                 .padding(.top, 8)
             }
@@ -821,7 +764,6 @@ struct ProfileToggleButton: View {
         VStack {
             HStack {
                 Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     showingProfile = true
                 } label: {
                     Image(systemName: "person.fill")
@@ -832,6 +774,7 @@ struct ProfileToggleButton: View {
                         .clipShape(Circle())
                         .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
                 }
+                .accessibilityLabel("Profile")
                 .padding(.leading, 16)
                 .padding(.top, 8)
                 Spacer()
@@ -849,7 +792,10 @@ struct ContentView: View {
     @State private var selectedTab: Int = 0
     @State private var globalSheetDetent: SheetDetent = .compact
     @State private var showingProfile: Bool = false
-    /// The journey pushed from Past Trains, if any
+    @State private var showingAddTrain: Bool = false
+    /// The search being filled in, kept here so closing Add Train does not lose it
+    @State private var searchDraft = TrainSearchDraft()
+    /// The journey pushed from Rail History, if any
     @State private var historyPath: [SavedTrain] = []
 
     /// Single persistent camera state — never recreated on tab switch.
@@ -932,7 +878,7 @@ struct ContentView: View {
     private var stationsMapContent: some MapContent {
         ForEach(highlightedUKStations) { station in
             Marker(station.crs, systemImage: "tram.fill", coordinate: station.coordinate)
-                .tint(Color.appBlue)
+                .tint(Color.appleBlack)
                 .tag(station.crs)
         }
 
@@ -945,7 +891,6 @@ struct ContentView: View {
         if let station = calloutStation {
             Annotation("", coordinate: station.coordinate, anchor: .bottom) {
                 StationCallout(name: station.name) {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     departuresBoardCRS = station.crs
                     showingDeparturesBoard = true
                 }
@@ -957,7 +902,7 @@ struct ContentView: View {
 
         ForEach(liveServices.filter { $0.routeCoordinates.count > 1 }) { train in
             MapPolyline(coordinates: train.routeCoordinates)
-                .stroke(Color.appBlue, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                .stroke(Color.appleBlack, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
         }
 
         ForEach(liveServices) { train in
@@ -989,9 +934,8 @@ struct ContentView: View {
                     MapToggleButton()
                     ProfileToggleButton(showingProfile: $showingProfile)
 
-                    tabSheet(0) { HomeSheetView(currentDetent: $globalSheetDetent, selectedTab: $selectedTab) }
+                    tabSheet(0) { HomeSheetView(currentDetent: $globalSheetDetent) { showingAddTrain = true } }
                     tabSheet(1) { PastTrainsSheetView(currentDetent: $globalSheetDetent) }
-                    tabSheet(2) { AddTrainSheetView(selectedTab: $selectedTab, currentDetent: $globalSheetDetent) }
                 }
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(for: SavedTrain.self) { train in
@@ -1013,6 +957,9 @@ struct ContentView: View {
         .sheet(isPresented: $showingProfile) {
             ProfileView()
         }
+        .sheet(isPresented: $showingAddTrain) {
+            AddTrainView(draft: $searchDraft)
+        }
         .onChange(of: scenePhase) { _, phase in
             // Catch up as soon as the app comes back: a train may have come into Darwin's reach meanwhile
             if phase == .active {
@@ -1021,10 +968,15 @@ struct ContentView: View {
                 BackgroundRefresh.schedule(in: modelContext.container)
             }
         }
-        .onChange(of: selectedTab) { _, _ in
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            // A pushed journey belongs to Past Trains: don't leave it covering another tab
+        .onChange(of: selectedTab) { _, tab in
+            // A pushed journey belongs to Rail History: don't leave it covering another tab
             historyPath.removeAll()
+            // At its smallest the sheet shows a title and no journeys, so open the list
+            if tab == 1 && globalSheetDetent == .compact {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                    globalSheetDetent = .mid
+                }
+            }
         }
         .sheet(isPresented: $showingDeparturesBoard, onDismiss: {
             selectedStationCRS = nil
@@ -1034,6 +986,9 @@ struct ContentView: View {
                 DeparturesBoardView(crs: crs)
             }
         }
+        // Text follows the user's size setting. The largest sizes are held back, because
+        // the train cards set times side by side and stop fitting beyond this.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
     /// Every tab's sheet stays mounted, so what it holds (a half-filled search, a scroll
@@ -1052,8 +1007,7 @@ struct ContentView: View {
             FloatingTabBar(
                 items: [
                     .init(title: "My Trains", systemImage: "tram.fill"),
-                    .init(title: "Past Trains", systemImage: "clock.arrow.circlepath"),
-                    .init(title: "Add Train", systemImage: "plus")
+                    .init(title: "Rail History", systemImage: "clock.arrow.circlepath")
                 ],
                 selection: $selectedTab,
                 // Same as the system: tapping the current tab again goes back to its root
@@ -1083,43 +1037,34 @@ struct ContentView: View {
 
 struct DeparturesBoardView: View {
     let crs: String
-    
+
     @State private var allServices: [DarwinServiceModel] = []
     @State private var displayedServices: [DarwinServiceModel] = []
     @State private var displayLimit: Int = 10
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
-    
+
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
-    
+
     var stationName: String {
-        ukStations.first { $0.crs == crs }?.name ?? crs
+        UKStation.name(for: crs)
     }
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 1, green: 1, blue: 1)
-                .ignoresSafeArea()
-                
+                Color.surface
+                    .ignoresSafeArea()
+
                 if isLoading {
-                    ProgressView("Loading departures...")
-                        .tint(.appBlue)
+                    ProgressView("Loading departures…")
                 } else if let errorMessage = errorMessage {
-                    VStack {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 40))
-                            .foregroundColor(.orange)
-                            .padding(.bottom, 8)
-                        Text("Failed to load")
-                            .font(.headline)
+                    ContentUnavailableView {
+                        Label("Couldn't Load Departures", systemImage: "wifi.exclamationmark")
+                    } description: {
                         Text(errorMessage)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                        Button("Retry") {
+                    } actions: {
+                        Button("Try Again") {
                             Task {
                                 await loadData()
                             }
@@ -1127,37 +1072,22 @@ struct DeparturesBoardView: View {
                         .buttonStyle(.bordered)
                     }
                 } else if allServices.isEmpty {
-                    VStack {
-                        Image(systemName: "tram.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                            .padding(.bottom, 8)
-                        Text("No upcoming departures")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
+                    ContentUnavailableView("No Upcoming Departures", systemImage: "tram.fill")
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(displayedServices) { service in
                                 DepartureServiceCard(service: service)
                             }
-                            
+
                             if displayedServices.count < allServices.count {
-                                Button(action: {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                Button("Show more trains") {
                                     withAnimation {
                                         displayLimit += 10
                                         displayedServices = Array(allServices.prefix(displayLimit))
                                     }
-                                }) {
-                                    Text("See More Trains +")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.appBlue)
-                                        .padding()
-                                        .frame(maxWidth: .infinity)
-                                        .background(GlassCard { Color.clear })
                                 }
+                                .buttonStyle(.secondary)
                                 .padding(.top, 8)
                             }
                         }
@@ -1179,7 +1109,7 @@ struct DeparturesBoardView: View {
             }
         }
     }
-    
+
     private func loadData() async {
         isLoading = true
         errorMessage = nil
@@ -1189,7 +1119,7 @@ struct DeparturesBoardView: View {
             allServices = services
             displayedServices = Array(allServices.prefix(displayLimit))
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = TrainSearch.message(for: error)
         }
         isLoading = false
     }
@@ -1197,77 +1127,72 @@ struct DeparturesBoardView: View {
 
 struct DepartureServiceCard: View {
     let service: DarwinServiceModel
-    @Environment(\.colorScheme) private var colorScheme
-    
+
     var body: some View {
-        GlassCard {
+        Card {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(service.destinationName)
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                        
-                        Text(service.operator ?? "Unknown Operator")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .font(.headline)
+                            .foregroundStyle(Color.ink)
+
+                        Text(service.operator ?? "Unknown operator")
+                            .font(.footnote)
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    
+
                     Spacer()
-                    
+
                     VStack(alignment: .trailing, spacing: 4) {
                         Text(service.std ?? "N/A")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
-                            .strikethrough(service.status != .onTime, color: .secondary)
-                        
+                            .font(.headline)
+                            .foregroundStyle(service.status == .onTime ? Color.ink : Color.inkSecondary)
+                            .strikethrough(service.status != .onTime)
+
                         if service.status != .onTime {
                             Text(service.etd ?? "N/A")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(service.status == .cancelled ? .red : .orange)
+                                .font(.callout.weight(.bold))
+                                .foregroundStyle(statusColor)
                         }
                     }
+                    .monospacedDigit()
                 }
-                
-                Divider().background(AdaptiveColor.divider.resolve(in: colorScheme))
-                
+
+                Divider()
+
                 HStack {
                     HStack(spacing: 4) {
-                        Text("Plat")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                        Text("Platform")
+                            .font(.footnote)
+                            .foregroundStyle(Color.inkSecondary)
                         Text(service.platform ?? "TBC")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.ink)
                     }
-                    
+
                     Spacer()
-                    
-                    Text(statusText)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(statusColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(statusColor.opacity(0.15))
-                        .clipShape(Capsule())
+
+                    StatusPill(statusText, color: statusColor)
                 }
             }
         }
+        .accessibilityElement(children: .combine)
     }
-    
+
     private var statusText: String {
         switch service.status {
-        case .onTime: return "ON TIME"
-        case .delayed: return "DELAYED"
-        case .cancelled: return "CANCELLED"
+        case .onTime: return "On time"
+        case .delayed: return "Delayed"
+        case .cancelled: return "Cancelled"
         }
     }
-    
+
     private var statusColor: Color {
         switch service.status {
-        case .onTime: return .green
-        case .delayed: return .orange
-        case .cancelled: return .red
+        case .onTime: return .statusOnTime
+        case .delayed: return .statusDelayed
+        case .cancelled: return .statusCancelled
         }
     }
 }

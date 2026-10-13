@@ -27,9 +27,6 @@ struct TrainyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                // Cards and sheets are drawn on fixed white backgrounds, so dark mode
-                // would put white text on white. Remove once the surfaces adapt.
-                .preferredColorScheme(.light)
         }
         .modelContainer(sharedModelContainer)
         .backgroundTask(.appRefresh(BackgroundRefresh.identifier)) { [sharedModelContainer] in

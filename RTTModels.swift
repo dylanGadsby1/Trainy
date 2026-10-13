@@ -12,21 +12,21 @@ enum TrainStatus {
 
     var label: String {
         switch self {
-        case .onTime:   return "ON TIME"
-        case .scheduled: return "SCHEDULED"
-        case .delayed:  return "DELAYED"
-        case .cancelled: return "CANCELLED"
-        case .arriving: return "ARRIVING"
+        case .onTime:   return "On time"
+        case .scheduled: return "Scheduled"
+        case .delayed:  return "Delayed"
+        case .cancelled: return "Cancelled"
+        case .arriving: return "Arriving"
         }
     }
 
     var color: Color {
         switch self {
-        case .onTime:   return .green
-        case .scheduled: return Color(red: 0.45, green: 0.50, blue: 0.58)
-        case .delayed:  return .orange
-        case .cancelled: return Color(red: 0.95, green: 0.25, blue: 0.25)
-        case .arriving: return Color(red: 0.35, green: 0.75, blue: 1.0)
+        case .onTime:   return .statusOnTime
+        case .scheduled: return .statusScheduled
+        case .delayed:  return .statusDelayed
+        case .cancelled: return .statusCancelled
+        case .arriving: return .statusArriving
         }
     }
 }
@@ -289,6 +289,15 @@ let ukStations: [UKStation] = {
 let knownStationCoordinates: [String: CLLocationCoordinate2D] = Dictionary(
     uniqueKeysWithValues: ukStations.map { ($0.crs, $0.coordinate) }
 )
+
+extension UKStation {
+    private static let namesByCRS = Dictionary(ukStations.map { ($0.crs, $0.name) }, uniquingKeysWith: { first, _ in first })
+
+    /// The station's name, or the code itself for one that is not in the list.
+    static func name(for crs: String) -> String {
+        namesByCRS[crs] ?? crs
+    }
+}
 
 // MARK: - Service Detail Models
 

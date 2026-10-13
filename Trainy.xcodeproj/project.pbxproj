@@ -30,6 +30,7 @@
 		BA9450A3307C6000009275DA /* TrainSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A2307C6000009275DA /* TrainSync.swift */; };
 		BA9450A5307C6000009275DA /* TrainAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A4307C6000009275DA /* TrainAlerts.swift */; };
 		BA9450A8307C6000009275DA /* TrainyServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A7307C6000009275DA /* TrainyServer.swift */; };
+		BA9450B1307C6000009275DA /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450B0307C6000009275DA /* Theme.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,6 +81,7 @@
 		BA9450A2307C6000009275DA /* TrainSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainSync.swift; sourceTree = "<group>"; };
 		BA9450A4307C6000009275DA /* TrainAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainAlerts.swift; sourceTree = "<group>"; };
 		BA9450A7307C6000009275DA /* TrainyServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainyServer.swift; sourceTree = "<group>"; };
+		BA9450B0307C6000009275DA /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		BA9450A6307C6000009275DA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -136,6 +138,7 @@
 				AA000032 /* ProfileView.swift */,
 				AA000034 /* RailHistoryView.swift */,
 				AA000036 /* AddTrainView.swift */,
+				BA9450B0307C6000009275DA /* Theme.swift */,
 				AA000004 /* Assets.xcassets */,
 				BA94508E307C5911009275DA /* DarwinAPI.swift */,
 				BA9450A2307C6000009275DA /* TrainSync.swift */,
@@ -285,6 +288,7 @@
 				AA000033 /* ProfileView.swift in Sources */,
 				AA000035 /* RailHistoryView.swift in Sources */,
 				AA000037 /* AddTrainView.swift in Sources */,
+				BA9450B1307C6000009275DA /* Theme.swift in Sources */,
 				8AD4447DB914C555DFD11808 /* RTTModels.swift in Sources */,
 				45B24B1EA4FC824505A9A5C7 /* RTTService.swift in Sources */,
 				BA945091307C593E009275DA /* Secrets.swift in Sources */,

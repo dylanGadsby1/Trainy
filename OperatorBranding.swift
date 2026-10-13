@@ -68,16 +68,29 @@ struct OperatorLogoBadge: View {
     /// compact = sized for list rows; non-compact = sized for train cards
     var compact: Bool = false
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var brand: OperatorBrand? { OperatorBrand.from(code: atocCode) }
 
     var body: some View {
         if let brand = brand, UIImage(named: brand.assetName) != nil {
             let height: CGFloat = compact ? 18 : 22
-            Image(brand.assetName)
+            let logo = Image(brand.assetName)
                 .resizable()
                 .renderingMode(.original)
                 .scaledToFit()
                 .frame(height: height)
+                .accessibilityLabel(brand.shortName)
+
+            // The logos are drawn for a light background, so in dark mode they get one
+            if colorScheme == .dark {
+                logo
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            } else {
+                logo
+            }
         } else {
             fallbackPill
         }
@@ -86,11 +99,12 @@ struct OperatorLogoBadge: View {
     @ViewBuilder
     private var fallbackPill: some View {
         let label    = brand?.shortName ?? atocCode ?? "Rail"
-        let bgColor  = brand?.fallbackColor ?? Color.gray.opacity(0.35)
-        let txtColor: Color = (brand?.needsDarkBackground ?? true) ? .white : .black
+        // An operator the app has no branding for gets a quiet, readable pill
+        let bgColor  = brand?.fallbackColor ?? Color.subtleFill
+        let txtColor: Color = brand == nil ? .inkSecondary : (brand?.needsDarkBackground == true ? .white : .black)
 
         Text(label)
-            .font(.system(size: compact ? 9 : 10, weight: .bold))
+            .font(.caption2.weight(.bold))
             .foregroundColor(txtColor)
             .lineLimit(1)
             .padding(.horizontal, compact ? 6 : 7)

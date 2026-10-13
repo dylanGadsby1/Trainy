@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftUI
 import MapKit
 import SwiftData
 
@@ -7,7 +6,6 @@ import SwiftData
 
 struct MyTrainCard: View {
     let train: DarwinServiceAdapter
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -16,18 +14,12 @@ struct MyTrainCard: View {
                 OperatorLogoBadge(atocCode: train.atocCode, compact: false)
                 if OperatorBrand.from(code: train.atocCode) == nil {
                     Text(train.atocName ?? "Unknown")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                        .font(.caption)
+                        .foregroundStyle(Color.inkSecondary)
                         .lineLimit(1)
                 }
                 Spacer()
-                Text(train.trainStatus.label)
-                    .font(.system(size: 9, weight: .black))
-                    .foregroundColor(train.trainStatus.color)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(train.trainStatus.color.opacity(0.15))
-                    .clipShape(Capsule())
+                StatusPill(train.trainStatus)
             }
             .padding(.bottom, 10)
 
@@ -35,44 +27,45 @@ struct MyTrainCard: View {
             HStack(alignment: .center, spacing: 0) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(train.userSearchOriginCRS ?? (train.originCRS.isEmpty ? "UNK" : train.originCRS))
-                        .font(.system(size: 20, weight: .black))
-                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(Color.ink)
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
                         Text(train.scheduledDeparture)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(train.departureDelayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Color.inkSecondary)
                             .strikethrough(train.departureDelayMinutes > 0)
 
                         if train.departureDelayMinutes > 0 {
                             Text(train.realtimeDeparture)
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.orange)
+                                .font(.footnote.weight(.bold))
+                                .foregroundStyle(Color.statusDelayed)
                         }
                     }
                 }
                 Spacer()
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.inkTertiary)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(train.userSearchDestinationCRS ?? (train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS))
-                        .font(.system(size: 20, weight: .black))
-                        .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(Color.ink)
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
                         if train.arrivalDelayMinutes > 0 {
                             Text(train.userSearchDestinationArrivalTime ?? "--:--")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.orange)
+                                .font(.footnote.weight(.bold))
+                                .foregroundStyle(Color.statusDelayed)
                         }
 
                         Text(train.userSearchDestinationScheduledArrivalTime ?? train.userSearchDestinationArrivalTime ?? "--:--")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(train.arrivalDelayMinutes > 0 ? AdaptiveColor.tertiary.resolve(in: colorScheme) : AdaptiveColor.secondary.resolve(in: colorScheme))
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Color.inkSecondary)
                             .strikethrough(train.arrivalDelayMinutes > 0)
                     }
                 }
             }
+            .monospacedDigit()
             .padding(.bottom, 12)
 
             // Progress bar — how far between departure and arrival the train is right now
@@ -82,7 +75,7 @@ struct MyTrainCard: View {
 
                     ZStack(alignment: .leading) {
                         Capsule()
-                            .fill(AdaptiveColor.track.resolve(in: colorScheme))
+                            .fill(Color.track)
                             .frame(height: 4)
                         Capsule()
                             .fill(train.trainStatus.color)
@@ -90,10 +83,9 @@ struct MyTrainCard: View {
 
                         Image(systemName: "tram.fill")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(4)
-                            .background(train.trainStatus.color)
-                            .clipShape(Circle())
+                            .background(train.trainStatus.color, in: Circle())
                             .offset(x: min(max(0, travelled - 11), geo.size.width - 22), y: -15)
                     }
                 }
@@ -103,24 +95,16 @@ struct MyTrainCard: View {
             // Platform
             HStack {
                 Spacer()
-                HStack(spacing: 4) {
-                    Image(systemName: "signpost.right.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                    Text("Platform \(train.platform)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                }
+                Label("Platform \(train.platform)", systemImage: "signpost.right.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
         .padding(16)
-        .background(Color(red: 1, green: 1, blue: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(AdaptiveColor.cardStroke.resolve(in: colorScheme), lineWidth: 1)
-        )
-        .shadow(color: Color.appleBlack.opacity(0.06), radius: 8, y: 2)
+        .cardSurface()
+        // Codes and struck-through times make little sense read one by one
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(train.spokenSummary)
     }
 }
 
@@ -128,6 +112,17 @@ struct MyTrainCard: View {
 
 enum SheetDetent {
     case compact, mid, full
+
+    var larger: SheetDetent { self == .compact ? .mid : .full }
+    var smaller: SheetDetent { self == .full ? .mid : .compact }
+
+    fileprivate var spokenName: String {
+        switch self {
+        case .compact: return "Small"
+        case .mid:     return "Half"
+        case .full:    return "Full screen"
+        }
+    }
 }
 
 struct ScrollOffsetKey: PreferenceKey {
@@ -138,13 +133,17 @@ struct ScrollOffsetKey: PreferenceKey {
 }
 
 /// A generic draggable bottom sheet that floats above the map with side margins.
-struct MapBottomSheet<Content: View>: View {
-    @Environment(\.colorScheme) private var colorScheme
-
+struct MapBottomSheet<Peek: View, Content: View>: View {
+    let peek: Peek
     let content: Content
-    init(detent: Binding<SheetDetent>, @ViewBuilder content: () -> Content) { 
+
+    /// - Parameters:
+    ///   - peek: What the sheet shows at its smallest height. That height is fitted to it.
+    ///   - content: Everything below, reached by pulling the sheet up.
+    init(detent: Binding<SheetDetent>, @ViewBuilder peek: () -> Peek, @ViewBuilder content: () -> Content) {
         self._currentDetent = detent
-        self.content = content() 
+        self.peek = peek()
+        self.content = content()
     }
 
     @Binding var currentDetent: SheetDetent
@@ -152,9 +151,16 @@ struct MapBottomSheet<Content: View>: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var isDraggingSheet: Bool = false
     @State private var sheetDragStartHeight: CGFloat = 0
+    /// Height of the peek content, once it has been laid out
+    @State private var peekHeight: CGFloat = 0
 
     private let sideMargin: CGFloat = 10
     private let cornerRadius: CGFloat = 38
+
+    /// The drag handle with its padding
+    private let handleHeight: CGFloat = 22
+    /// UIKit's tab bar, which floats over the bottom of the sheet
+    private let tabBarHeight: CGFloat = 49
 
     // Rubber-band resistance factor — smaller = more resistance at extremes
     private let rubberBandFactor: CGFloat = 0.35
@@ -162,15 +168,24 @@ struct MapBottomSheet<Content: View>: View {
     private let snapAnimation: Animation = .spring(response: 0.38, dampingFraction: 0.86)
 
     /// The sheet is laid out edge to edge, so its own safe-area insets read as zero; ask the window instead.
-    private var statusBarInset: CGFloat {
-        let scene = UIApplication.shared.connectedScenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
-        return scene?.keyWindow?.safeAreaInsets.top ?? 0
+    private var windowInsets: UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.keyWindow?.safeAreaInsets ?? .zero
     }
 
     var body: some View {
         GeometryReader { geo in
             let screenH = geo.size.height
-            let compactH: CGFloat = screenH * 0.22
+            let insets = windowInsets
+            // What the tab bar covers at the bottom of the sheet
+            let coveredH = tabBarHeight + insets.bottom
+
+            // Fitted to the peek content, so none of it is cut off behind the tab bar. A share
+            // of the screen until that has been measured, and never more than half of it.
+            let compactH: CGFloat = peekHeight > 0
+                ? min(handleHeight + peekHeight + 12 + coveredH, screenH * 0.5)
+                : screenH * 0.22
             let midH:     CGFloat = screenH * 0.62
             let fullH:    CGFloat = screenH
 
@@ -195,7 +210,11 @@ struct MapBottomSheet<Content: View>: View {
             let expansion = min(max((sheetH - midH) / (fullH - midH), 0), 1)
             let margin = sideMargin * (1 - expansion)
             let radius = cornerRadius * (1 - expansion)
-            let topInset = statusBarInset * expansion
+            let topInset = insets.top * expansion
+
+            // At its smallest the sheet is the peek alone. The rest fades in as the sheet
+            // opens, so it is never seen in pieces around the floating tab bar.
+            let reveal = min(max((sheetH - compactH) / 60, 0), 1)
 
             let detents: [(SheetDetent, CGFloat)] = [(.compact, compactH), (.mid, midH), (.full, fullH)]
 
@@ -244,13 +263,22 @@ struct MapBottomSheet<Content: View>: View {
                 VStack(spacing: 0) {
                     // Drag handle
                     Capsule()
-                        .fill(Color.primary.opacity(0.18))
+                        .fill(Color.inkTertiary.opacity(0.5))
                         .frame(width: 36, height: 4)
                         .padding(.top, 10 + topInset)
                         .padding(.bottom, 8)
                         .frame(maxWidth: .infinity)
                         .contentShape(Rectangle()) // Make it easily draggable
                         .gesture(handleDragGesture)
+                        // Dragging is not open to everyone: VoiceOver steps through the heights
+                        .accessibilityElement()
+                        .accessibilityLabel("Panel height")
+                        .accessibilityValue(currentDetent.spokenName)
+                        .accessibilityAdjustableAction { direction in
+                            withAnimation(snapAnimation) {
+                                currentDetent = direction == .increment ? currentDetent.larger : currentDetent.smaller
+                            }
+                        }
 
                     // Content — scrollable only when fully expanded
                     ScrollView(.vertical, showsIndicators: false) {
@@ -258,11 +286,27 @@ struct MapBottomSheet<Content: View>: View {
                             GeometryReader { proxy in
                                 Color.clear.preference(key: ScrollOffsetKey.self, value: proxy.frame(in: .named("bottomSheetScroll")).minY)
                             }.frame(height: 0)
-                            
+
                             VStack(alignment: .leading, spacing: 20) {
+                                VStack(alignment: .leading, spacing: 20) {
+                                    peek
+                                }
+                                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                                    // The first measurement sets the height; later ones (a train
+                                    // added, a larger text size) move the sheet to it
+                                    if peekHeight == 0 {
+                                        peekHeight = height
+                                    } else {
+                                        withAnimation(snapAnimation) { peekHeight = height }
+                                    }
+                                }
+
                                 content
+                                    .opacity(reveal)
+                                    .accessibilityHidden(reveal == 0)
                             }
-                            .padding(.bottom, 40)
+                            // Clear of the tab bar when scrolled to the end
+                            .padding(.bottom, coveredH + 16)
                         }
                     }
                     .coordinateSpace(name: "bottomSheetScroll")
@@ -277,7 +321,7 @@ struct MapBottomSheet<Content: View>: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: radius, style: .continuous)
-                        .fill(Color(red: 1, green: 1, blue: 1))
+                        .fill(Color.surface)
                 )
                 .clipShape(UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: radius, style: .continuous))
                 .padding(.horizontal, margin)
@@ -316,7 +360,6 @@ struct MapBottomSheet<Content: View>: View {
 // MARK: - Home Sheet Content (used by ContentView tab)
 
 struct HomeSheetView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
 
     @State private var selectedTrain: DarwinServiceAdapter?
@@ -327,17 +370,29 @@ struct HomeSheetView: View {
     @Query(filter: #Predicate<SavedTrain> { $0.isPast == false }) private var mySavedTrains: [SavedTrain]
     private var liveServices: [DarwinServiceAdapter] { mySavedTrains.compactMap { $0.service } }
 
+    @ScaledMetric(relativeTo: .body) private var cardWidth: CGFloat = 220
+
     @Binding var currentDetent: SheetDetent
-    @Binding var selectedTab: Int
+    /// Opens Add Train
+    var onAddTrain: () -> Void
 
     var body: some View {
         MapBottomSheet(detent: $currentDetent) {
-            homeContent
+            header
+            trainCards
+        } content: {
+            quickStats
         }
         .sheet(item: $selectedTrain) { train in
             // Show the saved train as it is now, not as it was when the sheet opened
             let current = liveServices.first { $0.isSameJourney(as: train) } ?? train
-            JourneyDashboardView(journey: current.toTrainJourney(), rawService: current)
+            JourneyDashboardView(journey: current.toTrainJourney(), rawService: current, onRemove: {
+                selectedTrain = nil
+                if let saved = mySavedTrains.first(where: { $0.service?.isSameJourney(as: train) == true }) {
+                    remove(saved)
+                }
+            })
+            .presentationDragIndicator(.visible)
         }
         .confirmationDialog(
             "Remove Train",
@@ -345,15 +400,8 @@ struct HomeSheetView: View {
             titleVisibility: .visible
         ) {
             Button("Remove", role: .destructive) {
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
                 if let train = trainToDelete {
-                    if let service = train.service {
-                        LiveActivityManager.shared.endTracking(for: service)
-                    }
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        modelContext.delete(train)
-                        try? modelContext.save()
-                    }
+                    remove(train)
                 }
                 trainToDelete = nil
             }
@@ -365,114 +413,104 @@ struct HomeSheetView: View {
         }
     }
 
-    @ViewBuilder
-    private var homeContent: some View {
-        // Header
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("MY TRAINS")
-                    .font(.system(size: 11, weight: .black))
-                    .foregroundColor(AdaptiveColor.tertiary.resolve(in: colorScheme))
-                    .tracking(1.5)
-                Text(liveServices.isEmpty ? "No Trains Added" : "My Departures")
-                    .font(.system(size: 22, weight: .black))
-                    .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+    private func remove(_ train: SavedTrain) {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        if let service = train.service {
+            LiveActivityManager.shared.endTracking(for: service)
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            modelContext.delete(train)
+            try? modelContext.save()
+        }
+    }
+
+    private var header: some View {
+        SheetHeader("My Trains") {
+            Button(action: onAddTrain) {
+                Label("Add train", systemImage: "plus")
             }
-            Spacer()
-            HStack(spacing: 10) {
-                // Profile button moved to top left of Map
-            }
+            .buttonStyle(.filledIcon)
         }
         .padding(.horizontal, 20)
         .padding(.top, 4)
+    }
 
-        // Horizontal train cards
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 14) {
-                // Live train cards
-                ForEach(mySavedTrains) { savedTrain in
-                    if let train = savedTrain.service {
-                        ZStack(alignment: .topTrailing) {
+    @ViewBuilder
+    private var trainCards: some View {
+        if liveServices.isEmpty {
+            Button(action: onAddTrain) {
+                HStack(spacing: 14) {
+                    Image(systemName: "tram.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Color.ink)
+                        .frame(width: 44, height: 44)
+                        .background(Color.subtleFill, in: Circle())
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Add your first train")
+                            .font(.headline)
+                            .foregroundStyle(Color.ink)
+                        Text("Follow it live, with its platform and any delay.")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.inkSecondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.inkTertiary)
+                        .accessibilityHidden(true)
+                }
+                .padding(16)
+                .cardSurface()
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+        } else {
+            // Horizontal train cards
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(mySavedTrains) { savedTrain in
+                        if let train = savedTrain.service {
                             Button {
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 selectedTrain = train
                             } label: {
                                 MyTrainCard(train: train)
-                                    .frame(width: 220)
+                                    // A lone train has the row to itself
+                                    .containerRelativeFrame(.horizontal) { width, _ in
+                                        liveServices.count == 1 ? width - 40 : cardWidth
+                                    }
                             }
                             .buttonStyle(.plain)
-
-                            // Delete button
-                            Button {
-                                trainToDelete = savedTrain
-                                showingDeleteConfirmation = true
-                            } label: {
-                                ZStack {
-                                    Circle()
-                                        .fill(.regularMaterial)
-                                        .frame(width: 24, height: 24)
-                                        .shadow(color: .black.opacity(0.15), radius: 4, y: 1)
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 9, weight: .black))
-                                        .foregroundColor(.primary)
+                            .accessibilityHint("Shows the journey")
+                            .contextMenu {
+                                Button("Remove Train", systemImage: "trash", role: .destructive) {
+                                    trainToDelete = savedTrain
+                                    showingDeleteConfirmation = true
                                 }
                             }
-                            .buttonStyle(.plain)
-                            .offset(x: 6, y: -6)
                         }
                     }
                 }
-
-                // Add card — always last, to the right of trains
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-                        selectedTab = 2
-                        currentDetent = .full
-                    }
-                } label: {
-                    VStack(spacing: 10) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.appleBlack.opacity(0.08))
-                                .frame(width: 48, height: 48)
-                            Image(systemName: "plus")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(Color.appleBlack)
-                        }
-                        Text("Add Train")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color.appleBlack)
-                    }
-                    .frame(width: 120, height: 148)
-                    .background(Color(red: 1, green: 1, blue: 1))
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .strokeBorder(Color.appleBlack.opacity(0.18),
-                                          style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                    )
-                }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8) // Give the X button room to not clip
         }
+    }
 
-        // Quick stats
+    private var quickStats: some View {
         let activeCount = liveServices.count
         let onTimeCount = liveServices.filter { $0.trainStatus == .onTime }.count
         let delayedCount = liveServices.filter { $0.trainStatus == .delayed }.count
         let cancelledCount = liveServices.filter { $0.trainStatus == .cancelled }.count
-        
+
         let onTimeStr = activeCount == 0 ? "-" : "\(onTimeCount)"
         let delayedStr = activeCount == 0 ? "-" : "\(delayedCount)"
         let cancelledStr = activeCount == 0 ? "-" : "\(cancelledCount)"
 
-        HStack(spacing: 12) {
-            QuickStatTile(icon: "checkmark.circle.fill", label: "On Time",   value: onTimeStr,    color: .green)
-            QuickStatTile(icon: "exclamationmark.triangle.fill", label: "Delayed",   value: delayedStr,   color: .orange)
-            QuickStatTile(icon: "xmark.octagon.fill",    label: "Cancelled", value: cancelledStr, color: Color(red: 0.95, green: 0.25, blue: 0.25))
+        return HStack(spacing: 12) {
+            QuickStatTile(icon: "checkmark.circle.fill", label: "On time",   value: onTimeStr,    color: .statusOnTime)
+            QuickStatTile(icon: "exclamationmark.triangle.fill", label: "Delayed",   value: delayedStr,   color: .statusDelayed)
+            QuickStatTile(icon: "xmark.octagon.fill",    label: "Cancelled", value: cancelledStr, color: .statusCancelled)
         }
         .padding(.horizontal, 20)
     }
@@ -488,7 +526,6 @@ struct HomeView: View {
         )
     )
     @State private var currentDetent: SheetDetent = .compact
-    @State private var selectedTab: Int = 0
 
     var body: some View {
         ZStack {
@@ -504,7 +541,7 @@ struct HomeView: View {
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
 
-            HomeSheetView(currentDetent: $currentDetent, selectedTab: $selectedTab)
+            HomeSheetView(currentDetent: $currentDetent, onAddTrain: {})
         }
     }
 }
@@ -512,7 +549,6 @@ struct HomeView: View {
 // MARK: - Quick Stat Tile
 
 struct QuickStatTile: View {
-    @Environment(\.colorScheme) private var colorScheme
     let icon: String
     let label: String
     let value: String
@@ -520,30 +556,27 @@ struct QuickStatTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(color)
-                Spacer()
-            }
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(color)
             Text(value)
-                .font(.system(size: 28, weight: .black))
-                .foregroundColor(AdaptiveColor.primary.resolve(in: colorScheme))
+                .font(.title.weight(.bold))
+                .foregroundStyle(Color.ink)
             Text(label)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(AdaptiveColor.secondary.resolve(in: colorScheme))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(Color.inkSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .frame(maxWidth: .infinity)
-        .background(Color(red: 1, green: 1, blue: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(color.opacity(0.20), lineWidth: 1)
-        )
+        .cardSurface()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(value == "-" ? "none" : value)")
     }
 }
 
 #Preview {
     HomeView()
+        .modelContainer(for: [SavedTrain.self, SavedRoute.self], inMemory: true)
 }
