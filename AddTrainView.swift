@@ -124,9 +124,9 @@ struct AddTrainView: View {
             HStack(spacing: 14) {
                 Image(systemName: "calendar")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color.ink)
+                    .foregroundStyle(Color.brand)
                     .frame(width: 36, height: 36)
-                    .background(Color.subtleFill, in: Circle())
+                    .background(Color.brandTint, in: Circle())
                     .accessibilityHidden(true)
                 DatePicker(
                     "Leaving",
@@ -148,15 +148,15 @@ struct AddTrainView: View {
             // Hollow where the journey starts, solid where it ends
             ZStack {
                 Circle()
-                    .fill(Color.subtleFill)
+                    .fill(Color.brandTint)
                     .frame(width: 36, height: 36)
                 if isDestination {
                     Circle()
-                        .fill(Color.ink)
+                        .fill(Color.brand)
                         .frame(width: 11, height: 11)
                 } else {
                     Circle()
-                        .strokeBorder(Color.ink, lineWidth: 2.5)
+                        .strokeBorder(Color.brand, lineWidth: 2.5)
                         .frame(width: 11, height: 11)
                 }
             }
@@ -232,9 +232,9 @@ struct AddTrainView: View {
                     HStack(spacing: 14) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Color.ink)
+                            .foregroundStyle(Color.brand)
                             .frame(width: 36, height: 36)
-                            .background(Color.subtleFill, in: Circle())
+                            .background(Color.brandTint, in: Circle())
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(origin.name)

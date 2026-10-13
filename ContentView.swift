@@ -670,6 +670,7 @@ struct FloatingTabBar: UIViewRepresentable {
             UITabBarItem(title: item.title, image: UIImage(systemName: item.systemImage), tag: index)
         }
         bar.delegate = context.coordinator
+        bar.tintColor = UIColor(Color.brand)
         return bar
     }
 

@@ -461,9 +461,9 @@ struct HomeSheetView: View {
                 HStack(spacing: 14) {
                     Image(systemName: "tram.fill")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color.ink)
+                        .foregroundStyle(Color.brand)
                         .frame(width: 44, height: 44)
-                        .background(Color.subtleFill, in: Circle())
+                        .background(Color.brandTint, in: Circle())
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Add your first train")

@@ -17,7 +17,7 @@ extension Color {
         UIColor(red: red / 255, green: green / 255, blue: blue / 255, alpha: 1)
     }
 
-    // Text. `ink` is also the accent: primary buttons and selected controls are filled with it.
+    // Text
     static let ink = adaptive(light: rgb(29, 29, 31), dark: rgb(245, 245, 247))
     /// Text and icons drawn on an `ink` fill
     static let onInk = adaptive(light: .white, dark: rgb(29, 29, 31))
@@ -25,6 +25,19 @@ extension Color {
     static let inkSecondary = adaptive(light: rgb(110, 110, 115), dark: rgb(161, 161, 166))
     /// Icons, chevrons and placeholders only: too faint for small text
     static let inkTertiary = adaptive(light: rgb(134, 134, 139), dark: rgb(134, 134, 139))
+
+    // Brand. The one colour that is the app's own: the main action on a screen, the selected
+    // tab, and the small icons that mark a row or a section. A navy (#0E4D90), darker
+    // than the blue of `statusArriving`. Lightened in dark mode, where navy would sink into
+    // the background.
+    /// For icons and text. Passes 4.5:1 on both `surface` and `card`.
+    static let brand = adaptive(light: rgb(14, 77, 144), dark: rgb(92, 160, 240))
+    /// For filling a button or tile. White on it passes 4.5:1 in both colour schemes.
+    static let brandFill = adaptive(light: rgb(14, 77, 144), dark: rgb(30, 105, 190))
+    /// Text and icons drawn on a `brandFill`
+    static let onBrand = Color.white
+    /// A wash of the brand colour behind a `brand` icon
+    static let brandTint = brand.opacity(0.13)
 
     // Surfaces
     /// The background of a sheet or page
@@ -93,7 +106,7 @@ struct Eyebrow: View {
             .font(.caption.weight(.semibold))
             .textCase(.uppercase)
             .tracking(0.8)
-            .foregroundStyle(Color.inkSecondary)
+            .foregroundStyle(Color.brand)
     }
 }
 
@@ -139,7 +152,12 @@ struct SectionLabel: View {
     var body: some View {
         Group {
             if let systemImage {
-                Label(title, systemImage: systemImage)
+                Label {
+                    Text(title)
+                } icon: {
+                    Image(systemName: systemImage)
+                        .foregroundStyle(Color.brand)
+                }
             } else {
                 Text(title)
             }
@@ -177,17 +195,17 @@ struct StatusPill: View {
 
 // MARK: - Buttons
 
-/// The main action on a screen: full width, filled with ink.
+/// The main action on a screen: full width, filled with the brand colour.
 struct PrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(Color.onInk)
+            .foregroundStyle(Color.onBrand)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Color.ink.opacity(isEnabled ? 1 : 0.3), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.brandFill.opacity(isEnabled ? 1 : 0.35), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
@@ -213,9 +231,9 @@ struct IconButtonStyle: ButtonStyle {
         configuration.label
             .labelStyle(.iconOnly)
             .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(filled ? Color.onInk : Color.ink)
+            .foregroundStyle(filled ? Color.onBrand : Color.ink)
             .frame(width: 44, height: 44)
-            .background(filled ? Color.ink : Color.subtleFill, in: Circle())
+            .background(filled ? Color.brandFill : Color.subtleFill, in: Circle())
             .opacity(configuration.isPressed ? 0.6 : 1)
     }
 }

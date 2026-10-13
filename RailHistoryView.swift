@@ -136,7 +136,7 @@ struct PastTrainsSheetView: View {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text("\(journeysThisMonth(pastTrains))")
                         .font(.title2.weight(.bold))
-                        .foregroundStyle(Color.ink)
+                        .foregroundStyle(Color.brand)
                     Text("This month")
                         .font(.caption)
                         .foregroundStyle(Color.inkSecondary)

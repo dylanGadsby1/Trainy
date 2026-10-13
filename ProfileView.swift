@@ -108,7 +108,7 @@ struct ProfileView: View {
         VStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(Color.ink)
+                    .fill(Color.brandFill)
                 if initials.isEmpty {
                     Image(systemName: "person.fill")
                         .font(.system(size: 36, weight: .semibold))
@@ -117,7 +117,7 @@ struct ProfileView: View {
                         .font(.system(size: 32, weight: .bold))
                 }
             }
-            .foregroundStyle(Color.onInk)
+            .foregroundStyle(Color.onBrand)
             .accessibilityHidden(true)
             .frame(width: 86, height: 86)
 
@@ -221,9 +221,9 @@ private struct SettingsRow: View {
             } icon: {
                 Image(systemName: systemImage)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.onInk)
+                    .foregroundStyle(Color.onBrand)
                     .frame(width: 29, height: 29)
-                    .background(Color.ink, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .background(Color.brandFill, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
         }
     }
@@ -270,8 +270,8 @@ struct NotificationSettingsView: View {
             .listRowBackground(Color.card)
         }
         .appListSurface()
-        // Switches are ink when on: green is kept for a train that is on time
-        .tint(Color.ink)
+        // Switches are the brand colour when on: green is kept for a train that is on time
+        .tint(Color.brandFill)
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
         // Permission can change in Settings while the app is in the background
