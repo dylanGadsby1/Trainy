@@ -2,7 +2,6 @@ import SwiftUI
 import SwiftData
 import StoreKit
 import ActivityKit
-import CoreLocation
 import UserNotifications
 
 private let profileNameKey = "profile.name"
@@ -14,14 +13,24 @@ struct ProfileView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.requestReview) private var requestReview
     @Query(sort: \SavedTrain.addedAt) private var trains: [SavedTrain]
+    @Query(filter: #Predicate<SavedRoute> { $0.commuteDays != 0 }) private var commutes: [SavedRoute]
 
     @AppStorage(profileNameKey) private var name = ""
     @AppStorage(TrainAlerts.Kind.delays.rawValue) private var delayAlerts = true
     @AppStorage(TrainAlerts.Kind.platforms.rawValue) private var platformAlerts = true
     @AppStorage(TrainAlerts.Kind.delayRepay.rawValue) private var delayRepayReminders = true
+    @AppStorage(TrainAlerts.Kind.connections.rawValue) private var connectionAlerts = true
 
     private var notificationsAreOn: Bool {
-        TrainAlerts.shared.isAllowed && (delayAlerts || platformAlerts || delayRepayReminders)
+        TrainAlerts.shared.isAllowed && (delayAlerts || platformAlerts || connectionAlerts || delayRepayReminders)
+    }
+
+    private var commuteValue: String {
+        switch commutes.count {
+        case 0: return "Off"
+        case 1: return commutes[0].commuteSummary ?? "On"
+        default: return "\(commutes.count) routes"
+        }
     }
 
     private var initials: String {
@@ -47,6 +56,10 @@ struct ProfileView: View {
                         StatTile(value: stats.onTimeText, label: "On Time")
                     }
                     .padding(.vertical, 6)
+
+                    NavigationLink("All Stats") {
+                        RailStatsView()
+                    }
                 } header: {
                     Text("Your Travel")
                 } footer: {
@@ -59,6 +72,12 @@ struct ProfileView: View {
                         NotificationSettingsView()
                     } label: {
                         SettingsRow("Notifications", systemImage: "bell.badge.fill", value: notificationsAreOn ? "On" : "Off")
+                    }
+
+                    NavigationLink {
+                        CommuteSettingsView()
+                    } label: {
+                        SettingsRow("Commute", systemImage: "briefcase.fill", value: commuteValue)
                     }
 
                     NavigationLink {
@@ -147,42 +166,6 @@ struct ProfileView: View {
     }
 }
 
-// MARK: - Travel Stats
-
-/// What the Rail History adds up to.
-private struct TravelStats {
-    /// Journeys that ran. A cancelled train was not travelled on.
-    var journeys = 0
-    var onTime = 0
-    var miles = 0
-    var openClaims = 0
-
-    init(_ trains: [SavedTrain]) {
-        var metres = 0.0
-
-        for train in trains where train.isPast {
-            if train.delayRepay?.isOpen == true { openClaims += 1 }
-
-            guard let service = train.service, !service.isCancelledService else { continue }
-            journeys += 1
-            if service.delayMinutes == 0 { onTime += 1 }
-
-            if let origin = knownStationCoordinates[service.userSearchOriginCRS ?? service.originCRS],
-               let destination = knownStationCoordinates[service.userSearchDestinationCRS ?? service.destinationCRS] {
-                metres += CLLocation(latitude: origin.latitude, longitude: origin.longitude)
-                    .distance(from: CLLocation(latitude: destination.latitude, longitude: destination.longitude))
-            }
-        }
-
-        miles = Int((metres / 1609.344).rounded())
-    }
-
-    var onTimeText: String {
-        guard journeys > 0 else { return "–" }
-        return (Double(onTime) / Double(journeys)).formatted(.percent.precision(.fractionLength(0)))
-    }
-}
-
 private struct StatTile: View {
     let value: String
     let label: String
@@ -239,6 +222,7 @@ struct NotificationSettingsView: View {
     @AppStorage(TrainAlerts.Kind.delays.rawValue) private var delayAlerts = true
     @AppStorage(TrainAlerts.Kind.platforms.rawValue) private var platformAlerts = true
     @AppStorage(TrainAlerts.Kind.delayRepay.rawValue) private var delayRepayReminders = true
+    @AppStorage(TrainAlerts.Kind.connections.rawValue) private var connectionAlerts = true
 
     private var alerts: TrainAlerts { .shared }
 
@@ -255,6 +239,16 @@ struct NotificationSettingsView: View {
                 Text(TrainyServer.baseURL == nil
                      ? "Sent when Trainy sees a change, while it is open or when iOS refreshes it in the background. Alerts can arrive a few minutes after the change."
                      : "Sent by Trainy's server within about a minute of a change, whether or not the app is open.")
+            }
+            .disabled(!alerts.isAllowed)
+            .listRowBackground(Color.card)
+
+            Section {
+                Toggle("Changes of Train", isOn: $connectionAlerts)
+            } header: {
+                Text("Journeys with a Change")
+            } footer: {
+                Text("A warning when a delay puts a change at risk, and a reminder about five minutes before you arrive for one: your next train, its platform and how long you have. Both go by the times Trainy last saw.")
             }
             .disabled(!alerts.isAllowed)
             .listRowBackground(Color.card)
@@ -280,6 +274,9 @@ struct NotificationSettingsView: View {
         }
         .onChange(of: delayRepayReminders) {
             Task { await alerts.refreshDelayRepayReminders(in: modelContext) }
+        }
+        .onChange(of: connectionAlerts) {
+            Task { await alerts.refreshApproachReminders(in: modelContext) }
         }
     }
 
@@ -438,10 +435,12 @@ struct AboutView: View {
             Section {
                 dataSource("National Rail Enquiries", detail: "Live departures and arrivals", url: "https://www.nationalrail.co.uk")
                 dataSource("Realtime Trains", detail: "Timetables for later trains", url: "https://www.realtimetrains.co.uk")
+                dataSource("Transitous", detail: "Routes with a change, and their data sources", url: JourneyPlanner.sourcesURL.absoluteString)
+                dataSource("Transport for London", detail: "How the Tube is running, on a change across London", url: "https://tfl.gov.uk")
             } header: {
                 Text("Train Data")
             } footer: {
-                Text("Live times come from National Rail's Darwin feed, which covers trains leaving within about four hours. Realtime Trains provides the timetable for anything later.")
+                Text("Live times come from National Rail's Darwin feed, which covers trains leaving within about four hours. Realtime Trains provides the timetable for anything later. Routes with a change are planned by Transitous, a free service run by volunteers, and each train on them is then followed through the other two.")
             }
             .listRowBackground(Color.card)
         }

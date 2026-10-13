@@ -31,6 +31,8 @@ struct AddTrainView: View {
     @State private var showingDestinationPicker = false
     /// The search whose results are showing
     @State private var search: TrainSearchQuery?
+    /// The saved route whose commute is being set
+    @State private var commuteRoute: SavedRoute?
 
     var body: some View {
         NavigationStack {
@@ -72,6 +74,16 @@ struct AddTrainView: View {
             .navigationDestination(item: $search) { query in
                 TrainResultsView(query: query) {
                     dismiss()
+                }
+            }
+            .sheet(item: $commuteRoute) { route in
+                NavigationStack {
+                    CommuteEditorView(route: route)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { commuteRoute = nil }
+                            }
+                        }
                 }
             }
         }
@@ -218,6 +230,11 @@ struct AddTrainView: View {
                 }
             }
             .cardSurface()
+
+            Text("Touch and hold a route to make it your commute. Trainy then follows your usual train for you.")
+                .font(.footnote)
+                .foregroundStyle(Color.inkSecondary)
+                .padding(.horizontal, 4)
         }
     }
 
@@ -230,7 +247,7 @@ struct AddTrainView: View {
                     search(from: origin, to: destination)
                 } label: {
                     HStack(spacing: 14) {
-                        Image(systemName: "star.fill")
+                        Image(systemName: route.isCommute ? "briefcase.fill" : "star.fill")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(Color.brand)
                             .frame(width: 36, height: 36)
@@ -245,6 +262,12 @@ struct AddTrainView: View {
                                 .font(.footnote)
                                 .foregroundStyle(Color.inkSecondary)
                                 .lineLimit(1)
+                            if let commute = route.commuteSummary {
+                                Text("Commute · \(commute)")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.brand)
+                                    .lineLimit(1)
+                            }
                         }
                         Spacer(minLength: 8)
                     }
@@ -272,6 +295,9 @@ struct AddTrainView: View {
                 .accessibilityLabel("Search return journey")
             }
             .contextMenu {
+                Button(route.isCommute ? "Edit Commute" : "Set as Commute", systemImage: "briefcase") {
+                    commuteRoute = route
+                }
                 Button("Remove Route", systemImage: "star.slash", role: .destructive) {
                     modelContext.delete(route)
                     try? modelContext.save()
@@ -464,12 +490,13 @@ struct TrainResultsView: View {
                     }
                     .padding(.top, 24)
                 } else if services.isEmpty {
-                    ContentUnavailableView(
-                        "No Trains Found",
-                        systemImage: "tram.fill",
-                        description: Text("There are no trains on this route at this time.")
-                    )
-                    .padding(.top, 24)
+                    // Kept small: the routes with a change, just below, are the answer
+                    Label("No direct trains at this time.", systemImage: "tram.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.inkSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .cardSurface()
                 } else {
                     LazyVStack(spacing: 10) {
                         ForEach(services) { service in
@@ -489,6 +516,11 @@ struct TrainResultsView: View {
                             .padding(.top, 8)
                         }
                     }
+                }
+
+                // Once the direct trains are known: with none, the routes with a change are the answer
+                if !isLoading, errorMessage == nil {
+                    JourneyOptionsSection(query: query, loadsAtOnce: services.isEmpty, onAdded: onAdded)
                 }
             }
             .padding(.horizontal, 20)

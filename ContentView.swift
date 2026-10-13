@@ -412,8 +412,13 @@ struct JourneyDashboardView: View {
     var savedNote: String? = nil
     /// Set when the train is in My Trains: the screen then offers to remove it
     var onRemove: (() -> Void)? = nil
+    /// Pushed onto a navigation stack with a bar above it, not shown as a sheet of its own
+    var isPushed = false
+    /// False when the screen was opened from the journey's own page, which already sets it out
+    var showsJourney = true
 
     @State private var confirmingRemoval = false
+    @Environment(\.dismiss) private var dismiss
 
     private var isSearchResult: Bool { onAdd != nil }
 
@@ -426,9 +431,23 @@ struct JourneyDashboardView: View {
                 VStack(spacing: 14) {
                     header
                         // As a sheet, clear of the drag indicator; pushed, the bar is above
-                        .padding(.top, isSearchResult ? 4 : 24)
+                        .padding(.top, isSearchResult || isPushed ? 4 : 24)
 
                     StatusHeaderCard(journey: journey)
+
+                    // Straight under the bad news, for a train the user is following
+                    if onRemove != nil, let service = rawService, AlternativeTrains.areWorthOffering(for: service) {
+                        AlternativeTrainsCard(train: service) {
+                            // The train this screen shows is no longer followed
+                            dismiss()
+                        }
+                    }
+
+                    // The walk or ride at either end, for a train that came from a journey plan
+                    if showsJourney, onRemove != nil, let service = rawService {
+                        JourneyLegsCard(train: service)
+                    }
+
                     TimelineCard(journey: journey)
 
                     if let service = rawService, (service.stops?.count ?? 0) > 1 {
@@ -604,13 +623,24 @@ extension DarwinServiceAdapter {
             return "My \(scheduledDeparture) from \(origin) to \(destination)\(day) has been cancelled."
         }
 
+        // The sentence is right when it is sent; the link stays right afterwards
+        let link = liveTrackingURL.map { "\nFollow it live: \($0.absoluteString)" } ?? ""
+
         let hasLeft = (expectedDepartureDate ?? .distantFuture) <= now
         let opening = "\(hasLeft ? "I'm on" : "I'm getting") the \(scheduledDeparture) from \(origin)\(day)"
         guard let arrival = userSearchDestinationArrivalTime ?? userSearchDestinationScheduledArrivalTime else {
-            return "\(opening) to \(destination)."
+            return "\(opening) to \(destination).\(link)"
         }
         let lateness = delayMinutes > 0 ? " (running \(delayMinutes) min late)" : ""
-        return "\(opening), due into \(destination) at \(arrival)\(lateness)."
+        return "\(opening), due into \(destination) at \(arrival)\(lateness).\(link)"
+    }
+
+    /// The train's public page on Realtime Trains, where anyone can follow it without the
+    /// app. Nil until the train's identity there is known.
+    var liveTrackingURL: URL? {
+        // "gb-nr:Y80917:2026-10-12" is served at /service/gb-nr:Y80917/2026-10-12
+        guard let parts = rttIdentity?.split(separator: ":"), parts.count == 3 else { return nil }
+        return URL(string: "https://www.realtimetrains.co.uk/service/\(parts[0]):\(parts[1])/\(parts[2])")
     }
 }
 
@@ -627,6 +657,15 @@ extension DarwinServiceAdapter {
         return minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m"
     }
 
+    /// The day the train leaves, when that is not today: "Tomorrow", or "Fri 16 Oct".
+    /// A commute's train is followed from the evening before, so its card has to say.
+    func dayLabel(at now: Date = Date()) -> String? {
+        let calendar = Calendar.current
+        guard let departure = scheduledDepartureDate, !calendar.isDate(departure, inSameDayAs: now) else { return nil }
+        if calendar.isDateInTomorrow(departure) { return "Tomorrow" }
+        return departure.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+    }
+
     /// The train in one sentence, for VoiceOver: a card's codes and struck-through times
     /// make little sense read out one by one.
     var spokenSummary: String {
@@ -634,6 +673,7 @@ extension DarwinServiceAdapter {
         let destination = UKStation.name(for: userSearchDestinationCRS ?? destinationCRS)
 
         var parts = ["\(origin) to \(destination)"]
+        if let day = dayLabel() { parts.append(day) }
         parts.append(departureDelayMinutes > 0
             ? "departs \(realtimeDeparture), scheduled \(scheduledDeparture)"
             : "departs \(scheduledDeparture)")
@@ -824,8 +864,8 @@ struct ContentView: View {
     @State private var showingAddTrain: Bool = false
     /// The search being filled in, kept here so closing Add Train does not lose it
     @State private var searchDraft = TrainSearchDraft()
-    /// The journey pushed from Rail History, if any
-    @State private var historyPath: [SavedTrain] = []
+    /// What is pushed from Rail History, if anything: a journey, or the stats
+    @State private var historyPath = NavigationPath()
 
     /// Single persistent camera state — never recreated on tab switch.
     @State private var cameraPosition: MapCameraPosition = .camera(
@@ -970,6 +1010,12 @@ struct ContentView: View {
                 .navigationDestination(for: SavedTrain.self) { train in
                     RailHistoryDetailView(train: train)
                 }
+                .navigationDestination(for: RailStatsRoute.self) { _ in
+                    RailStatsView()
+                }
+                .navigationDestination(for: JourneyRoute.self) { journey in
+                    JourneyDetailView(journeyID: journey.id, isHistory: true)
+                }
             }
 
             tabBar
@@ -998,8 +1044,8 @@ struct ContentView: View {
             }
         }
         .onChange(of: selectedTab) {
-            // A pushed journey belongs to Rail History: don't leave it covering another tab
-            historyPath.removeAll()
+            // A pushed page belongs to Rail History: don't leave it covering another tab
+            historyPath = NavigationPath()
         }
         .sheet(isPresented: $showingDeparturesBoard, onDismiss: {
             selectedStationCRS = nil
@@ -1034,7 +1080,7 @@ struct ContentView: View {
                 ],
                 selection: $selectedTab,
                 // Same as the system: tapping the current tab again goes back to its root
-                onReselect: { historyPath.removeAll() }
+                onReselect: { historyPath = NavigationPath() }
             )
             // UIKit's own tab bar height, plus the home indicator area it extends into
             .frame(height: 49 + geo.safeAreaInsets.bottom)

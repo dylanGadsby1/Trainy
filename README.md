@@ -34,13 +34,19 @@ Data comes from two feeds. National Rail's **Darwin Live Departure Boards** API,
 | ⏱️ **Live Status** | On time / Delayed / Cancelled badges refreshed every minute, and Scheduled for trains not yet live |
 | 📊 **Journey Dashboard** | Per-train detail view with scheduled vs realtime times and platform info |
 | 📜 **Rail History** | Automatic archiving of completed and cancelled journeys |
+| 📈 **Travel Stats** | Journeys, punctuality, minutes delayed, miles, most-used routes, operators and Delay Repay, with journeys by month |
 | 🚂 **Operator Branding** | Logos and brand colours for 26 UK rail operators |
-| 💸 **Delay Repay** | Deep links to every operator's Delay Repay compensation page |
-| 📍 **Live Activities** | Follow a train from the Lock Screen and Dynamic Island |
+| 💸 **Delay Repay** | Deep links to every operator's Delay Repay compensation page, with a journey of several trains claimed for by how late it ended |
+| 📍 **Live Activities** | Follow a train, or a whole journey from train to train, from the Lock Screen and Dynamic Island |
 | 🔔 **Notifications** | Delay, cancellation and platform alerts for saved trains, and reminders to claim Delay Repay |
 | 🚏 **Calling Points** | Every stop on the journey with live times, the route on the map and the train's estimated position |
 | ⭐ **Saved Routes** | Star a route to search it in one tap, with a shortcut for the return journey |
-| 📤 **Share Journey** | Send someone your train and when it is now due in |
+| 🔁 **Journeys with a Change** | Search finds routes that need a change, follows every train on them as one journey, and warns when a delay puts a change at risk |
+| 🧭 **Missed Connections** | When a change is in doubt, the later ways to finish the journey, with a one-tap switch that keeps it one journey |
+| 🚉 **At the Change** | Platform to platform, how the Tube is running across London, and a reminder five minutes before you arrive |
+| 🧳 **Commute Mode** | Mark a saved route as a commute, with its days and usual time, and the train (or the journey with a change) is followed for you from 12 hours before |
+| 🔀 **Other Trains** | When a followed train is cancelled or running late, the trains that would get you there sooner, with a one-tap switch |
+| 📤 **Share Journey** | Send someone your train, when it is now due in, and a link to follow it live |
 | ☁️ **Optional Server** | A Cloudflare Worker that pushes changes while the app is closed and keeps the feed keys out of the app ([server/](server/README.md)) |
 | 📱 **SwiftData Persistence** | Saved trains and history survive app restarts |
 
@@ -63,6 +69,11 @@ Trainy/
 ├── HomeView.swift           # Map view + draggable bottom sheet
 ├── AddTrainView.swift       # Station picker + live departure search
 ├── RailHistoryView.swift    # Archived past journeys
+├── RailStatsView.swift      # What the Rail History adds up to, and the stats page
+├── CommuteMode.swift        # Follows a commute's usual train, and the commute editor
+├── AlternativeTrains.swift  # Other trains to switch to when one is cancelled or late
+├── JourneyPlanner.swift     # Routes with a change, planned by Transitous; search options; Tube status
+├── JourneyViews.swift       # Route results, the legs of a journey and the changes between them
 ├── ProfileView.swift        # Travel stats, notification settings, privacy & about
 │
 ├── DarwinAPI.swift          # Darwin API client, response models & the app's train model

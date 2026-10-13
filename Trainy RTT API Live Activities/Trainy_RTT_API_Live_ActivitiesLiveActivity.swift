@@ -29,23 +29,32 @@ struct Trainy_RTT_API_Live_ActivitiesLiveActivity: Widget {
                         .bold()
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        if context.state.isCancelled {
-                            Text("Cancelled")
-                                .foregroundColor(.red)
-                                .bold()
-                        } else if context.state.delayMinutes > 0 {
-                            Text("Delayed \(context.state.delayMinutes)m")
-                                .foregroundColor(.red)
-                                .bold()
-                        } else {
-                            Text("On Time")
-                                .foregroundColor(.green)
-                                .bold()
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            if context.state.isCancelled {
+                                Text("Cancelled")
+                                    .foregroundColor(.red)
+                                    .bold()
+                            } else if context.state.delayMinutes > 0 {
+                                Text("Delayed \(context.state.delayMinutes)m")
+                                    .foregroundColor(.red)
+                                    .bold()
+                            } else {
+                                Text("On Time")
+                                    .foregroundColor(.green)
+                                    .bold()
+                            }
+                            Spacer()
+                            Text("Plat \(context.state.platform.isEmpty ? "TBC" : context.state.platform)")
+                                .font(.subheadline)
                         }
-                        Spacer()
-                        Text("Plat \(context.state.platform.isEmpty ? "TBC" : context.state.platform)")
-                            .font(.subheadline)
+                        // On a journey of several trains: the change that follows this train
+                        if let next = context.state.nextStep {
+                            Text(next)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                 }
             } compactLeading: {
@@ -93,6 +102,14 @@ struct LiveActivityLockScreenView: View {
             }
             .font(.subheadline)
             .bold()
+
+            // On a journey of several trains: which train the times and platform below are for
+            if let leg = context.state.legSummary {
+                Text("Now: \(leg)")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
+                    .lineLimit(1)
+            }
             
             HStack {
                 if context.state.isCancelled {
@@ -113,6 +130,13 @@ struct LiveActivityLockScreenView: View {
                     .foregroundColor(.white.opacity(0.8))
             }
             .font(.caption)
+
+            if let next = context.state.nextStep {
+                Text("Then: \(next)")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
+                    .lineLimit(1)
+            }
         }
         .padding()
         .activityBackgroundTint(Color(red: 0.1, green: 0.1, blue: 0.15))

@@ -47,6 +47,93 @@ class LiveActivityManager {
         }
     }
 
+    // MARK: - A Journey of Several Trains
+
+    /// Marks an activity as a journey's in its `trainId`, ahead of the journey's own id
+    private static let journeyPrefix = "journey:"
+
+    /// One activity for a whole journey: it shows the train the traveller is on, or is
+    /// waiting for, and what comes after it, and moves on from train to train.
+    func startTracking(journey: SavedJourney) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            print("Live activities are not enabled.")
+            return
+        }
+        guard let state = journeyState(journey),
+              let first = journey.services.first, let last = journey.services.last else { return }
+
+        // One at a time: end any other
+        endTracking()
+
+        let origin = first.userSearchOriginCRS ?? first.originCRS
+        let destination = last.userSearchDestinationCRS ?? last.destinationCRS
+        let attributes = TrainyActivityAttributes(
+            trainId: Self.journeyPrefix + journey.id,
+            originName: stationName(for: origin) ?? origin,
+            originCRS: origin,
+            destinationName: stationName(for: destination) ?? destination,
+            destinationCRS: destination,
+            operatorCode: first.atocCode ?? "NA"
+        )
+
+        // Kept up to date by the app alone: a Trainy server follows trains one at a time,
+        // and does not know which belong to one journey
+        let activity = try? Activity.request(
+            attributes: attributes,
+            content: .init(state: state, staleDate: nil),
+            pushType: nil
+        )
+        print("Started journey Live Activity: \(activity?.id ?? "")")
+    }
+
+    /// Brings a journey's activity up to date after a sync: on to the next train once one
+    /// is done, and ended when the journey is, or when its trains are no longer followed.
+    func updateJourney(with trains: [SavedTrain]) {
+        // Found among the running activities, so one started before the app last closed is picked up
+        for activity in Activity<TrainyActivityAttributes>.activities where activity.attributes.trainId.hasPrefix(Self.journeyPrefix) {
+            let id = String(activity.attributes.trainId.dropFirst(Self.journeyPrefix.count))
+            let legs = trains
+                .filter { $0.journeyID == id && $0.modelContext != nil && !$0.isDeleted && $0.service != nil }
+                .sorted { $0.legIndex < $1.legIndex }
+
+            guard legs.contains(where: { !$0.isPast }), let state = journeyState(SavedJourney(id: id, legs: legs)) else {
+                Task { await activity.end(nil, dismissalPolicy: .default) }
+                continue
+            }
+            guard state != activity.content.state else { continue }
+            Task { await activity.update(.init(state: state, staleDate: nil)) }
+        }
+    }
+
+    /// What a journey's activity shows: the times and platform of the current train, with
+    /// which train that is and what comes next.
+    private func journeyState(_ journey: SavedJourney) -> TrainyActivityAttributes.ContentState? {
+        guard let current = journey.currentLeg() else { return nil }
+        var state = contentState(for: current)
+
+        let destination = current.userSearchDestinationCRS ?? current.destinationCRS
+        state.legSummary = "\(UKStation.name(for: current.userSearchOriginCRS ?? current.originCRS)) to \(UKStation.name(for: destination))"
+
+        if let index = journey.legs.firstIndex(where: { $0.service?.isSameJourney(as: current) == true }),
+           let connection = journey.connection(before: index + 1) {
+            // Short enough for one line on the Lock Screen: where the next train goes from
+            var parts = ["\(connection.warning ?? "Change") at \(connection.station)"]
+            if let minutes = connection.minutes, connection.state != .broken {
+                parts.append("\(max(0, minutes)) min")
+            }
+            if !connection.departing.platform.isEmpty, connection.departing.platform != "TBC" {
+                parts.append("Platform \(connection.departing.platform)")
+            }
+            state.nextStep = parts.joined(separator: " · ")
+        } else {
+            let arrival = current.userSearchDestinationArrivalTime ?? current.userSearchDestinationScheduledArrivalTime
+            state.nextStep = ["Arrive \(UKStation.name(for: destination))", arrival].compactMap { $0 }.joined(separator: " ")
+        }
+        return state
+    }
+
+    // MARK: - Updates
+
     func updateTracking(with service: DarwinServiceAdapter) {
         // An activity started before the app was last closed is still on the Lock Screen,
         // though this object no longer holds it: pick it up again

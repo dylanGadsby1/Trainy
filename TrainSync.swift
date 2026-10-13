@@ -32,7 +32,12 @@ final class TrainSync {
         isSyncing = true
         defer { isSyncing = false }
 
+        // First, so a commute train added now is refreshed with the rest
+        await CommuteMode.shared.followDueTrains(in: context)
+
         let savedTrains = (try? context.fetch(FetchDescriptor<SavedTrain>())) ?? []
+        // How every change of trains stood before the refresh, to see which it has put in doubt
+        let connectionsBefore = savedTrains.connectionStates
 
         for saved in savedTrains {
             guard let train = saved.service, needsRefresh(saved, train),
@@ -54,8 +59,16 @@ final class TrainSync {
             }
         }
 
+        for (key, connection) in savedTrains.connections
+        where connection.isAhead() && connection.state != connectionsBefore[key] {
+            TrainAlerts.shared.connectionChanged(connection)
+        }
+
         archiveFinishedTrains(savedTrains)
         try? context.save()
+        // A journey's Live Activity moves on to its next train, and ends with the journey
+        LiveActivityManager.shared.updateJourney(with: savedTrains)
+        await TrainAlerts.shared.refreshApproachReminders(in: context)
         await TrainAlerts.shared.refreshDelayRepayReminders(in: context)
         await TrainyServer.shared.sync(in: context)
     }
@@ -106,12 +119,13 @@ final class TrainSync {
         for saved in savedTrains where !saved.isPast {
             guard let train = saved.service else { continue }
 
-            // Cancelled trains go straight to Rail History. Otherwise a train moves there
-            // once its real (with-delay) arrival time has passed, or four hours after it
-            // was due to leave when no arrival time is known.
+            // A cancelled train stays in My Trains until it would have left, so the user
+            // sees what happened and can switch to another train. Otherwise a train moves
+            // to Rail History once its real (with-delay) arrival time has passed, or four
+            // hours after it was due to leave when no arrival time is known.
             let finishedAt: Date?
             if train.isCancelledService {
-                finishedAt = now
+                finishedAt = now >= (train.scheduledDepartureDate ?? now) ? now : nil
             } else if let arrival = train.expectedArrivalDate {
                 finishedAt = now >= arrival ? arrival : nil
             } else {
@@ -137,11 +151,13 @@ enum BackgroundRefresh {
     /// Also listed under BGTaskSchedulerPermittedIdentifiers in Info.plist
     static let identifier = "com.dylangadsby.Trainy.refresh"
 
-    /// Asks for the next wake-up, if there is still a train to follow.
+    /// Asks for the next wake-up, if there is still a train to follow or a commute to follow one for.
     @MainActor
     static func schedule(in container: ModelContainer) {
         let upcoming = FetchDescriptor<SavedTrain>(predicate: #Predicate { !$0.isPast })
-        guard ((try? container.mainContext.fetchCount(upcoming)) ?? 0) > 0 else { return }
+        let commutes = FetchDescriptor<SavedRoute>(predicate: #Predicate { $0.commuteDays != 0 })
+        let context = container.mainContext
+        guard ((try? context.fetchCount(upcoming)) ?? 0) + ((try? context.fetchCount(commutes)) ?? 0) > 0 else { return }
 
         let request = BGAppRefreshTaskRequest(identifier: identifier)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)

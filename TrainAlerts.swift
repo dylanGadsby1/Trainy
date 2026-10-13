@@ -18,6 +18,8 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
     enum Kind: String {
         case delays = "alerts.delays"
         case platforms = "alerts.platforms"
+        /// A change of trains: a warning when one is in doubt, and a reminder on the way into it
+        case connections = "alerts.connections"
         case delayRepay = "alerts.delayRepay"
 
         /// On until the user turns it off. Nothing is sent without notification permission.
@@ -120,6 +122,33 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
             : "Leaves from platform \(new.platform)."
     }
 
+    /// Tells the user that a delay has put a change of trains in doubt. Raised by the app
+    /// itself even when a Trainy server sends the other alerts: the server follows trains
+    /// one by one and does not know which belong to the same journey.
+    func connectionChanged(_ connection: JourneyConnection) {
+        let next = connection.departing
+        let destination = Self.stationName(next.userSearchDestinationCRS ?? next.destinationCRS)
+        let train = "the \(next.scheduledDeparture) to \(destination)"
+
+        let body: String
+        switch connection.state {
+        case .missed:
+            let arrival = connection.arriving.userSearchDestinationArrivalTime.map { " Your train is now due in at \($0)." } ?? ""
+            body = "You are likely to miss \(train).\(arrival)"
+        case .tight:
+            guard let minutes = connection.minutes, connection.arriving.hasUnknownDelay != true else {
+                body = "Your train is delayed with no new time yet, so \(train) may be missed."
+                break
+            }
+            body = "Only \(minutes) min to catch \(train)."
+        case .comfortable, .broken:
+            // A cancellation has an alert of its own
+            return
+        }
+
+        send(.connections, id: "\(next.journeyKey).connection", title: connection.title, body: body)
+    }
+
     private static func isKnown(_ platform: String) -> Bool {
         !platform.isEmpty && platform != "TBC"
     }
@@ -143,8 +172,9 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
     /// Makes the scheduled reminders match the claims still open: one the morning after the
     /// journey, and one three days before the claim window closes.
     func refreshDelayRepayReminders(in context: ModelContext) async {
-        let pastTrains = (try? context.fetch(FetchDescriptor<SavedTrain>(predicate: #Predicate { $0.isPast }))) ?? []
-        let reminders = pastTrains
+        // Every train, so a journey of several is whole: it has one claim, not one a train
+        let trains = (try? context.fetch(FetchDescriptor<SavedTrain>())) ?? []
+        let reminders = trains.travelItems(past: true)
             .flatMap(Self.reminders(for:))
             .sorted { $0.date < $1.date }
             .prefix(Self.reminderLimit)
@@ -155,38 +185,113 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
                 wanted[reminder.id] = (reminder.date, Self.content(title: "Delay Repay", body: reminder.body))
             }
         }
+        await schedule(wanted, prefix: Self.reminderPrefix)
+    }
 
-        let scheduled = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix(Self.reminderPrefix) }
+    /// Makes the notifications scheduled under `prefix` match `wanted`: drops the ones no
+    /// longer wanted, and sets again any whose words or time have changed.
+    private func schedule(_ wanted: [String: (date: Date, content: UNMutableNotificationContent)], prefix: String) async {
+        let scheduled = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix(prefix) }
         center.removePendingNotificationRequests(withIdentifiers: scheduled.map(\.identifier).filter { wanted[$0] == nil })
 
-        for (id, reminder) in wanted where !scheduled.contains(where: { $0.identifier == id && $0.content.body == reminder.content.body }) {
-            let when = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminder.date)
+        let calendar = Calendar.current
+        for (id, reminder) in wanted {
+            let when = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: reminder.date)
+            let isSet = scheduled.contains { request in
+                request.identifier == id
+                    && request.content.body == reminder.content.body
+                    && (request.trigger as? UNCalendarNotificationTrigger)?.dateComponents == when
+            }
+            guard !isSet else { continue }
+            // Adding under the same identifier replaces the one already waiting
             let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: false)
             try? await center.add(UNNotificationRequest(identifier: id, content: reminder.content, trigger: trigger))
         }
     }
 
-    /// The reminders still to come for a past journey with an open claim.
-    private static func reminders(for train: SavedTrain) -> [(id: String, date: Date, body: String)] {
-        guard let claim = train.delayRepay, claim.isOpen, let service = train.service else { return [] }
+    /// The reminders still to come for a past train or journey with an open claim.
+    private static func reminders(for item: TravelItem) -> [(id: String, date: Date, body: String)] {
+        item.claims.flatMap { train, claim -> [(id: String, date: Date, body: String)] in
+            guard claim.isOpen, let service = train.service else { return [] }
 
-        let calendar = Calendar.current
-        let key = reminderPrefix + service.journeyKey
-        let journey = journeyName(service)
-        let finished = train.movedToPastAt ?? train.addedAt
+            let calendar = Calendar.current
+            let key = reminderPrefix + service.journeyKey
 
-        let whatHappened = claim.isCancelled
-            ? "Your \(journey) was cancelled. You may be able to claim from \(claim.brand.shortName)."
-            : "Your \(journey) was \(claim.delayMinutes) minutes late. You can claim from \(claim.brand.shortName)."
-        let nextMorning = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: finished))
-            .flatMap { calendar.date(bySettingHour: 10, minute: 0, second: 0, of: $0) }
-        let lastChance = calendar.date(byAdding: .day, value: -3, to: claim.deadline)
+            // A journey of several trains is named by where it started and ended
+            var journey = journeyName(service)
+            var whatHappened = claim.isCancelled
+                ? "Your \(journey) was cancelled. You may be able to claim from \(claim.brand.shortName)."
+                : "Your \(journey) was \(claim.delayMinutes) minutes late. You can claim from \(claim.brand.shortName)."
+            if claim.isJourney, case .journey(let saved) = item {
+                journey = "journey from \(saved.title)"
+                whatHappened = claim.isCancelled
+                    ? "A train on your \(journey) was cancelled. You may be able to claim from \(claim.brand.shortName)."
+                    : "Your \(journey) ended \(claim.delayMinutes) minutes late. You can claim from \(claim.brand.shortName)."
+            }
 
-        let reminders = [
-            nextMorning.map { (id: "\(key).next", date: $0, body: whatHappened) },
-            lastChance.map { (id: "\(key).last", date: $0, body: "3 days left to claim for your \(journey).") }
-        ]
-        return reminders.compactMap { $0 }.filter { $0.date > Date() }
+            let nextMorning = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: item.finishedAt))
+                .flatMap { calendar.date(bySettingHour: 10, minute: 0, second: 0, of: $0) }
+            let lastChance = calendar.date(byAdding: .day, value: -3, to: claim.deadline)
+
+            let reminders = [
+                nextMorning.map { (id: "\(key).next", date: $0, body: whatHappened) },
+                lastChance.map { (id: "\(key).last", date: $0, body: "3 days left to claim for your \(journey).") }
+            ]
+            return reminders.compactMap { $0 }.filter { $0.date > Date() }
+        }
+    }
+
+    // MARK: - Approaching a Change
+
+    private static let approachPrefix = "approach."
+
+    /// How long before the train gets in the reminder arrives
+    private static let approachLead: TimeInterval = 5 * 60
+
+    /// Schedules a reminder for a few minutes before each change of trains still to come:
+    /// which train is next, where it leaves from and how long there is. Set ahead, so it
+    /// arrives whether or not the app is running, with the times as they stood at the last sync.
+    func refreshApproachReminders(in context: ModelContext) async {
+        let trains = (try? context.fetch(FetchDescriptor<SavedTrain>())) ?? []
+
+        var wanted: [String: (date: Date, content: UNMutableNotificationContent)] = [:]
+        if await canSend(.connections) {
+            for connection in trains.connections.values {
+                guard connection.state != .broken, connection.arriving.hasArrived != true,
+                      let arrival = connection.arriving.expectedArrivalDate else { continue }
+
+                let date = arrival.addingTimeInterval(-Self.approachLead)
+                guard date > Date() else { continue }
+
+                wanted[Self.approachPrefix + connection.departing.journeyKey] = (
+                    date,
+                    Self.content(title: connection.title, body: Self.approachBody(connection))
+                )
+            }
+        }
+        await schedule(wanted, prefix: Self.approachPrefix)
+    }
+
+    private static func approachBody(_ connection: JourneyConnection) -> String {
+        let arriving = connection.arriving
+        let next = connection.departing
+        let station = stationName(arriving.userSearchDestinationCRS ?? arriving.destinationCRS)
+        let train = "the \(next.realtimeDeparture) to \(stationName(next.userSearchDestinationCRS ?? next.destinationCRS))"
+
+        if connection.state == .missed {
+            return "About 5 minutes to \(station). You are likely to miss \(train). Open Trainy for later trains."
+        }
+
+        // Named when the next train goes from somewhere else: across London, say
+        let from = next.userSearchOriginCRS ?? next.originCRS
+        let elsewhere = from == (arriving.userSearchDestinationCRS ?? arriving.destinationCRS) ? "" : " at \(stationName(from))"
+
+        var body = "About 5 minutes to \(station). Next is \(train)"
+        body += isKnown(next.platform) ? ", from platform \(next.platform)\(elsewhere)." : "\(elsewhere)."
+        if let minutes = connection.minutes {
+            body += " You have \(minutes) min to change."
+        }
+        return body
     }
 
     /// Clears every alert and reminder, delivered or still to come.

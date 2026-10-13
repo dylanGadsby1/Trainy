@@ -1,49 +1,95 @@
 import SwiftUI
 import SwiftData
 
-/// Journeys that finished in the current calendar month.
-private func journeysThisMonth(_ trains: [SavedTrain]) -> Int {
-    trains.filter {
-        Calendar.current.isDate($0.movedToPastAt ?? $0.addedAt, equalTo: Date(), toGranularity: .month)
+/// Trains and journeys that finished in the current calendar month.
+private func journeysThisMonth(_ items: [TravelItem]) -> Int {
+    items.filter {
+        Calendar.current.isDate($0.finishedAt, equalTo: Date(), toGranularity: .month)
     }.count
 }
 
 // MARK: - Past Journey Row
 
+/// A row in Rail History: one train that has run, or a journey of several trains as one.
 struct PastJourneyRow: View {
-    let train: SavedTrain
-    let service: DarwinServiceAdapter
+    private let originCode: String
+    private let destinationCode: String
+    private let finished: Date
+    private let operators: [OperatorSummary.Operator]
+    /// The bar down the leading edge
+    private let barColor: Color
+    /// How the journey went: a word for it, its colour, and the symbol or figure shown above the word
+    private let outcome: (label: String, color: Color, symbol: String?, figure: String?)
+    /// Minutes late at the end, for VoiceOver
+    private let delayMinutes: Int
+    private let claim: (note: String, isOpen: Bool)?
+    /// "1 change", on a journey of several trains
+    private let changes: String?
 
-    private var originCode: String { service.userSearchOriginCRS ?? service.originCRS }
-    private var destinationCode: String { service.userSearchDestinationCRS ?? service.destinationCRS }
+    /// - Parameter isLeg: True for one train of a journey shown on the journey's own page,
+    ///   where Delay Repay is the journey's and is not repeated on each train.
+    init(train: SavedTrain, service: DarwinServiceAdapter, isLeg: Bool = false) {
+        originCode = service.userSearchOriginCRS ?? service.originCRS
+        destinationCode = service.userSearchDestinationCRS ?? service.destinationCRS
+        finished = train.movedToPastAt ?? train.addedAt
+        operators = [service].operators
+        barColor = service.trainStatus.color
+        delayMinutes = service.isCancelledService ? 0 : service.delayMinutes
+        if service.isCancelledService {
+            outcome = ("Cancelled", service.trainStatus.color, "xmark.circle.fill", nil)
+        } else if service.delayMinutes > 0 {
+            outcome = ("Delayed", service.trainStatus.color, nil, "+\(service.delayMinutes)m")
+        } else {
+            outcome = ("On time", .statusOnTime, "checkmark.circle.fill", nil)
+        }
+        claim = isLeg ? nil : Self.note(for: TravelItem.train(train).claims.map(\.claim))
+        changes = nil
+    }
+
+    /// The journey from where it started to where it ended, judged by when its last train got in.
+    init(journey: SavedJourney) {
+        let services = journey.services
+        originCode = services.first.map { $0.userSearchOriginCRS ?? $0.originCRS } ?? "UNK"
+        destinationCode = services.last.map { $0.userSearchDestinationCRS ?? $0.destinationCRS } ?? "UNK"
+        finished = journey.legs.map { $0.movedToPastAt ?? $0.addedAt }.max() ?? Date()
+        operators = services.operators
+
+        // Against the journey as first planned: a missed change can mean later trains that ran on time
+        let delay = journey.minutesLate
+        if services.contains(where: \.isCancelledService) {
+            // One of its trains did not run
+            outcome = ("Disrupted", .statusCancelled, "xmark.circle.fill", nil)
+            delayMinutes = 0
+        } else if delay > 0 {
+            outcome = ("Delayed", .statusDelayed, nil, "+\(TravelStats.duration(minutes: delay))")
+            delayMinutes = delay
+        } else {
+            outcome = ("On time", .statusOnTime, "checkmark.circle.fill", nil)
+            delayMinutes = 0
+        }
+        barColor = outcome.color
+        // One claim for the journey, by how late it ended
+        claim = Self.note(for: journey.delayRepay.map { [$0.claim] } ?? [])
+        changes = journey.changesText
+    }
+
+    /// A claim still open comes first; one already made is only a record.
+    private static func note(for claims: [DelayRepayClaim]) -> (note: String, isOpen: Bool)? {
+        if let open = claims.first(where: \.isOpen) {
+            return ("Delay Repay · \(open.daysLeftText)", true)
+        }
+        return claims.contains { $0.claimedAt != nil } ? ("Delay Repay claimed", false) : nil
+    }
 
     private var date: String {
-        DateFormatter.localizedString(from: train.movedToPastAt ?? train.addedAt, dateStyle: .short, timeStyle: .none)
-    }
-
-    /// How the journey went: a word for it, its colour, and the symbol or figure shown above the word
-    private var outcome: (label: String, color: Color, symbol: String?, figure: String?) {
-        if service.isCancelledService {
-            return ("Cancelled", service.trainStatus.color, "xmark.circle.fill", nil)
-        }
-        if service.delayMinutes > 0 {
-            return ("Delayed", service.trainStatus.color, nil, "+\(service.delayMinutes)m")
-        }
-        return ("On time", .statusOnTime, "checkmark.circle.fill", nil)
-    }
-
-    private var claimNote: String? {
-        guard let claim = train.delayRepay else { return nil }
-        if claim.isOpen { return "Delay Repay · \(claim.daysLeftText)" }
-        return claim.claimedAt != nil ? "Delay Repay claimed" : nil
+        DateFormatter.localizedString(from: finished, dateStyle: .short, timeStyle: .none)
     }
 
     private var spokenSummary: String {
         var parts = ["\(UKStation.name(for: originCode)) to \(UKStation.name(for: destinationCode))", date]
-        parts.append(service.delayMinutes > 0 && !service.isCancelledService
-            ? "delayed \(service.delayMinutes) minutes"
-            : outcome.label)
-        if let claimNote { parts.append(claimNote) }
+        if let changes { parts.append(changes) }
+        parts.append(delayMinutes > 0 ? "delayed \(delayMinutes) minutes" : outcome.label)
+        if let claim { parts.append(claim.note) }
         return parts.joined(separator: ", ")
     }
 
@@ -51,7 +97,7 @@ struct PastJourneyRow: View {
         HStack(spacing: 14) {
             // Status indicator
             RoundedRectangle(cornerRadius: 3)
-                .fill(service.trainStatus.color)
+                .fill(barColor)
                 .frame(width: 4, height: 44)
 
             // Route
@@ -69,21 +115,25 @@ struct PastJourneyRow: View {
                 HStack(spacing: 6) {
                     Text(date)
                     Text("·")
-                    OperatorLogoBadge(atocCode: service.atocCode, compact: true)
-                    if OperatorBrand.from(code: service.atocCode) == nil {
-                        Text(service.atocName ?? "Unknown")
-                            .lineLimit(1)
-                    }
+                    OperatorSummary(operators: operators, compact: true)
                 }
                 .font(.footnote)
                 .foregroundStyle(Color.inkSecondary)
+                // One height whichever logo it is, so the rows match
+                .frame(height: 22)
 
-                if let claimNote {
+                if let changes {
+                    Label(changes, systemImage: "arrow.triangle.swap")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.inkSecondary)
+                        .lineLimit(1)
+                }
+
+                if let claim {
                     // An open claim wants attention; a claimed one is only a record
-                    let isOpen = train.delayRepay?.isOpen == true
-                    Label(claimNote, systemImage: isOpen ? "sterlingsign.circle.fill" : "checkmark.circle.fill")
+                    Label(claim.note, systemImage: claim.isOpen ? "sterlingsign.circle.fill" : "checkmark.circle.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(isOpen ? Color.ink : Color.inkSecondary)
+                        .foregroundStyle(claim.isOpen ? Color.ink : Color.inkSecondary)
                         .lineLimit(1)
                 }
             }
@@ -121,9 +171,13 @@ struct PastJourneyRow: View {
 
 struct PastTrainsSheetView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
+    /// Every saved train, so that a journey of several is only listed once its last train has run
+    @Query private var savedTrains: [SavedTrain]
+    /// The rows: each train that has run, and each finished journey of several trains as one
+    private var items: [TravelItem] { savedTrains.travelItems(past: true) }
 
-    @State private var trainToDelete: SavedTrain?
+    /// One train, or every train of a journey, waiting on the confirmation to remove it
+    @State private var trainsToDelete: [SavedTrain] = []
     @State private var showingDeleteConfirmation = false
 
     @Binding var currentDetent: SheetDetent
@@ -134,7 +188,7 @@ struct PastTrainsSheetView: View {
         MapBottomSheet(detent: $currentDetent, borrowedPeekHeight: myTrainsPeekHeight) {
             SheetHeader("Rail History") {
                 VStack(alignment: .trailing, spacing: 0) {
-                    Text("\(journeysThisMonth(pastTrains))")
+                    Text("\(journeysThisMonth(items))")
                         .font(.title2.weight(.bold))
                         .foregroundStyle(Color.brand)
                     Text("This month")
@@ -154,17 +208,17 @@ struct PastTrainsSheetView: View {
             titleVisibility: .visible
         ) {
             Button("Remove", role: .destructive) {
-                if let train = trainToDelete {
+                if !trainsToDelete.isEmpty {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        modelContext.delete(train)
+                        trainsToDelete.forEach(modelContext.delete)
                         try? modelContext.save()
                     }
                 }
-                trainToDelete = nil
+                trainsToDelete = []
             }
             Button("Cancel", role: .cancel) {
-                trainToDelete = nil
+                trainsToDelete = []
             }
         } message: {
             Text("Are you sure you want to remove this journey from Rail History?")
@@ -173,7 +227,7 @@ struct PastTrainsSheetView: View {
 
     @ViewBuilder
     private var journeys: some View {
-        if pastTrains.isEmpty {
+        if items.isEmpty {
             ContentUnavailableView(
                 "No Journeys Yet",
                 systemImage: "tram.fill",
@@ -182,23 +236,41 @@ struct PastTrainsSheetView: View {
             .padding(.top, 16)
         } else {
             VStack(spacing: 10) {
-                ForEach(pastTrains) { savedTrain in
-                    if let service = savedTrain.service {
-                        NavigationLink(value: savedTrain) {
-                            PastJourneyRow(train: savedTrain, service: service)
+                NavigationLink(value: RailStatsRoute()) {
+                    RailStatsSummaryCard(stats: TravelStats(savedTrains))
+                }
+                .buttonStyle(.plain)
+
+                ForEach(items) { item in
+                    switch item {
+                    case .train(let savedTrain):
+                        if let service = savedTrain.service {
+                            NavigationLink(value: savedTrain) {
+                                PastJourneyRow(train: savedTrain, service: service)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Shows the journey")
+                            .contextMenu { removeButton(item) }
+                        }
+
+                    case .journey(let journey):
+                        NavigationLink(value: JourneyRoute(id: journey.id)) {
+                            PastJourneyRow(journey: journey)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityHint("Shows the journey")
-                        .contextMenu {
-                            Button("Remove from Rail History", systemImage: "trash", role: .destructive) {
-                                trainToDelete = savedTrain
-                                showingDeleteConfirmation = true
-                            }
-                        }
+                        .accessibilityHint("Shows each train of the journey")
+                        .contextMenu { removeButton(item) }
                     }
                 }
             }
             .padding(.horizontal, 20)
+        }
+    }
+
+    private func removeButton(_ item: TravelItem) -> some View {
+        Button("Remove from Rail History", systemImage: "trash", role: .destructive) {
+            trainsToDelete = item.legs
+            showingDeleteConfirmation = true
         }
     }
 }
@@ -218,7 +290,15 @@ struct RailHistoryDetailView: View {
     @Environment(\.modelContext) private var modelContext
     let train: SavedTrain
 
+    @Query private var savedTrains: [SavedTrain]
     @State private var confirmingRemoval = false
+
+    /// One train of a journey of several. Its Delay Repay is the journey's, by how late the
+    /// journey ended, and is on the journey's page.
+    private var isLegOfJourney: Bool {
+        guard let id = train.journeyID else { return false }
+        return savedTrains.filter { $0.journeyID == id }.count > 1
+    }
 
     var body: some View {
         ScrollView {
@@ -301,8 +381,13 @@ struct RailHistoryDetailView: View {
                         }
                     }
 
-                    if let claim = train.delayRepay {
-                        DelayRepaySection(train: train, claim: claim)
+                    // A train cancelled a short while ago may still need replacing
+                    if AlternativeTrains.areWorthOffering(for: service) {
+                        AlternativeTrainsCard(train: service)
+                    }
+
+                    if !isLegOfJourney, let entry = TravelItem.train(train).claims.first {
+                        DelayRepaySection(train: entry.train, claim: entry.claim)
                     }
                 }
             }
@@ -344,7 +429,7 @@ struct RailHistoryDetailView: View {
 // MARK: - Delay Repay
 
 /// The claim card on a past journey: claim link while the window is open, then claimed or closed.
-private struct DelayRepaySection: View {
+struct DelayRepaySection: View {
     @Environment(\.modelContext) private var modelContext
     let train: SavedTrain
     let claim: DelayRepayClaim
@@ -362,6 +447,12 @@ private struct DelayRepaySection: View {
         }
         guard claim.isOpen else {
             return "\(claim.brand.shortName) accepts claims for \(DelayRepayClaim.claimWindowDays) days after the journey."
+        }
+        if claim.isJourney {
+            // A journey is claimed for as a whole, from the operator whose train went wrong first
+            return claim.isCancelled
+                ? "A train on this journey was cancelled. If you reached your destination \(claim.brand.delayRepayThreshold) or more minutes late, you can claim Delay Repay from \(claim.brand.shortName)."
+                : "This journey ended \(claim.delayMinutes) minutes later than planned. Delay Repay is for the whole journey, and is claimed from \(claim.brand.shortName), whose train went wrong first."
         }
         if claim.isCancelled {
             return "This train was cancelled. If you reached your destination \(claim.brand.delayRepayThreshold) or more minutes late on another train, you can claim Delay Repay from \(claim.brand.shortName)."
@@ -420,10 +511,11 @@ private struct DelayRepaySection: View {
 
 /// Every past journey with a Delay Repay claim still to make. Opened from Profile.
 struct DelayRepayClaimsView: View {
-    @Query(filter: #Predicate<SavedTrain> { $0.isPast == true }, sort: \.addedAt, order: .reverse) private var pastTrains: [SavedTrain]
+    /// Every saved train, so that a journey of several is whole: it has one claim, for how late it ended
+    @Query private var savedTrains: [SavedTrain]
 
-    private var claimable: [SavedTrain] {
-        pastTrains.filter { $0.delayRepay?.isOpen == true }
+    private var claimable: [TravelItem] {
+        savedTrains.travelItems(past: true).filter { item in item.claims.contains { $0.claim.isOpen } }
     }
 
     var body: some View {
@@ -437,10 +529,19 @@ struct DelayRepayClaimsView: View {
                 .padding(.top, 60)
             } else {
                 VStack(spacing: 10) {
-                    ForEach(claimable) { savedTrain in
-                        if let service = savedTrain.service {
-                            NavigationLink(destination: RailHistoryDetailView(train: savedTrain)) {
-                                PastJourneyRow(train: savedTrain, service: service)
+                    ForEach(claimable) { item in
+                        switch item {
+                        case .train(let savedTrain):
+                            if let service = savedTrain.service {
+                                NavigationLink(value: savedTrain) {
+                                    PastJourneyRow(train: savedTrain, service: service)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                        case .journey(let journey):
+                            NavigationLink(value: JourneyRoute(id: journey.id)) {
+                                PastJourneyRow(journey: journey)
                             }
                             .buttonStyle(.plain)
                         }
@@ -452,5 +553,12 @@ struct DelayRepayClaimsView: View {
         .background(Color.surface)
         .navigationTitle("Delay Repay")
         .navigationBarTitleDisplayMode(.inline)
+        // This page is also reached from Profile, whose own stack needs telling where these lead
+        .navigationDestination(for: SavedTrain.self) { train in
+            RailHistoryDetailView(train: train)
+        }
+        .navigationDestination(for: JourneyRoute.self) { journey in
+            JourneyDetailView(journeyID: journey.id, isHistory: true)
+        }
     }
 }

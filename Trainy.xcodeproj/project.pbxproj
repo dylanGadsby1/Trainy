@@ -31,6 +31,11 @@
 		BA9450A5307C6000009275DA /* TrainAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A4307C6000009275DA /* TrainAlerts.swift */; };
 		BA9450A8307C6000009275DA /* TrainyServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450A7307C6000009275DA /* TrainyServer.swift */; };
 		BA9450B1307C6000009275DA /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450B0307C6000009275DA /* Theme.swift */; };
+		BA9450C1307C6000009275DA /* RailStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450C0307C6000009275DA /* RailStatsView.swift */; };
+		BA9450C3307C6000009275DA /* CommuteMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450C2307C6000009275DA /* CommuteMode.swift */; };
+		BA9450C5307C6000009275DA /* AlternativeTrains.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450C4307C6000009275DA /* AlternativeTrains.swift */; };
+		BA9450C7307C6000009275DA /* JourneyPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450C6307C6000009275DA /* JourneyPlanner.swift */; };
+		BA9450C9307C6000009275DA /* JourneyViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450C8307C6000009275DA /* JourneyViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -82,6 +87,11 @@
 		BA9450A4307C6000009275DA /* TrainAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainAlerts.swift; sourceTree = "<group>"; };
 		BA9450A7307C6000009275DA /* TrainyServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainyServer.swift; sourceTree = "<group>"; };
 		BA9450B0307C6000009275DA /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		BA9450C0307C6000009275DA /* RailStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailStatsView.swift; sourceTree = "<group>"; };
+		BA9450C2307C6000009275DA /* CommuteMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommuteMode.swift; sourceTree = "<group>"; };
+		BA9450C4307C6000009275DA /* AlternativeTrains.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlternativeTrains.swift; sourceTree = "<group>"; };
+		BA9450C6307C6000009275DA /* JourneyPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyPlanner.swift; sourceTree = "<group>"; };
+		BA9450C8307C6000009275DA /* JourneyViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyViews.swift; sourceTree = "<group>"; };
 		BA9450A6307C6000009275DA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -145,6 +155,11 @@
 				BA9450A4307C6000009275DA /* TrainAlerts.swift */,
 				BA9450A7307C6000009275DA /* TrainyServer.swift */,
 				BA9450A0307C6000009275DA /* TrainSearch.swift */,
+				BA9450C0307C6000009275DA /* RailStatsView.swift */,
+				BA9450C2307C6000009275DA /* CommuteMode.swift */,
+				BA9450C4307C6000009275DA /* AlternativeTrains.swift */,
+				BA9450C6307C6000009275DA /* JourneyPlanner.swift */,
+				BA9450C8307C6000009275DA /* JourneyViews.swift */,
 				BA9450A6307C6000009275DA /* Info.plist */,
 			);
 			sourceTree = "<group>";
@@ -289,6 +304,11 @@
 				AA000035 /* RailHistoryView.swift in Sources */,
 				AA000037 /* AddTrainView.swift in Sources */,
 				BA9450B1307C6000009275DA /* Theme.swift in Sources */,
+				BA9450C1307C6000009275DA /* RailStatsView.swift in Sources */,
+				BA9450C3307C6000009275DA /* CommuteMode.swift in Sources */,
+				BA9450C5307C6000009275DA /* AlternativeTrains.swift in Sources */,
+				BA9450C7307C6000009275DA /* JourneyPlanner.swift in Sources */,
+				BA9450C9307C6000009275DA /* JourneyViews.swift in Sources */,
 				8AD4447DB914C555DFD11808 /* RTTModels.swift in Sources */,
 				45B24B1EA4FC824505A9A5C7 /* RTTService.swift in Sources */,
 				BA945091307C593E009275DA /* Secrets.swift in Sources */,

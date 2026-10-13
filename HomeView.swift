@@ -4,65 +4,159 @@ import SwiftData
 
 // MARK: - My Train Card
 
+/// A card on My Trains: one train, or a journey of several trains shown as one.
 struct MyTrainCard: View {
-    let train: DarwinServiceAdapter
+    /// What the card shows, whichever of the two it stands for
+    private struct Content {
+        var operators: [OperatorSummary.Operator]
+        var status: (label: String, color: Color)
+        var originCRS: String
+        var destinationCRS: String
+        var scheduledDeparture: String
+        /// Set when the train, or a journey's first train, is leaving late
+        var expectedDeparture: String?
+        var scheduledArrival: String
+        /// Set when the train, or a journey's last train, is due in late
+        var expectedArrival: String?
+        /// 0 before departure, 1 on arrival
+        var progress: (Date) -> Double
+        /// Under the line on the left: the day, the changes, or a change that is in doubt
+        var note: (text: String, systemImage: String, color: Color)?
+        var platform: String
+        var spokenSummary: String
+    }
+
+    private let content: Content
+
+    init(train: DarwinServiceAdapter) {
+        content = Content(
+            operators: [train].operators,
+            status: (train.trainStatus.label, train.trainStatus.color),
+            originCRS: train.userSearchOriginCRS ?? (train.originCRS.isEmpty ? "UNK" : train.originCRS),
+            destinationCRS: train.userSearchDestinationCRS ?? (train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS),
+            scheduledDeparture: train.scheduledDeparture,
+            expectedDeparture: train.departureDelayMinutes > 0 ? train.realtimeDeparture : nil,
+            scheduledArrival: train.userSearchDestinationScheduledArrivalTime ?? train.userSearchDestinationArrivalTime ?? "--:--",
+            expectedArrival: train.arrivalDelayMinutes > 0 ? train.userSearchDestinationArrivalTime : nil,
+            progress: { train.progress(at: $0) },
+            note: train.dayLabel().map { ($0, "calendar", Color.inkSecondary) },
+            platform: "Platform \(train.platform)",
+            spokenSummary: train.spokenSummary
+        )
+    }
+
+    /// The whole journey on one card: from where it starts to where it ends, with the
+    /// platform of the train to catch next.
+    init(journey: SavedJourney) {
+        let services = journey.services
+        let first = services.first
+        let last = services.last
+        let origin = first.map { $0.userSearchOriginCRS ?? $0.originCRS } ?? "UNK"
+        let destination = last.map { $0.userSearchDestinationCRS ?? $0.destinationCRS } ?? "UNK"
+        var scheduledArrival = last?.userSearchDestinationScheduledArrivalTime ?? last?.userSearchDestinationArrivalTime ?? "--:--"
+        var expectedArrival = (last?.arrivalDelayMinutes ?? 0) > 0 ? last?.userSearchDestinationArrivalTime : nil
+        // After a change of plan the card still shows when the journey was first meant to end
+        if journey.disruptedBy != nil, journey.minutesLate > 0, let planned = journey.plannedArrival {
+            expectedArrival = last?.userSearchDestinationArrivalTime ?? scheduledArrival
+            scheduledArrival = planned.ukClock
+        }
+        let status = journey.status
+
+        var note = ([first?.dayLabel(), journey.changesText].compactMap { $0 }.joined(separator: " · "), "arrow.triangle.swap", Color.inkSecondary)
+        if let risk = journey.connectionAtRisk(), let warning = risk.warning {
+            note = (warning, risk.systemImage, risk.color)
+        }
+
+        // After the first train the platform is at another station, so say which
+        var platform = "Platform TBC"
+        if let boarding = journey.boardingLeg() {
+            let station = boarding.userSearchOriginCRS ?? boarding.originCRS
+            platform = station == origin ? "Platform \(boarding.platform)" : "\(station) · Platform \(boarding.platform)"
+        }
+
+        var spoken = [journey.title]
+        if let first {
+            spoken.append(first.departureDelayMinutes > 0
+                ? "departs \(first.realtimeDeparture), scheduled \(first.scheduledDeparture)"
+                : "departs \(first.scheduledDeparture)")
+        }
+        spoken.append("arrives \(expectedArrival ?? scheduledArrival)")
+        spoken.append(journey.changesText)
+        spoken.append(note.0 == spoken.last ? status.label : "\(status.label), \(note.0)")
+
+        content = Content(
+            operators: services.operators,
+            status: status,
+            originCRS: origin,
+            destinationCRS: destination,
+            scheduledDeparture: first?.scheduledDeparture ?? "--:--",
+            expectedDeparture: (first?.departureDelayMinutes ?? 0) > 0 ? first?.realtimeDeparture : nil,
+            scheduledArrival: scheduledArrival,
+            expectedArrival: expectedArrival,
+            progress: { journey.progress(at: $0) },
+            note: note,
+            platform: platform,
+            spokenSummary: spoken.joined(separator: ", ")
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Top: operator logo + status
             HStack {
-                OperatorLogoBadge(atocCode: train.atocCode, compact: false)
-                if OperatorBrand.from(code: train.atocCode) == nil {
-                    Text(train.atocName ?? "Unknown")
-                        .font(.caption)
-                        .foregroundStyle(Color.inkSecondary)
-                        .lineLimit(1)
-                }
+                OperatorSummary(operators: content.operators)
                 Spacer()
-                StatusPill(train.trainStatus)
+                StatusPill(content.status.label, color: content.status.color)
             }
-            .padding(.bottom, 10)
+            // One height whichever logo it is, so the cards in a row line up
+            .frame(height: 30)
+            .padding(.bottom, 8)
 
             // Route
             HStack(alignment: .center, spacing: 0) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(train.userSearchOriginCRS ?? (train.originCRS.isEmpty ? "UNK" : train.originCRS))
+                    Text(content.originCRS)
                         .font(.title3.weight(.bold))
                         .foregroundStyle(Color.ink)
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
-                        Text(train.scheduledDeparture)
+                        Text(content.scheduledDeparture)
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(Color.inkSecondary)
-                            .strikethrough(train.departureDelayMinutes > 0)
+                            .strikethrough(content.expectedDeparture != nil)
 
-                        if train.departureDelayMinutes > 0 {
-                            Text(train.realtimeDeparture)
+                        if let expected = content.expectedDeparture {
+                            Text(expected)
                                 .font(.footnote.weight(.bold))
                                 .foregroundStyle(Color.statusDelayed)
                         }
                     }
+                    // Two times each side only just fit a narrow card: never break one across lines
+                    .lineLimit(1)
+                    .fixedSize()
                 }
-                Spacer()
+                Spacer(minLength: 2)
                 Image(systemName: "arrow.right")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.inkTertiary)
-                Spacer()
+                Spacer(minLength: 2)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(train.userSearchDestinationCRS ?? (train.destinationCRS.isEmpty ? "UNK" : train.destinationCRS))
+                    Text(content.destinationCRS)
                         .font(.title3.weight(.bold))
                         .foregroundStyle(Color.ink)
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
-                        if train.arrivalDelayMinutes > 0 {
-                            Text(train.userSearchDestinationArrivalTime ?? "--:--")
+                        if let expected = content.expectedArrival {
+                            Text(expected)
                                 .font(.footnote.weight(.bold))
                                 .foregroundStyle(Color.statusDelayed)
                         }
 
-                        Text(train.userSearchDestinationScheduledArrivalTime ?? train.userSearchDestinationArrivalTime ?? "--:--")
+                        Text(content.scheduledArrival)
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(Color.inkSecondary)
-                            .strikethrough(train.arrivalDelayMinutes > 0)
+                            .strikethrough(content.expectedArrival != nil)
                     }
+                    .lineLimit(1)
+                    .fixedSize()
                 }
             }
             .monospacedDigit()
@@ -71,40 +165,49 @@ struct MyTrainCard: View {
             // Progress bar — how far between departure and arrival the train is right now
             TimelineView(.periodic(from: .now, by: 30)) { timeline in
                 GeometryReader { geo in
-                    let travelled = geo.size.width * train.progress(at: timeline.date)
+                    let travelled = geo.size.width * content.progress(timeline.date)
 
                     ZStack(alignment: .leading) {
                         Capsule()
                             .fill(Color.track)
                             .frame(height: 4)
                         Capsule()
-                            .fill(train.trainStatus.color)
+                            .fill(content.status.color)
                             .frame(width: travelled, height: 4)
 
                         Image(systemName: "tram.fill")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(4)
-                            .background(train.trainStatus.color, in: Circle())
+                            .background(content.status.color, in: Circle())
                             .offset(x: min(max(0, travelled - 11), geo.size.width - 22), y: -15)
                     }
                 }
             }
             .frame(height: 28)
 
-            // Platform
+            // The day or the changes, and the platform
             HStack {
+                if let note = content.note {
+                    Label(note.text, systemImage: note.systemImage)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(note.color)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
                 Spacer()
-                Label("Platform \(train.platform)", systemImage: "signpost.right.fill")
+                Label(content.platform, systemImage: "signpost.right.fill")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Color.inkSecondary)
+                    .lineLimit(1)
+                    .layoutPriority(1)
             }
         }
         .padding(16)
         .cardSurface()
         // Codes and struck-through times make little sense read one by one
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(train.spokenSummary)
+        .accessibilityLabel(content.spokenSummary)
     }
 }
 
@@ -380,12 +483,19 @@ struct HomeSheetView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var selectedTrain: DarwinServiceAdapter?
-    @State private var trainToDelete: SavedTrain?
+    /// The journey of several trains whose page is showing
+    @State private var selectedJourney: JourneyRoute?
+    /// One train, or every train still to run of a journey, waiting on the confirmation to remove it
+    @State private var trainsToDelete: [SavedTrain] = []
     @State private var showingDeleteConfirmation = false
 
     // HomeSheetView owns the query so it can delete entries
     @Query(filter: #Predicate<SavedTrain> { $0.isPast == false }) private var mySavedTrains: [SavedTrain]
     private var liveServices: [DarwinServiceAdapter] { mySavedTrains.compactMap { $0.service } }
+    /// Past trains too: a journey's first train may already have run when its second is still to come
+    @Query private var allSavedTrains: [SavedTrain]
+    /// What the cards stand for: each train followed on its own, and each journey of several as one
+    private var items: [TravelItem] { allSavedTrains.travelItems(past: false) }
 
     @ScaledMetric(relativeTo: .body) private var cardWidth: CGFloat = 220
 
@@ -413,22 +523,29 @@ struct HomeSheetView: View {
             })
             .presentationDragIndicator(.visible)
         }
+        .sheet(item: $selectedJourney) { journey in
+            // Each train of the journey opens from here, on its own screen
+            NavigationStack {
+                JourneyDetailView(journeyID: journey.id)
+            }
+            .presentationDragIndicator(.visible)
+        }
         .confirmationDialog(
-            "Remove Train",
+            trainsToDelete.count > 1 ? "Remove Journey" : "Remove Train",
             isPresented: $showingDeleteConfirmation,
             titleVisibility: .visible
         ) {
             Button("Remove", role: .destructive) {
-                if let train = trainToDelete {
-                    remove(train)
-                }
-                trainToDelete = nil
+                trainsToDelete.forEach(remove)
+                trainsToDelete = []
             }
             Button("Cancel", role: .cancel) {
-                trainToDelete = nil
+                trainsToDelete = []
             }
         } message: {
-            Text("Are you sure you want to remove this train from My Trains?")
+            Text(trainsToDelete.count > 1
+                 ? "Are you sure you want to remove this journey from My Trains?"
+                 : "Are you sure you want to remove this train from My Trains?")
         }
     }
 
@@ -441,6 +558,8 @@ struct HomeSheetView: View {
             modelContext.delete(train)
             try? modelContext.save()
         }
+        // A journey's Live Activity ends with the last of its trains
+        LiveActivityManager.shared.updateJourney(with: allSavedTrains)
     }
 
     private var header: some View {
@@ -456,7 +575,7 @@ struct HomeSheetView: View {
 
     @ViewBuilder
     private var trainCards: some View {
-        if liveServices.isEmpty {
+        if items.isEmpty {
             Button(action: onAddTrain) {
                 HStack(spacing: 14) {
                     Image(systemName: "tram.fill")
@@ -489,22 +608,51 @@ struct HomeSheetView: View {
             // Horizontal train cards
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
-                    ForEach(mySavedTrains) { savedTrain in
-                        if let train = savedTrain.service {
+                    ForEach(items) { item in
+                        switch item {
+                        case .train(let savedTrain):
+                            if let train = savedTrain.service {
+                                Button {
+                                    selectedTrain = train
+                                } label: {
+                                    MyTrainCard(train: train)
+                                        // A lone card has the row to itself
+                                        .containerRelativeFrame(.horizontal) { width, _ in
+                                            items.count == 1 ? width - 40 : cardWidth
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Shows the journey")
+                                .contextMenu {
+                                    ShareLink(item: train.shareMessage()) {
+                                        Label("Share Journey", systemImage: "square.and.arrow.up")
+                                    }
+                                    Button("Remove Train", systemImage: "trash", role: .destructive) {
+                                        trainsToDelete = [savedTrain]
+                                        showingDeleteConfirmation = true
+                                    }
+                                }
+                            }
+
+                        case .journey(let journey):
                             Button {
-                                selectedTrain = train
+                                selectedJourney = JourneyRoute(id: journey.id)
                             } label: {
-                                MyTrainCard(train: train)
-                                    // A lone train has the row to itself
+                                MyTrainCard(journey: journey)
+                                    // A little wider: its platform may come with a station
                                     .containerRelativeFrame(.horizontal) { width, _ in
-                                        liveServices.count == 1 ? width - 40 : cardWidth
+                                        items.count == 1 ? width - 40 : cardWidth + 40
                                     }
                             }
                             .buttonStyle(.plain)
-                            .accessibilityHint("Shows the journey")
+                            .accessibilityHint("Shows each train of the journey")
                             .contextMenu {
-                                Button("Remove Train", systemImage: "trash", role: .destructive) {
-                                    trainToDelete = savedTrain
+                                ShareLink(item: journey.shareMessage()) {
+                                    Label("Share Journey", systemImage: "square.and.arrow.up")
+                                }
+                                Button("Remove Journey", systemImage: "trash", role: .destructive) {
+                                    // A train that has already run stays, in Rail History
+                                    trainsToDelete = journey.legs.filter { !$0.isPast }
                                     showingDeleteConfirmation = true
                                 }
                             }

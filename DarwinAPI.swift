@@ -838,6 +838,10 @@ extension DarwinServiceAdapter {
         date(of: userSearchDestinationArrivalTime ?? userSearchDestinationScheduledArrivalTime)
     }
 
+    var scheduledArrivalDate: Date? {
+        date(of: userSearchDestinationScheduledArrivalTime ?? userSearchDestinationArrivalTime)
+    }
+
     /// Where the train is thought to be at `now`: the two stops it is between, and how far
     /// from the first to the second. Worked out from the stops' expected times, so it is an
     /// estimate rather than a report. Nil before the train leaves the user's origin, once

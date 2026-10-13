@@ -11,6 +11,31 @@ final class SavedTrain {
     var movedToPastAt: Date?
     /// When the user marked this journey's Delay Repay as claimed
     var delayRepayClaimedAt: Date?
+
+    // A journey with a change (see JourneyPlanner.swift). Nil on a train followed on its own.
+    /// Shared by every train of one journey
+    var journeyID: String?
+    /// Where this train comes in the journey, counting from 0
+    var legIndex: Int = 0
+    /// The whole journey, "Newcastle to Bristol Temple Meads"
+    var journeyTitle: String?
+    /// How to reach this train from the one before, or from the start, when that is more
+    /// than stepping across a station: "Tube from King's Cross St. Pancras to Paddington"
+    var transferNote: String?
+    /// How long the planner allowed for the change onto this train, in minutes
+    var transferMinutes: Int?
+    /// What is left to do after the last train: "Walk to Brighton"
+    var onwardNote: String?
+    /// The Tube lines the change onto this train uses, comma-separated, for showing how they are running
+    var transferLines: String?
+    /// The platform this train is timetabled to arrive at, where the next change starts
+    var arrivalPlatform: String?
+    /// When the journey was due to end as first planned. A missed connection can change the
+    /// trains, and Delay Repay goes by how late the traveller was against the original plan.
+    var journeyPlannedArrival: Date?
+    /// The operator whose train first broke the journey as planned, by its two-letter code:
+    /// the one a Delay Repay claim for the journey goes to. Nil on a journey that ran as planned.
+    var journeyDisruptedBy: String?
     
     init(id: String, isPast: Bool = false, serviceData: Data) {
         self.id = id
@@ -53,6 +78,8 @@ struct DelayRepayClaim {
     let isCancelled: Bool
     let deadline: Date
     let claimedAt: Date?
+    /// The claim is for a journey of several trains, by how late it ended, not for one train
+    var isJourney = false
 
     /// Still worth the user's attention: not claimed, and the operator would still accept it
     var isOpen: Bool { claimedAt == nil && Date() < deadline }
@@ -101,6 +128,16 @@ final class SavedRoute {
     var originCRS: String
     var destinationCRS: String
     var addedAt: Date
+
+    // Commute (see CommuteMode.swift). The defaults let routes saved before this was added load.
+    /// The days the route is commuted on, one bit each: Sunday is 1, Monday 2, up to Saturday 64.
+    /// 0 when the route is not a commute.
+    var commuteDays: Int = 0
+    /// When the usual train leaves, in minutes after midnight, UK time
+    var commuteMinutes: Int = 0
+    /// The day ("yyyy-MM-dd") of the last commute a train was followed for, so that a train
+    /// the user then removes is not put back
+    var lastCommuteDay: String?
 
     init(originCRS: String, destinationCRS: String) {
         self.originCRS = originCRS
