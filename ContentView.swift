@@ -25,6 +25,9 @@ struct TrainJourney {
     var isCancelled: Bool = false
     /// Only the timetable is known: no live feed is reporting on the train yet
     var isScheduledOnly: Bool = false
+    /// Why the train is late or cancelled, when the feed says
+    var reason: String? = nil
+    var coaches: Int? = nil
 }
 
 let mockJourney = TrainJourney(
@@ -89,6 +92,14 @@ struct StatusHeaderCard: View {
                         Text("Scheduled departure: \(journey.scheduledDeparture)")
                             .font(.footnote)
                             .foregroundStyle(Color.inkSecondary)
+
+                        if let reason = journey.reason {
+                            Text(reason)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Color.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.top, 2)
+                        }
                     }
                     Spacer()
                     ZStack {
@@ -339,15 +350,29 @@ struct ArrivalContextCard: View {
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
-                    SectionLabel("Platform", systemImage: "signpost.right.fill")
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        SectionLabel("Platform", systemImage: "signpost.right.fill")
 
-                    Text("\(journey.platform)")
-                        .font(.system(size: platformSize, weight: .bold))
-                        .foregroundStyle(Color.ink)
+                        Text("\(journey.platform)")
+                            .font(.system(size: platformSize, weight: .bold))
+                            .foregroundStyle(Color.ink)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+
+                    if let coaches = journey.coaches {
+                        VStack(alignment: .leading, spacing: 6) {
+                            SectionLabel("Coaches", systemImage: "tram.fill")
+
+                            Text("\(coaches)")
+                                .font(.system(size: platformSize, weight: .bold))
+                                .foregroundStyle(Color.ink)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityElement(children: .combine)
 
                 if journey.delayMinutes >= 15 {
                     Divider()
@@ -513,7 +538,9 @@ extension DarwinServiceAdapter {
             platform: platform,
             trainType: atocName ?? "Unknown Service",
             isCancelled: isCancelledService,
-            isScheduledOnly: isAwaitingLiveData == true
+            isScheduledOnly: isAwaitingLiveData == true,
+            reason: disruptionReason,
+            coaches: coaches
         )
     }
 }
@@ -791,6 +818,7 @@ struct ContentView: View {
     
     @State private var selectedTab: Int = 0
     @State private var globalSheetDetent: SheetDetent = .compact
+    @State private var myTrainsPeekHeight: CGFloat = 0
     @State private var showingProfile: Bool = false
     @State private var showingAddTrain: Bool = false
     /// The search being filled in, kept here so closing Add Train does not lose it
@@ -934,8 +962,8 @@ struct ContentView: View {
                     MapToggleButton()
                     ProfileToggleButton(showingProfile: $showingProfile)
 
-                    tabSheet(0) { HomeSheetView(currentDetent: $globalSheetDetent) { showingAddTrain = true } }
-                    tabSheet(1) { PastTrainsSheetView(currentDetent: $globalSheetDetent) }
+                    tabSheet(0) { HomeSheetView(currentDetent: $globalSheetDetent, peekHeight: $myTrainsPeekHeight) { showingAddTrain = true } }
+                    tabSheet(1) { PastTrainsSheetView(currentDetent: $globalSheetDetent, myTrainsPeekHeight: myTrainsPeekHeight) }
                 }
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(for: SavedTrain.self) { train in
@@ -968,15 +996,9 @@ struct ContentView: View {
                 BackgroundRefresh.schedule(in: modelContext.container)
             }
         }
-        .onChange(of: selectedTab) { _, tab in
+        .onChange(of: selectedTab) {
             // A pushed journey belongs to Rail History: don't leave it covering another tab
             historyPath.removeAll()
-            // At its smallest the sheet shows a title and no journeys, so open the list
-            if tab == 1 && globalSheetDetent == .compact {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-                    globalSheetDetent = .mid
-                }
-            }
         }
         .sheet(isPresented: $showingDeparturesBoard, onDismiss: {
             selectedStationCRS = nil

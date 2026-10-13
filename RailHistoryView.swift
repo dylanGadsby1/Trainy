@@ -127,9 +127,11 @@ struct PastTrainsSheetView: View {
     @State private var showingDeleteConfirmation = false
 
     @Binding var currentDetent: SheetDetent
+    /// Height of the My Trains peek, so this sheet stands as far out as that one at its smallest
+    var myTrainsPeekHeight: CGFloat? = nil
 
     var body: some View {
-        MapBottomSheet(detent: $currentDetent) {
+        MapBottomSheet(detent: $currentDetent, borrowedPeekHeight: myTrainsPeekHeight) {
             SheetHeader("Rail History") {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text("\(journeysThisMonth(pastTrains))")
@@ -270,6 +272,14 @@ struct RailHistoryDetailView: View {
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(service.trainStatus.color)
                                 }
+                            }
+
+                            if let reason = service.disruptionReason {
+                                Text(reason)
+                                    .font(.footnote)
+                                    .foregroundStyle(Color.inkSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
 
                             Divider()

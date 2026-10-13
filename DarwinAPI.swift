@@ -449,6 +449,12 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
     /// The stations the train calls at on the user's journey, origin and destination included.
     /// Nil until a feed has listed them, and on trains saved before they were recorded.
     var stops: [Stop]?
+    /// Darwin's own sentence for the delay ("This train has been delayed by a signalling fault")
+    var delayReason: String?
+    /// Darwin's own sentence for the cancellation
+    var cancelReason: String?
+    /// How many coaches the train has, when Darwin knows
+    var coaches: Int?
 
     struct Stop: Codable, Equatable, Identifiable {
         var crs: String
@@ -498,6 +504,12 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
 
     var arrivalDelayMinutes: Int {
         DarwinTime.delay(scheduled: userSearchDestinationScheduledArrivalTime, expected: userSearchDestinationArrivalTime)
+    }
+
+    /// Why the train is late or cancelled, in Darwin's words. Nil while it is on time.
+    var disruptionReason: String? {
+        if isCancelledService { return cancelReason ?? delayReason }
+        return delayMinutes > 0 || hasUnknownDelay == true ? delayReason : nil
     }
 
     // MARK: - Initializers
@@ -615,6 +627,17 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
         hasUnknownDelay = DarwinTime.isDelayedWithoutEstimate(service.etd)
 
         isAwaitingLiveData = false
+
+        // Darwin drops a train from the board once it has left, so keep the last reasons and length seen
+        if let reason = service.delayReason, !reason.isEmpty {
+            delayReason = reason
+        }
+        if let reason = service.cancelReason, !reason.isEmpty {
+            cancelReason = reason
+        }
+        if let length = service.length, length > 0 {
+            coaches = length
+        }
 
         // Arrival at the user's destination, from the calling points
         if let stop = service.stop(at: userSearchDestinationCRS) {

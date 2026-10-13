@@ -140,13 +140,26 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
     /// - Parameters:
     ///   - peek: What the sheet shows at its smallest height. That height is fitted to it.
     ///   - content: Everything below, reached by pulling the sheet up.
-    init(detent: Binding<SheetDetent>, @ViewBuilder peek: () -> Peek, @ViewBuilder content: () -> Content) {
+    ///   - publishing: Receives the height of this sheet's peek, for another sheet to borrow.
+    ///   - borrowedPeekHeight: Another sheet's peek height. The smallest height is fitted to it
+    ///     instead, so the two sheets stand equally far out; the content fills the difference.
+    init(
+        detent: Binding<SheetDetent>,
+        publishing publishedPeekHeight: Binding<CGFloat>? = nil,
+        borrowedPeekHeight: CGFloat? = nil,
+        @ViewBuilder peek: () -> Peek,
+        @ViewBuilder content: () -> Content
+    ) {
         self._currentDetent = detent
+        self.publishedPeekHeight = publishedPeekHeight
+        self.borrowedPeekHeight = borrowedPeekHeight
         self.peek = peek()
         self.content = content()
     }
 
     @Binding var currentDetent: SheetDetent
+    private let publishedPeekHeight: Binding<CGFloat>?
+    private let borrowedPeekHeight: CGFloat?
     @State private var dragOffset: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
     @State private var isDraggingSheet: Bool = false
@@ -183,8 +196,10 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
 
             // Fitted to the peek content, so none of it is cut off behind the tab bar. A share
             // of the screen until that has been measured, and never more than half of it.
-            let compactH: CGFloat = peekHeight > 0
-                ? min(handleHeight + peekHeight + 12 + coveredH, screenH * 0.5)
+            let borrowed = borrowedPeekHeight ?? 0
+            let fittedPeekH = borrowed > 0 ? borrowed : peekHeight
+            let compactH: CGFloat = fittedPeekH > 0
+                ? min(handleHeight + fittedPeekH + 12 + coveredH, screenH * 0.5)
                 : screenH * 0.22
             let midH:     CGFloat = screenH * 0.62
             let fullH:    CGFloat = screenH
@@ -214,7 +229,8 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
 
             // At its smallest the sheet is the peek alone. The rest fades in as the sheet
             // opens, so it is never seen in pieces around the floating tab bar.
-            let reveal = min(max((sheetH - compactH) / 60, 0), 1)
+            // A sheet at a borrowed height has room to spare under its peek, which the rest fills.
+            let reveal = borrowed > 0 ? 1 : min(max((sheetH - compactH) / 60, 0), 1)
 
             let detents: [(SheetDetent, CGFloat)] = [(.compact, compactH), (.mid, midH), (.full, fullH)]
 
@@ -294,6 +310,7 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
                                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
                                     // The first measurement sets the height; later ones (a train
                                     // added, a larger text size) move the sheet to it
+                                    publishedPeekHeight?.wrappedValue = height
                                     if peekHeight == 0 {
                                         peekHeight = height
                                     } else {
@@ -373,11 +390,13 @@ struct HomeSheetView: View {
     @ScaledMetric(relativeTo: .body) private var cardWidth: CGFloat = 220
 
     @Binding var currentDetent: SheetDetent
+    /// Height of the title and train cards, which Rail History fits its smallest height to
+    @Binding var peekHeight: CGFloat
     /// Opens Add Train
     var onAddTrain: () -> Void
 
     var body: some View {
-        MapBottomSheet(detent: $currentDetent) {
+        MapBottomSheet(detent: $currentDetent, publishing: $peekHeight) {
             header
             trainCards
         } content: {
@@ -541,7 +560,7 @@ struct HomeView: View {
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
 
-            HomeSheetView(currentDetent: $currentDetent, onAddTrain: {})
+            HomeSheetView(currentDetent: $currentDetent, peekHeight: .constant(0), onAddTrain: {})
         }
     }
 }
