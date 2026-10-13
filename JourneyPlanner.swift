@@ -238,6 +238,44 @@ final class JourneyPlanner {
         return journeys
     }
 
+    /// The path `train` takes along the tracks between the user's two stations, ready to
+    /// keep with it. Nil when the planner cannot be reached or does not list the train.
+    func routeLine(for train: DarwinServiceAdapter) async -> String? {
+        let originCRS = train.userSearchOriginCRS ?? train.originCRS
+        let destinationCRS = train.userSearchDestinationCRS ?? train.destinationCRS
+        guard let origin = ukStations.first(where: { $0.crs == originCRS }),
+              let destination = ukStations.first(where: { $0.crs == destinationCRS }),
+              let departure = train.scheduledDepartureDate else { return nil }
+
+        var components = URLComponents(string: Self.endpoint)!
+        components.queryItems = [
+            URLQueryItem(name: "fromPlace", value: "\(origin.lat),\(origin.lon)"),
+            URLQueryItem(name: "toPlace", value: "\(destination.lat),\(destination.lon)"),
+            // A little early: the planner walks to the platform before it boards
+            URLQueryItem(name: "time", value: ISO8601DateFormatter().string(from: departure.addingTimeInterval(-10 * 60))),
+            URLQueryItem(name: "transitModes", value: "RAIL"),
+            // This one train, straight through
+            URLQueryItem(name: "maxTransfers", value: "0"),
+            URLQueryItem(name: "numItineraries", value: "5"),
+            URLQueryItem(name: "searchWindow", value: "1800"),
+            // The train's own path is what is wanted; the walks at either end are not
+            URLQueryItem(name: "detailedLegs", value: "true"),
+            URLQueryItem(name: "detailedTransfers", value: "false")
+        ]
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let (data, response) = try? await session.data(from: components.url!),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let plan = try? decoder.decode(Plan.self, from: data) else { return nil }
+
+        let leg = plan.itineraries.flatMap(\.legs).first { leg in
+            leg.from.crs == originCRS && leg.to.crs == destinationCRS
+                && abs((leg.scheduledStartTime ?? leg.startTime).timeIntervalSince(departure)) < 60
+        }
+        return leg?.legGeometry.flatMap { RouteLine.saved(from: $0.points, precision: $0.precision) }
+    }
+
     /// What to tell the user when the planner cannot be reached.
     static func message(for error: Error) -> String {
         print("❌ Journey planning failed: \(error)")
@@ -404,6 +442,14 @@ struct Plan: Decodable {
         var intermediateStops: [Place]?
         var tripFrom: Place?
         var tripTo: Place?
+        var legGeometry: Geometry?
+    }
+
+    /// The path of a leg, as an encoded polyline
+    struct Geometry: Decodable {
+        var points: String
+        /// Decimal places the polyline was encoded to
+        var precision: Int
     }
 
     struct Place: Decodable {

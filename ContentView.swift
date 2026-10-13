@@ -567,39 +567,137 @@ extension DarwinServiceAdapter {
 // MARK: - On the Map
 
 extension DarwinServiceAdapter {
-    /// The line to draw for the journey: through every stop whose location is known, or
+    /// The line to draw for the journey: along the tracks once the planner has supplied
+    /// the train's path, and until then through every stop whose location is known, or
     /// straight from origin to destination while the stops are not.
     var routeCoordinates: [CLLocationCoordinate2D] {
+        if let routeLine {
+            let line = RouteLine.line(routeLine).coordinates
+            if line.count > 1 { return line }
+        }
         let codes = stops?.map(\.crs)
             ?? [userSearchOriginCRS ?? originCRS, userSearchDestinationCRS ?? destinationCRS]
         return codes.compactMap { knownStationCoordinates[$0] }
     }
 
-    /// The train's estimated place, on the straight line between the two stops it is between.
-    func coordinate(at now: Date) -> CLLocationCoordinate2D? {
-        guard let position = position(at: now),
-              let from = knownStationCoordinates[position.from.crs],
-              let to = knownStationCoordinates[position.to.crs] else { return nil }
-        return CLLocationCoordinate2D(
-            latitude: from.latitude + (to.latitude - from.latitude) * position.fraction,
-            longitude: from.longitude + (to.longitude - from.longitude) * position.fraction
-        )
+    /// The journey's line at one moment, in two parts.
+    struct RouteProgress {
+        /// What the train has covered, as far as where it is now
+        var travelled: [CLLocationCoordinate2D]
+        /// What it has still to cover
+        var ahead: [CLLocationCoordinate2D]
+        /// Where the train is thought to be, while it is on its way
+        var train: CLLocationCoordinate2D?
+    }
+
+    /// The journey's line at `now`, divided where the train is. The place is an estimate,
+    /// worked out from the train's expected times between the two stops it is between.
+    func routeProgress(at now: Date) -> RouteProgress {
+        let route = routeCoordinates
+        guard route.count > 1, !isCancelledService else {
+            return RouteProgress(travelled: [], ahead: route, train: nil)
+        }
+        if hasArrived == true || (expectedArrivalDate.map { $0 <= now } ?? false) {
+            return RouteProgress(travelled: route, ahead: [], train: nil)
+        }
+        guard let departure = expectedDepartureDate, departure <= now else {
+            return RouteProgress(travelled: [], ahead: route, train: nil)
+        }
+
+        // Along the tracks: between the two stops by the clock, measured along the line
+        if let routeLine, case let line = RouteLine.line(routeLine), line.coordinates.count > 1 {
+            var distance = line.length * progress(at: now)
+            if let position = position(at: now),
+               let from = knownStationCoordinates[position.from.crs],
+               let to = knownStationCoordinates[position.to.crs] {
+                let start = line.distance(nearestTo: from)
+                let end = line.distance(nearestTo: to, from: start)
+                distance = start + (end - start) * position.fraction
+            }
+            if let parts = line.divided(at: distance) {
+                return RouteProgress(travelled: parts.behind, ahead: parts.ahead, train: parts.point)
+            }
+        }
+
+        if let position = position(at: now), let stops,
+           let fromIndex = stops.firstIndex(where: { $0.id == position.from.id }),
+           let toIndex = stops.firstIndex(where: { $0.id == position.to.id }),
+           let from = knownStationCoordinates[position.from.crs],
+           let to = knownStationCoordinates[position.to.crs] {
+            let train = CLLocationCoordinate2D(
+                latitude: from.latitude + (to.latitude - from.latitude) * position.fraction,
+                longitude: from.longitude + (to.longitude - from.longitude) * position.fraction
+            )
+            return RouteProgress(
+                travelled: stops[...fromIndex].compactMap { knownStationCoordinates[$0.crs] } + [train],
+                ahead: [train] + stops[toIndex...].compactMap { knownStationCoordinates[$0.crs] },
+                train: train
+            )
+        }
+
+        // The stops, or where they are, are not known: go by the clock along the line
+        return Self.divide(route, at: progress(at: now))
+    }
+
+    /// `route` divided at `fraction` of its length.
+    private static func divide(_ route: [CLLocationCoordinate2D], at fraction: Double) -> RouteProgress {
+        let lengths = zip(route, route.dropFirst()).map { start, end in
+            CLLocation(latitude: start.latitude, longitude: start.longitude)
+                .distance(from: CLLocation(latitude: end.latitude, longitude: end.longitude))
+        }
+        var left = lengths.reduce(0, +) * min(1, max(0, fraction))
+
+        for (index, length) in lengths.enumerated() where length > 0 {
+            if left <= length {
+                let part = left / length
+                let start = route[index], end = route[index + 1]
+                let train = CLLocationCoordinate2D(
+                    latitude: start.latitude + (end.latitude - start.latitude) * part,
+                    longitude: start.longitude + (end.longitude - start.longitude) * part
+                )
+                return RouteProgress(
+                    travelled: Array(route[...index]) + [train],
+                    ahead: [train] + Array(route[(index + 1)...]),
+                    train: train
+                )
+            }
+            left -= length
+        }
+        return RouteProgress(travelled: route, ahead: [], train: nil)
     }
 }
 
-/// A saved train's estimated position on the map.
+/// A saved train's estimated position on the map: a dot in the train's status colour with
+/// a slow pulse round it, so it reads as live and is not taken for a station.
 struct TrainPositionMarker: View {
     let color: Color
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPulsing = false
+
     var body: some View {
-        Image(systemName: "tram.fill")
-            .font(.system(size: 13, weight: .bold))
-            .foregroundColor(.white)
-            .padding(7)
-            .background(color)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
-            .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+        ZStack {
+            Circle()
+                .fill(color.opacity(0.35))
+                .frame(width: 26, height: 26)
+                .scaleEffect(isPulsing ? 1.9 : 1)
+                .opacity(isPulsing ? 0 : 1)
+
+            Image(systemName: "train.side.front.car")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 26, height: 26)
+                .background(color, in: Circle())
+                .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
+                .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+        }
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
+                isPulsing = true
+            }
+        }
+        .accessibilityLabel("Your train")
     }
 }
 
@@ -887,6 +985,15 @@ struct ContentView: View {
         mySavedTrains.compactMap { $0.service }
     }
 
+    /// Past trains too: on a journey of several trains, the ones already done stay on the map
+    @Query private var allSavedTrains: [SavedTrain]
+
+    /// The trains drawn on the map: each one still to run, and the trains already done on
+    /// a journey that is not over yet.
+    private var mapServices: [DarwinServiceAdapter] {
+        allSavedTrains.travelItems(past: false).flatMap(\.legs).compactMap(\.service)
+    }
+
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var cameraDistance: Double = 500000
@@ -902,16 +1009,13 @@ struct ContentView: View {
     /// Stations show once the camera is closer than this, in metres
     private let stationVisibilityDistance: Double = 20_000
 
+    /// The stations of the user's journeys: where each train is boarded and where it is
+    /// left, so a journey's start, its changes and its end.
     private var highlightedStations: Set<String> {
-        let bookedOrigins = Set(liveServices.map { $0.userSearchOriginCRS ?? $0.originCRS })
-        let selectedDestinations: Set<String> = {
-            guard let selected = selectedStationCRS else { return [] }
-            let destinations = liveServices
-                .filter { ($0.userSearchOriginCRS ?? $0.originCRS) == selected }
-                .map { $0.userSearchDestinationCRS ?? $0.destinationCRS }
-            return Set(destinations)
-        }()
-        return bookedOrigins.union(selectedDestinations)
+        Set(mapServices.flatMap { [
+            $0.userSearchOriginCRS ?? $0.originCRS,
+            $0.userSearchDestinationCRS ?? $0.destinationCRS
+        ] })
     }
 
     private var highlightedUKStations: [UKStation] {
@@ -934,12 +1038,7 @@ struct ContentView: View {
     /// The selected station, when it is not part of one of the user's journeys: it gets a
     /// callout offering its departures board.
     private var calloutStation: UKStation? {
-        guard let selected = selectedStationCRS else { return nil }
-        let myStations = Set(liveServices.flatMap { [
-            $0.userSearchOriginCRS ?? $0.originCRS,
-            $0.userSearchDestinationCRS ?? $0.destinationCRS
-        ] })
-        guard !myStations.contains(selected) else { return nil }
+        guard let selected = selectedStationCRS, !highlightedStations.contains(selected) else { return nil }
         return ukStations.first { $0.crs == selected }
     }
 
@@ -969,13 +1068,22 @@ struct ContentView: View {
             .annotationTitles(.hidden)
         }
 
-        ForEach(liveServices.filter { $0.routeCoordinates.count > 1 }) { train in
-            MapPolyline(coordinates: train.routeCoordinates)
-                .stroke(Color.appleBlack, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+        // Each journey's line: grey where the train has still to go, dark where it has been
+        ForEach(mapServices) { train in
+            let route = train.routeProgress(at: positionClock)
+            if route.ahead.count > 1 {
+                MapPolyline(coordinates: route.ahead)
+                    .stroke(Color.routeAhead, style: Self.routeStroke)
+            }
+            if route.travelled.count > 1 {
+                MapPolyline(coordinates: route.travelled)
+                    .stroke(Color.appleBlack, style: Self.routeStroke)
+            }
         }
 
-        ForEach(liveServices) { train in
-            if let coordinate = train.coordinate(at: positionClock) {
+        // Where each train is now, where the dark line ends
+        ForEach(mapServices) { train in
+            if let coordinate = train.routeProgress(at: positionClock).train {
                 Annotation("", coordinate: coordinate, anchor: .center) {
                     TrainPositionMarker(color: train.trainStatus.color)
                 }
@@ -983,6 +1091,8 @@ struct ContentView: View {
             }
         }
     }
+
+    private static let routeStroke = StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
 
     var body: some View {
         // One Map for the whole app. It sits at the root and is never rebuilt, so switching
@@ -1025,6 +1135,12 @@ struct ContentView: View {
         }
         .onReceive(refreshTimer) { _ in
             Task { await TrainSync.shared.sync(in: modelContext) }
+        }
+        // A train just added gets its live times, and its path on the map, without waiting for the timer
+        .onChange(of: mySavedTrains.count) { old, new in
+            if new > old {
+                Task { await TrainSync.shared.sync(in: modelContext) }
+            }
         }
         .onReceive(positionTimer) { now in
             if !liveServices.isEmpty { positionClock = now }

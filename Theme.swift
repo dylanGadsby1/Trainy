@@ -8,6 +8,9 @@ import UIKit
 extension Color {
     /// Apple's near-black (#1D1D1F). Fixed in both colour schemes: for things drawn on the map.
     static let appleBlack = Color(red: 29/255, green: 29/255, blue: 31/255)
+    /// The part of a journey's line on the map that the train has still to cover. A mid
+    /// grey, fixed like `appleBlack`, that shows on both the satellite and the standard map.
+    static let routeAhead = Color(red: 142/255, green: 142/255, blue: 147/255)
 
     private static func adaptive(light: UIColor, dark: UIColor) -> Color {
         Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? dark : light })

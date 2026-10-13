@@ -23,6 +23,10 @@ final class TrainSync {
     /// When each train was last read from Realtime Trains, which allows only 100 requests an hour.
     private var lastTimetableCheck: [String: Date] = [:]
 
+    /// The trains whose path along the tracks has been asked for since the app started. Each
+    /// is asked for once: the planner is a shared, free service.
+    private var routeLinesAsked: Set<String> = []
+
     // MARK: - Sync
 
     /// Refreshes the saved trains, hands timetable trains over to Darwin, and moves
@@ -64,6 +68,8 @@ final class TrainSync {
             TrainAlerts.shared.connectionChanged(connection)
         }
 
+        await fetchRouteLines(for: savedTrains)
+
         archiveFinishedTrains(savedTrains)
         try? context.save()
         // A journey's Live Activity moves on to its next train, and ends with the journey
@@ -71,6 +77,26 @@ final class TrainSync {
         await TrainAlerts.shared.refreshApproachReminders(in: context)
         await TrainAlerts.shared.refreshDelayRepayReminders(in: context)
         await TrainyServer.shared.sync(in: context)
+    }
+
+    /// Gets the path along the tracks for trains still to run that have none, a few at a
+    /// time, so the map can draw each journey where it really goes.
+    private func fetchRouteLines(for savedTrains: [SavedTrain]) async {
+        var asked = 0
+        for saved in savedTrains where !saved.isPast {
+            guard asked < 4, saved.modelContext != nil, !saved.isDeleted,
+                  let train = saved.service, train.routeLine == nil, !train.isCancelledService,
+                  routeLinesAsked.insert(train.journeyKey).inserted else { continue }
+            asked += 1
+
+            guard let line = await JourneyPlanner.shared.routeLine(for: train),
+                  // The train may have been removed, or refreshed, while the request was in flight
+                  saved.modelContext != nil, !saved.isDeleted, var current = saved.service else { continue }
+            current.routeLine = line
+            if let data = try? JSONEncoder().encode(current) {
+                saved.serviceData = data
+            }
+        }
     }
 
     /// The latest version of `train` from whichever feed can see it, or nil if neither can right now.

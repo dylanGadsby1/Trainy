@@ -73,6 +73,7 @@ Trainy/
 ├── CommuteMode.swift        # Follows a commute's usual train, and the commute editor
 ├── AlternativeTrains.swift  # Other trains to switch to when one is cancelled or late
 ├── JourneyPlanner.swift     # Routes with a change, planned by Transitous; search options; Tube status
+├── RouteLine.swift          # A train's path along the tracks, for drawing on the map
 ├── JourneyViews.swift       # Route results, the legs of a journey and the changes between them
 ├── ProfileView.swift        # Travel stats, notification settings, privacy & about
 │

@@ -36,6 +36,7 @@
 		BA9450C5307C6000009275DA /* AlternativeTrains.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450C4307C6000009275DA /* AlternativeTrains.swift */; };
 		BA9450C7307C6000009275DA /* JourneyPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450C6307C6000009275DA /* JourneyPlanner.swift */; };
 		BA9450C9307C6000009275DA /* JourneyViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450C8307C6000009275DA /* JourneyViews.swift */; };
+		BA9450CB307C6000009275DA /* RouteLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450CA307C6000009275DA /* RouteLine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,6 +93,7 @@
 		BA9450C4307C6000009275DA /* AlternativeTrains.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlternativeTrains.swift; sourceTree = "<group>"; };
 		BA9450C6307C6000009275DA /* JourneyPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyPlanner.swift; sourceTree = "<group>"; };
 		BA9450C8307C6000009275DA /* JourneyViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyViews.swift; sourceTree = "<group>"; };
+		BA9450CA307C6000009275DA /* RouteLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteLine.swift; sourceTree = "<group>"; };
 		BA9450A6307C6000009275DA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -160,6 +162,7 @@
 				BA9450C4307C6000009275DA /* AlternativeTrains.swift */,
 				BA9450C6307C6000009275DA /* JourneyPlanner.swift */,
 				BA9450C8307C6000009275DA /* JourneyViews.swift */,
+				BA9450CA307C6000009275DA /* RouteLine.swift */,
 				BA9450A6307C6000009275DA /* Info.plist */,
 			);
 			sourceTree = "<group>";
@@ -309,6 +312,7 @@
 				BA9450C5307C6000009275DA /* AlternativeTrains.swift in Sources */,
 				BA9450C7307C6000009275DA /* JourneyPlanner.swift in Sources */,
 				BA9450C9307C6000009275DA /* JourneyViews.swift in Sources */,
+				BA9450CB307C6000009275DA /* RouteLine.swift in Sources */,
 				8AD4447DB914C555DFD11808 /* RTTModels.swift in Sources */,
 				45B24B1EA4FC824505A9A5C7 /* RTTService.swift in Sources */,
 				BA945091307C593E009275DA /* Secrets.swift in Sources */,

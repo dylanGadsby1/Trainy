@@ -455,6 +455,9 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
     var cancelReason: String?
     /// How many coaches the train has, when Darwin knows
     var coaches: Int?
+    /// The path the train takes along the tracks on the user's journey, as an encoded
+    /// polyline (see RouteLine.swift). Nil until the journey planner has supplied it.
+    var routeLine: String?
 
     struct Stop: Codable, Equatable, Identifiable {
         var crs: String
