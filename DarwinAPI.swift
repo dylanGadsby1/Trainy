@@ -23,6 +23,10 @@ final class DarwinService {
     // subscriptions with their own base URLs and keys.
     private let baseURL = "https://api1.raildata.org.uk/1010-live-departure-board-dep1_2/LDBWS/api/20220120"
 
+    // Rail Data Marketplace "Live Arrival and Departure Boards" product, with its own key.
+    // It serves GetArrDepBoardWithDetails and GetArrivalDepartureBoard only.
+    private let arrDepBaseURL = "https://api1.raildata.org.uk/1010-live-arrival-and-departure-boards-arr-and-dep1_1/LDBWS/api/20220120"
+
     /// Darwin only accepts a time offset of up to two hours either side of now.
     static let maxOffsetMinutes = 119
 
@@ -40,13 +44,15 @@ final class DarwinService {
 
     // MARK: - Generic Fetch
 
-    private func fetch<T: Decodable>(_ url: URL) async throws -> T {
+    /// `key` is the departure board's unless given. Only the departure board goes through a
+    /// Trainy server: the server holds no key for the arrival board.
+    private func fetch<T: Decodable>(_ url: URL, key: String? = nil) async throws -> T {
         var request = URLRequest(url: url)
-        request.setValue(apiKey, forHTTPHeaderField: "x-apikey")
+        request.setValue(key ?? apiKey, forHTTPHeaderField: "x-apikey")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         // With a Trainy server the board comes through it, and the key stays there
-        if let relayed = TrainyServer.request("darwin/\(url.pathComponents.suffix(2).joined(separator: "/"))",
+        if key == nil, let relayed = TrainyServer.request("darwin/\(url.pathComponents.suffix(2).joined(separator: "/"))",
                                               query: URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []) {
             request = relayed
         }
@@ -163,11 +169,54 @@ final class DarwinService {
         return trains.filter { ($0.scheduledDepartureDate ?? date) >= date.addingTimeInterval(-60) }
     }
 
+    /// The trains due at `crs` from `origin`, with the stations each has called at so far.
+    /// Covers two hours from `timeOffset` minutes from now (-119...119).
+    func arrivals(at crs: String, from origin: String, timeOffset: Int = 0) async throws -> DarwinDepartureBoard {
+        var components = URLComponents(string: "\(arrDepBaseURL)/GetArrDepBoardWithDetails/\(crs.uppercased())")!
+        components.queryItems = [
+            URLQueryItem(name: "numRows", value: "150"),
+            URLQueryItem(name: "filterCrs", value: origin.uppercased()),
+            URLQueryItem(name: "filterType", value: "from"),
+            URLQueryItem(name: "timeOffset", value: String(timeOffset))
+        ]
+        guard let url = components.url else { throw DarwinError.invalidResponse }
+        return try await fetch(url, key: Secrets.arrDepBoardKey)
+    }
+
+    /// `train` with its live times applied, from the origin's departure board and, once it is
+    /// nearly due, the destination's arrival board. The arrival board gives the platform it
+    /// arrives at, and keeps the train live after the origin's board drops it, about two
+    /// hours after it leaves. Nil when neither board lists it.
+    func refreshed(_ train: DarwinServiceAdapter, now: Date = Date()) async -> DarwinServiceAdapter? {
+        let departing = await refreshedFromDeparture(train, now: now)
+        let current = departing ?? train
+
+        guard !current.isCancelledService, current.hasArrived != true,
+              let arrival = current.expectedArrivalDate ?? current.scheduledArrivalDate else { return departing }
+        let minutesUntilArrival = Int(arrival.timeIntervalSince(now) / 60)
+        // The board covers two hours from its start: start it a little early so a train
+        // arriving sooner than expected is still on it
+        guard (-60...Self.maxOffsetMinutes).contains(minutesUntilArrival) else { return departing }
+        let offset = min(max(minutesUntilArrival - 30, -Self.maxOffsetMinutes), Self.maxOffsetMinutes)
+
+        guard let board = try? await arrivals(
+            at: current.userSearchDestinationCRS ?? current.destinationCRS,
+            from: current.userSearchOriginCRS ?? current.originCRS,
+            timeOffset: offset
+        ), let service = board.trainServices?.first(where: { current.isSameTrain(arriving: $0) }) else {
+            return departing
+        }
+
+        var updated = current
+        updated.applyArrival(service, now: now)
+        return updated
+    }
+
     /// Re-reads the origin departure board and returns `train` with its live times applied.
     /// A train that was found through Realtime Trains is matched by its journey and takes on
     /// its Darwin identity here. Returns nil when the service is not listed: Darwin lists a
     /// train from about four hours before it leaves the origin until two hours after.
-    func refreshed(_ train: DarwinServiceAdapter, now: Date = Date()) async -> DarwinServiceAdapter? {
+    private func refreshedFromDeparture(_ train: DarwinServiceAdapter, now: Date) async -> DarwinServiceAdapter? {
         guard let departure = train.scheduledDepartureDate else { return nil }
 
         let minutesUntilDeparture = Int(departure.timeIntervalSince(now) / 60)
@@ -261,6 +310,8 @@ struct DarwinServiceModel: Codable, Identifiable {
     let destination: [DarwinLocation]?
     /// Only present on boards requested with details
     let subsequentCallingPoints: [DarwinCallingPointGroup]?
+    /// The stations before the board's own, on arrival boards requested with details
+    let previousCallingPoints: [DarwinCallingPointGroup]?
 
     var id: String {
         serviceID ?? "\(std ?? "")-\(destinationName)"
@@ -297,6 +348,11 @@ struct DarwinServiceModel: Codable, Identifiable {
     /// The first later stop at a station. Needs a board requested with details.
     func stop(at crs: String?) -> DarwinCallingPoint? {
         subsequentCallingPoints?.flatMap { $0.callingPoint ?? [] }.first { $0.crs == crs }
+    }
+
+    /// The earlier stop at a station, on an arrival board. Needs a board requested with details.
+    func previousStop(at crs: String?) -> DarwinCallingPoint? {
+        previousCallingPoints?.flatMap { $0.callingPoint ?? [] }.first { $0.crs == crs }
     }
 }
 
@@ -458,6 +514,9 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
     var cancelReason: String?
     /// How many coaches the train has, when Darwin knows
     var coaches: Int?
+    /// The platform at the user's destination, from its arrival board. Nil until the train is
+    /// nearly due there.
+    var arrivalPlatform: String?
     /// The path the train takes along the tracks on the user's journey, as an encoded
     /// polyline (see RouteLine.swift). Nil until the journey planner has supplied it.
     var routeLine: String?
@@ -679,6 +738,66 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
         updateDelay()
     }
 
+    /// Applies the live fields of the train's entry on the destination's arrival board: the
+    /// arrival time and platform, and how it has run so far. Its identity is left alone: the
+    /// arrival board's service ID is only good at that station.
+    mutating func applyArrival(_ service: DarwinServiceModel, now: Date = Date()) {
+        let destination = userSearchDestinationCRS ?? destinationCRS
+        let origin = userSearchOriginCRS ?? originCRS
+
+        if let platform = service.platform, Self.isKnownPlatform(platform) {
+            arrivalPlatform = platform
+        }
+        if let scheduled = DarwinTime.clock(service.sta) {
+            userSearchDestinationScheduledArrivalTime = scheduled
+            // Once the train is in, Darwin leaves the actual time in the estimate
+            userSearchDestinationArrivalTime = DarwinTime.expected(scheduled: service.sta, estimate: service.eta) ?? scheduled
+        }
+        if service.isCancelled == true {
+            isCancelledService = true
+        }
+        hasUnknownDelay = DarwinTime.isDelayedWithoutEstimate(service.eta)
+        isAwaitingLiveData = false
+
+        if let reason = service.delayReason, !reason.isEmpty {
+            delayReason = reason
+        }
+        if let reason = service.cancelReason, !reason.isEmpty {
+            cancelReason = reason
+        }
+        if let length = service.length, length > 0 {
+            coaches = length
+        }
+
+        let previous = service.previousCallingPoints?.flatMap { $0.callingPoint ?? [] } ?? []
+        if let start = previous.first(where: { $0.crs == origin }) {
+            realtimeDeparture = DarwinTime.expected(scheduled: start.st, estimate: start.at ?? start.et) ?? realtimeDeparture
+        }
+
+        // The stops already known take the board's reports; the destination its arrival
+        if var stops {
+            for index in stops.indices {
+                if stops[index].crs == destination {
+                    stops[index].expected = userSearchDestinationArrivalTime ?? stops[index].expected
+                } else if let point = previous.first(where: { $0.crs == stops[index].crs && DarwinTime.clock($0.st) == stops[index].scheduled }) {
+                    stops[index].expected = DarwinTime.expected(scheduled: point.st, estimate: point.at ?? point.et) ?? stops[index].expected
+                    stops[index].hasCalled = point.at != nil
+                    stops[index].isCancelled = point.isCancelled == true
+                }
+            }
+            self.stops = stops
+        }
+
+        // The board has no "arrived" flag: the train is in once its time has passed and the
+        // last station before has reported it
+        let lastReported = previous.last.map { $0.at != nil } ?? true
+        if lastReported, let arrival = expectedArrivalDate, arrival.addingTimeInterval(60) <= now {
+            hasArrived = true
+        }
+
+        updateDelay()
+    }
+
     /// The user's journey along a board entry: the board's own station, then the calling
     /// points as far as the destination.
     private func darwinStops(of service: DarwinServiceModel) -> [Stop]? {
@@ -786,6 +905,17 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
         if let arrival = userSearchDestinationScheduledArrivalTime,
            arrival == DarwinTime.clock(service.stop(at: userSearchDestinationCRS)?.st) {
             return true
+        }
+        return atocCode == service.operatorCode
+    }
+
+    /// True when an arrival board entry for this train's destination is this train. Darwin's
+    /// service IDs differ from station to station, so it goes by the times.
+    func isSameTrain(arriving service: DarwinServiceModel) -> Bool {
+        guard DarwinTime.clock(service.previousStop(at: userSearchOriginCRS ?? originCRS)?.st) == scheduledDeparture else { return false }
+
+        if let arrival = userSearchDestinationScheduledArrivalTime {
+            return arrival == DarwinTime.clock(service.sta)
         }
         return atocCode == service.operatorCode
     }

@@ -25,7 +25,8 @@ struct JourneyConnection {
     let note: String?
     /// Minutes the change needs
     let needed: Int
-    /// The platform the first train is timetabled into
+    /// The platform the first train arrives at: live from the arrival board once it is nearly
+    /// due, and until then the timetable's
     let arrivalPlatform: String?
     /// The Tube lines the change uses, by Transport for London's names
     let tubeLines: [String]
@@ -36,7 +37,7 @@ struct JourneyConnection {
         self.departing = departing
         self.note = second.transferNote
         self.needed = max(second.transferMinutes ?? Self.minimumMinutes, Self.minimumMinutes)
-        self.arrivalPlatform = first.arrivalPlatform
+        self.arrivalPlatform = arriving.arrivalPlatform ?? first.arrivalPlatform
         self.tubeLines = second.transferLines?.split(separator: ",").map(String.init) ?? Self.line(in: second.transferNote)
     }
 
@@ -52,8 +53,8 @@ struct JourneyConnection {
         (departing.expectedDepartureDate ?? .distantPast) > Date()
     }
 
-    /// "Due into platform 4 · leaves from platform 11". The arrival platform is the
-    /// timetable's; the departure platform is live once the train is.
+    /// "Due into platform 4 · leaves from platform 11". Each platform is live once Darwin
+    /// has it, and the timetable's until then.
     var platformsText: String? {
         let arrival = arrivalPlatform.map { "due into platform \($0)" }
         let departure = departing.platform.isEmpty || departing.platform == "TBC" ? nil : "leaves from platform \(departing.platform)"

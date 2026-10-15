@@ -28,6 +28,8 @@ struct TrainJourney {
     /// Why the train is late or cancelled, when the feed says
     var reason: String? = nil
     var coaches: Int? = nil
+    /// The platform at the destination, once the train is nearly due there
+    var arrivalPlatform: String? = nil
 }
 
 let mockJourney = TrainJourney(
@@ -374,6 +376,12 @@ struct ArrivalContextCard: View {
                     }
                 }
 
+                if let arrivalPlatform = journey.arrivalPlatform {
+                    Label("Arrives at platform \(arrivalPlatform) in \(UKStation.name(for: journey.destination.code))", systemImage: "arrow.down.to.line")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.ink)
+                }
+
                 if journey.delayMinutes >= 15 {
                     Divider()
 
@@ -559,7 +567,8 @@ extension DarwinServiceAdapter {
             isCancelled: isCancelledService,
             isScheduledOnly: isAwaitingLiveData == true,
             reason: disruptionReason,
-            coaches: coaches
+            coaches: coaches,
+            arrivalPlatform: arrivalPlatform
         )
     }
 }
