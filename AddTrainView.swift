@@ -268,6 +268,7 @@ struct AddTrainView: View {
                                     .foregroundStyle(Color.brand)
                                     .lineLimit(1)
                             }
+                            EngineeringWorksBadge(originCRS: route.originCRS, destinationCRS: route.destinationCRS)
                         }
                         Spacer(minLength: 8)
                     }
@@ -473,6 +474,9 @@ struct TrainResultsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 SheetHeader("\(query.origin.name) to \(query.destination.name)", eyebrow: heading)
+
+                // Only for a saved route: its path is what works are matched against
+                EngineeringWorksCard(originCRS: query.origin.crs, destinationCRS: query.destination.crs)
 
                 if isLoading {
                     ProgressView("Searching departures…")

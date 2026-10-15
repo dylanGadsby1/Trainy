@@ -276,6 +276,49 @@ final class JourneyPlanner {
         return leg?.legGeometry.flatMap { RouteLine.saved(from: $0.points, precision: $0.precision) }
     }
 
+    /// How a saved route usually runs, to match engineering works against: the tracks, stations
+    /// and operators of the ways with the fewest changes, from tomorrow morning's trains. Nil
+    /// when the planner cannot be reached or finds no way by train.
+    func routeProfile(from origin: UKStation, to destination: UKStation) async -> RouteProfile? {
+        let calendar = SavedRoute.ukCalendar
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())),
+              let morning = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: tomorrow) else { return nil }
+
+        var components = URLComponents(string: Self.endpoint)!
+        components.queryItems = [
+            URLQueryItem(name: "fromPlace", value: "\(origin.lat),\(origin.lon)"),
+            URLQueryItem(name: "toPlace", value: "\(destination.lat),\(destination.lon)"),
+            URLQueryItem(name: "time", value: ISO8601DateFormatter().string(from: morning)),
+            URLQueryItem(name: "transitModes", value: "RAIL"),
+            URLQueryItem(name: "maxTransfers", value: "2"),
+            URLQueryItem(name: "numItineraries", value: "5"),
+            URLQueryItem(name: "detailedLegs", value: "true"),
+            URLQueryItem(name: "detailedTransfers", value: "false")
+        ]
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let (data, response) = try? await session.data(from: components.url!),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let plan = try? decoder.decode(Plan.self, from: data) else { return nil }
+
+        // National Rail trains only: their operator comes as "=XC"
+        let trains = plan.itineraries.map { $0.legs.filter { $0.agencyId?.hasPrefix("=") == true } }.filter { !$0.isEmpty }
+        guard let fewest = trains.map(\.count).min() else { return nil }
+
+        var lines: [String] = [], stations: Set<String> = [], operators: Set<String> = []
+        for leg in trains.filter({ $0.count == fewest }).joined() {
+            if let geometry = leg.legGeometry, let line = RouteLine.saved(from: geometry.points, precision: geometry.precision), !lines.contains(line) {
+                lines.append(line)
+            }
+            for place in [leg.from, leg.to] + (leg.intermediateStops ?? []) {
+                if let code = place.stopCode { stations.insert(code) }
+            }
+            if let code = leg.agencyId?.dropFirst() { operators.insert(String(code)) }
+        }
+        return RouteProfile(lines: lines, stations: stations.sorted(), operators: operators.sorted(), fetched: Date())
+    }
+
     /// What to tell the user when the planner cannot be reached.
     static func message(for error: Error) -> String {
         print("❌ Journey planning failed: \(error)")

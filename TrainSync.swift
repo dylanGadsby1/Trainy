@@ -84,6 +84,8 @@ final class TrainSync {
         await TrainyServer.shared.sync(in: context)
         // After the server, which sends these itself once it is following the trains
         await TrainAlerts.shared.refreshDepartureReminders(in: context)
+        // Planned works on the saved routes: the feed itself is read at most every few hours
+        await EngineeringWorksStore.shared.refresh(in: context)
         WidgetSync.update(in: context)
     }
 

@@ -226,6 +226,7 @@ struct NotificationSettingsView: View {
     @AppStorage(TrainAlerts.Kind.delayRepay.rawValue) private var delayRepayReminders = true
     @AppStorage(TrainAlerts.Kind.connections.rawValue) private var connectionAlerts = true
     @AppStorage(TrainAlerts.Kind.departures.rawValue) private var departureReminders = true
+    @AppStorage(TrainAlerts.Kind.engineeringWorks.rawValue) private var engineeringWorksAlerts = true
 
     private var alerts: TrainAlerts { .shared }
 
@@ -269,6 +270,16 @@ struct NotificationSettingsView: View {
             .listRowBackground(Color.card)
 
             Section {
+                Toggle("Engineering Works", isOn: $engineeringWorksAlerts)
+            } header: {
+                Text("Saved Routes")
+            } footer: {
+                Text("A notification at 6pm two days before planned works on one of your saved routes, such as rail replacement buses or a closed line. Each work is notified once. On a commute, only works on your commute days count.")
+            }
+            .disabled(!alerts.isAllowed)
+            .listRowBackground(Color.card)
+
+            Section {
                 Toggle("Claim Reminders", isOn: $delayRepayReminders)
             } header: {
                 Text("Delay Repay")
@@ -296,6 +307,9 @@ struct NotificationSettingsView: View {
         .onChange(of: departureReminders) {
             Task { await alerts.refreshDepartureReminders(in: modelContext) }
         }
+        .onChange(of: engineeringWorksAlerts) {
+            Task { await EngineeringWorksStore.shared.refresh(in: modelContext, force: true) }
+        }
     }
 
     @ViewBuilder
@@ -308,6 +322,7 @@ struct NotificationSettingsView: View {
                         await alerts.requestPermission()
                         await alerts.refreshDelayRepayReminders(in: modelContext)
                         await alerts.refreshDepartureReminders(in: modelContext)
+                        await EngineeringWorksStore.shared.refresh(in: modelContext, force: true)
                     }
                 }
             } footer: {

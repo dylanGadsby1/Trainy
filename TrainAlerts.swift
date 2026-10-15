@@ -24,6 +24,8 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
         /// Reminders an hour and five minutes before a train leaves
         case departures = "alerts.departures"
         case delayRepay = "alerts.delayRepay"
+        /// Planned works on a saved route in the coming week
+        case engineeringWorks = "alerts.engineeringWorks"
 
         /// On until the user turns it off. Nothing is sent without notification permission.
         var isOn: Bool {
@@ -361,6 +363,56 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
         }
         body += train.hasConfirmedPlatform ? ", from platform \(train.platform)." : ". Platform not confirmed yet."
         return body
+    }
+
+    // MARK: - Engineering Works
+
+    private static let worksPrefix = "works."
+    private static let worksLimit = 8
+    /// When each work's notification went, or is set to go, by the work's id: one per work, ever
+    private static let worksNotifiedKey = "works.notified"
+
+    /// One notification per planned work on a saved route, at six in the evening two days
+    /// before it starts, or at once for a work found later than that. `alerts` soonest first.
+    func refreshEngineeringWorksAlerts(_ alerts: [(work: EngineeringWork, route: String)]) async {
+        let now = Date()
+        let defaults = UserDefaults.standard
+        // Long enough to outlast any work in the feed's week ahead
+        var notified = (defaults.dictionary(forKey: Self.worksNotifiedKey) as? [String: Double] ?? [:])
+            .filter { now.timeIntervalSince1970 - $0.value < 60 * 24 * 3600 }
+
+        var wanted: [String: (date: Date, content: UNMutableNotificationContent)] = [:]
+        if await canSend(.engineeringWorks) {
+            var count = 0
+            for (work, route) in alerts where count < Self.worksLimit {
+                // Already sent
+                if let sent = notified[work.id], sent <= now.timeIntervalSince1970 { continue }
+
+                count += 1
+                let id = Self.worksPrefix + work.id
+                let content = Self.content(title: "Engineering works · \(route)", body: work.summary)
+                let due = Self.worksReminderDate(for: work)
+                if due <= now.addingTimeInterval(60) {
+                    try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+                    notified[work.id] = now.timeIntervalSince1970
+                } else {
+                    wanted[id] = (due, content)
+                    notified[work.id] = due.timeIntervalSince1970
+                }
+            }
+        }
+        // Those still waiting that are no longer wanted go; when one is wanted again its entry,
+        // being in the future, does not count as sent
+        await schedule(wanted, prefix: Self.worksPrefix)
+        defaults.set(notified, forKey: Self.worksNotifiedKey)
+    }
+
+    /// Six in the evening, UK time, two days before the work starts: in time to plan a weekend.
+    private static func worksReminderDate(for work: EngineeringWork) -> Date {
+        let calendar = SavedRoute.ukCalendar
+        guard let day = calendar.date(byAdding: .day, value: -2, to: calendar.startOfDay(for: work.start)),
+              let evening = calendar.date(bySettingHour: 18, minute: 0, second: 0, of: day) else { return work.start }
+        return evening
     }
 
     /// Clears every alert and reminder, delivered or still to come.
