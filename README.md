@@ -1,224 +1,209 @@
-<h1 align="center">
-  🚆 Trainy
-</h1>
+# Trainy
 
-<p align="center">
-  <strong>A beautiful real-time train tracker for the UK National Rail network</strong>
-</p>
+A native iOS app for following UK trains in real time. Save the trains you're catching, watch their live times on a map, get told when something changes, and keep a record of every journey you've made.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/platform-iOS-black?style=flat-square&logo=apple" />
-  <img src="https://img.shields.io/badge/swift-6.0-orange?style=flat-square&logo=swift" />
-  <img src="https://img.shields.io/badge/SwiftUI-✓-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/SwiftData-✓-purple?style=flat-square" />
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
-</p>
+![Platform](https://img.shields.io/badge/platform-iOS%2018%2B-black?style=flat-square&logo=apple)
+![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-blue?style=flat-square)
+![SwiftData](https://img.shields.io/badge/storage-SwiftData-purple?style=flat-square)
 
 ---
 
-## Overview
+## What it does
 
-Trainy is a native iOS app that lets you track your UK train journeys in real time. Pin the trains you care about, watch live departure and arrival updates, and review your complete Rail History — all wrapped in a clean, map-first interface.
+**Finding a train**
+- Search any origin and destination, for now or any future date. Live and timetabled trains come back as one list with no duplicates.
+- Routes that need a change are found too, and every train on them is followed as one journey.
+- Star a route to search it again in one tap, with a shortcut for the return trip.
 
-Data comes from two feeds. National Rail's **Darwin Live Departure Boards** API, from the [Rail Data Marketplace](https://raildata.org.uk/), gives live times for trains leaving within about four hours. **[Realtime Trains](https://www.realtimetrains.co.uk/)** gives the timetable for anything later. A train saved from the timetable switches to Darwin automatically once Darwin lists it.
+**Following it**
+- My Trains sits on a full-screen map in a draggable bottom sheet. Each card shows the operator, times, platform and an On time / Delayed / Cancelled / Scheduled status, refreshed every minute.
+- The journey page lists every calling point with live times, draws the route along the real tracks and shows where the train probably is right now.
+- Live Activities on the Lock Screen and Dynamic Island, for one train or a whole journey from train to train.
+- A Next Train widget for the Home Screen (small and medium) and Lock Screen.
+- Share a train with someone: when it's now due in, and a link to follow it live.
 
----
+**When things go wrong**
+- Alerts for delays, cancellations, platform confirmations and platform changes, plus reminders an hour and five minutes before departure.
+- If a delay puts a change at risk, Trainy warns you and lists the later ways to finish the journey, with a one-tap switch that keeps it as one journey.
+- When a train is cancelled or running late, Other Trains shows the services that would get you there sooner.
+- At a change: the platform you arrive on and leave from, Tube status across London, and a reminder five minutes before you arrive.
 
-## Features
+**Afterwards**
+- Finished and cancelled trains move to Rail History automatically.
+- Stats: journeys, punctuality, minutes delayed, miles, favourite routes and operators, and journeys by month.
+- Delay Repay: Trainy works out which journeys qualify (a journey with a change is judged by how late it finished), links to the right operator's claim page and reminds you before the window closes.
 
-| Feature | Description |
-|---|---|
-| 🗺️ **Map-first Home** | Interactive UK map with a draggable bottom sheet showing your saved trains |
-| 🚆 **My Trains** | Pin upcoming departures and see live status cards with operator branding |
-| 🔍 **Add Journey** | Search any origin → destination pair, from now to any future date, as one list with no duplicates |
-| ⏱️ **Live Status** | On time / Delayed / Cancelled badges refreshed every minute, and Scheduled for trains not yet live |
-| 📊 **Journey Dashboard** | Per-train detail view with scheduled vs realtime times and platform info |
-| 📜 **Rail History** | Automatic archiving of completed and cancelled journeys |
-| 📈 **Travel Stats** | Journeys, punctuality, minutes delayed, miles, most-used routes, operators and Delay Repay, with journeys by month |
-| 🚂 **Operator Branding** | Logos and brand colours for 26 UK rail operators |
-| 💸 **Delay Repay** | Deep links to every operator's Delay Repay compensation page, with a journey of several trains claimed for by how late it ended |
-| 📲 **Widgets** | Your next saved train on the Home Screen (small and medium) and Lock Screen: when it leaves, a countdown, its platform and whether it is on time, moving on to the next train once one leaves |
-| 📍 **Live Activities** | Follow a train, or a whole journey from train to train, from the Lock Screen and Dynamic Island |
-| 🔔 **Notifications** | Delay and cancellation alerts, an alert when the platform is confirmed and whenever it changes, reminders an hour and five minutes before the train leaves, and reminders to claim Delay Repay |
-| 🚏 **Calling Points** | Every stop on the journey with live times, the route on the map and the train's estimated position |
-| ⭐ **Saved Routes** | Star a route to search it in one tap, with a shortcut for the return journey |
-| 🔁 **Journeys with a Change** | Search finds routes that need a change, follows every train on them as one journey, and warns when a delay puts a change at risk |
-| 🧭 **Missed Connections** | When a change is in doubt, the later ways to finish the journey, with a one-tap switch that keeps it one journey |
-| 🚉 **At the Change** | Platform to platform, how the Tube is running across London, and a reminder five minutes before you arrive |
-| 🧳 **Commute Mode** | Mark a saved route as a commute, with its days and usual time, and the train (or the journey with a change) is followed for you from 12 hours before |
-| 🔀 **Other Trains** | When a followed train is cancelled or running late, the trains that would get you there sooner, with a one-tap switch |
-| 📤 **Share Journey** | Send someone your train, when it is now due in, and a link to follow it live |
-| ☁️ **Optional Server** | A Cloudflare Worker that pushes changes while the app is closed and keeps the feed keys out of the app ([server/](server/README.md)) |
-| 📱 **SwiftData Persistence** | Saved trains and history survive app restarts |
-| 🔄 **iCloud Sync** | Optional: saved trains, Rail History, stats, saved routes, your name and journey options on every device signed in to the same Apple ID, with no sign-up ([set up](#4-optional-icloud-sync)) |
+**Commute Mode**
+- Mark a saved route as a commute, with its days and usual departure time. Trainy then follows that train (or the journey with a change) for you from 12 hours before.
+
+**Optional extras**
+- **iCloud sync** of saved trains, Rail History, saved routes, your name and journey options across your devices, with no sign-up.
+- **A small server** that pushes alerts and Live Activity updates while the app is closed and keeps the feed keys out of the app. See [server/README.md](server/README.md).
 
 ---
 
-## Screenshots
+## Where the data comes from
 
-> _Coming soon — run the app and add your trains!_
+| Source | Used for | Notes |
+|---|---|---|
+| [Darwin Live Departure Boards](https://raildata.org.uk/) (National Rail, via the Rail Data Marketplace) | Live times, platforms, cancellations | Only lists trains from about 4 hours before departure. Needs a key |
+| [Realtime Trains](https://www.realtimetrains.co.uk/) | The timetable for any date, and trains Darwin has dropped | Needs a refresh token. Limited to 10 requests a minute |
+| [Transitous](https://transitous.org/) | Planning routes with a change, and the track shape drawn on the map | Free, no key. Credited wherever its routes appear |
+| [TfL Unified API](https://api.tfl.gov.uk/) | Tube line status at a London change | Free, no key |
 
----
+### How a saved train moves between feeds
 
-## Architecture
+[TrainSync.swift](TrainSync.swift) decides which feed each saved train is read from:
 
-```
-Trainy/
-├── TrainyApp.swift          # App entry point & SwiftData model container
-├── ContentView.swift        # Tab bar + top-level navigation
-├── Theme.swift              # Colours (light and dark), the card style, shared buttons and labels
-│
-├── HomeView.swift           # Map view + draggable bottom sheet
-├── AddTrainView.swift       # Station picker + live departure search
-├── RailHistoryView.swift    # Archived past journeys
-├── RailStatsView.swift      # What the Rail History adds up to, and the stats page
-├── CommuteMode.swift        # Follows a commute's usual train, and the commute editor
-├── AlternativeTrains.swift  # Other trains to switch to when one is cancelled or late
-├── JourneyPlanner.swift     # Routes with a change, planned by Transitous; search options; Tube status
-├── RouteLine.swift          # A train's path along the tracks, for drawing on the map
-├── JourneyViews.swift       # Route results, the legs of a journey and the changes between them
-├── ProfileView.swift        # Travel stats, notification settings, privacy & about
-│
-├── DarwinAPI.swift          # Darwin API client, response models & the app's train model
-├── TrainSearch.swift        # One search across Darwin and Realtime Trains, merged
-├── TrainSync.swift          # Refreshes saved trains and hands them from the timetable to Darwin
-├── TrainAlerts.swift        # Delay, platform and Delay Repay notifications
-├── TrainyServer.swift       # Optional: push registration and the feeds through server/
-├── LiveActivityManager.swift # Starts and updates the Live Activity
-├── TrainyWidgetData.swift   # What the widgets show, shared with the extension through an App Group
-├── CloudSync.swift          # Optional iCloud sync: the store, merging copies made on two devices, synced preferences
-├── RTTService.swift         # Realtime Trains API client (timetable search and fallback updates)
-├── RTTModels.swift          # Train status, UK station list & legacy RTT models
-├── OperatorBranding.swift   # ATOC operator logos & brand colours
-├── SavedTrain.swift         # SwiftData models for saved trains and saved routes
-└── Secrets.swift            # Your API keys (git-ignored, see Getting Started)
-```
+| When | Feed | How often |
+|---|---|---|
+| More than ~4 hours before departure | Realtime Trains | Every half hour |
+| ~4 hours before until Darwin drops it | Darwin | Every minute |
+| After Darwin drops it | Realtime Trains | Until it's seen arriving |
 
-### Key Design Decisions
-
-- **SwiftUI + SwiftData** — fully declarative UI with native persistence
-- **Async/await** — all network calls use structured concurrency; no callbacks
-- **Two feeds, one train** — Darwin and Realtime Trains share no ID, so a train is matched across them by origin, destination, date, scheduled departure and operator
-- **Few requests per search** — Darwin boards are requested with calling points, and Realtime Trains needs two requests whatever the number of trains, which keeps it inside its limit of 10 requests a minute
-- **Custom bottom sheet** — `MapBottomSheet` is a hand-crafted draggable overlay with four snap detents (compact → peek → mid → full) and rubber-band overscroll physics, rather than the stock `.sheet()` modifier
+Darwin and Realtime Trains share no ID, so a train saved from the timetable is matched to its Darwin entry by origin, destination, date, scheduled departure and operator, then switched over.
 
 ---
 
-## Requirements
+## Getting started
 
-| Requirement | Version |
-|---|---|
-| iOS | 18.0+ |
-| Xcode | 16.0+ |
-| Swift | 5.9+ |
+### Requirements
 
----
+- Xcode 16 or later
+- iOS 18 or later for the app. The widget extension (widgets and Live Activities) is currently set to iOS 26.2.
 
-## Getting Started
-
-### 1. Clone the repo
+### 1. Clone
 
 ```bash
 git clone https://github.com/dylanGadsby1/Trainy.git
-cd Trainy
 ```
 
-### 2. API keys
+### 2. Add your API keys
 
-Trainy needs a key for each feed:
-
-1. Sign up at [https://raildata.org.uk](https://raildata.org.uk) and subscribe to **Live Departure Board**
-2. Sign up at [https://api-portal.rtt.io](https://api-portal.rtt.io) for a Realtime Trains **refresh token**
-3. Copy the template and add both:
+1. Sign up at [raildata.org.uk](https://raildata.org.uk) and subscribe to **Live Departure Board**.
+2. Get a Realtime Trains **refresh token** from [api-portal.rtt.io](https://api-portal.rtt.io).
+3. Copy the template and fill in both values:
 
 ```bash
 cp Secrets.swift.example Secrets.swift
 ```
 
 ```swift
-// Secrets.swift
-static let railDataKey = "YOUR_RAIL_DATA_API_KEY"
-static let rttRefreshToken = "YOUR_RTT_REFRESH_TOKEN"
+enum Secrets {
+    static let railDataKey = "YOUR_RAIL_DATA_API_KEY"
+    static let rttRefreshToken = "YOUR_RTT_REFRESH_TOKEN"
+}
 ```
 
-`Secrets.swift` is git-ignored, so your keys stay out of the repository.
+`Secrets.swift` is git-ignored.
 
-> ⚠️ Realtime Trains does not allow its token to be shipped inside an app that is distributed to other people. That is fine for running Trainy on your own device, but a public release would need to send those requests through your own server.
+> Realtime Trains doesn't allow its token to ship inside an app distributed to other people. That's fine for your own device, but a public release should read the feeds through the [server](server/README.md) instead.
 
-### 3. Open in Xcode
+### 3. Run
 
 ```bash
 open Trainy.xcodeproj
 ```
 
-Select your target device or simulator and press **Run** (⌘R).
+Pick the **Trainy** scheme, choose a simulator or device and press ⌘R.
+
+A free Personal Team can build and run the app, but can't use iCloud or push notifications. Both need a paid Apple Developer Program membership.
 
 ### 4. Optional: iCloud sync
 
-Trainy keeps everything on the device until the app has the iCloud capability. Turning it on needs a paid Apple Developer Program membership.
+Without the iCloud capability, everything stays on the device. To turn sync on:
 
-1. In Xcode, select the **Trainy** target → **Signing & Capabilities** → **+ Capability** → **iCloud**
-2. Tick **CloudKit** and add a container, such as `iCloud.com.dylangadsby.Trainy`
-3. Run the app. It finds the container by itself; Profile → Privacy shows **iCloud Sync**
+1. In Xcode, select the **Trainy** target → **Signing & Capabilities** → **+ Capability** → **iCloud**.
+2. Tick **CloudKit** and add a container, such as `iCloud.com.dylangadsby.Trainy`.
+3. Run the app. It finds the container on its own, and Profile → Privacy then shows **iCloud Sync**.
 
-The `remote-notification` background mode CloudKit needs is already in `Info.plist`. Before releasing, deploy the CloudKit schema to production in the CloudKit Console, after the app has run once with the container.
+The `remote-notification` background mode CloudKit needs is already in `Info.plist`. Before a release, deploy the CloudKit schema to production in the CloudKit Console once the app has run with the container.
+
+### 5. Optional: the server
+
+Without a server, Trainy raises its own alerts, which only happens while it's open or when iOS wakes it for a background refresh. With one, alerts and Live Activity updates arrive while the app is closed.
+
+The server is a Cloudflare Worker in [server/](server/). Deploy it as described in [server/README.md](server/README.md), add the **Push Notifications** capability, and set `TrainyServerURL` (and `TrainyServerKey` if you chose one) in `Info.plist`.
 
 ---
 
-## Supported Rail Operators
+## How the code is organised
 
-Trainy ships with branding for the following operators:
+The app sources sit at the repository root. Xcode's **Trainy** target compiles them, and **Trainy RTT API Live Activities** is the widget extension.
 
-| Code | Operator | Code | Operator |
-|---|---|---|---|
-| VT | Avanti West Coast | GW | Great Western Railway |
-| SE | Southeastern | TL | Thameslink |
-| GN | Great Northern | LE | Greater Anglia |
-| LM | London Northwestern | LO | London Overground |
-| ME | Merseyrail | NT | Northern |
-| SN | Southern | SR | ScotRail |
-| SW | South Western Railway | TP | TransPennine Express |
-| XC | CrossCountry | GR | LNER |
-| CC | c2c | CH | Chiltern Railways |
-| EM | East Midlands Railway | AW | Transport for Wales |
-| HX | Heathrow Express | CS | Caledonian Sleeper |
-| XR | Elizabeth Line | IL | Island Line |
-| GC | Grand Central | HB | Hull Trains |
+### App and screens
+
+| File | What it holds |
+|---|---|
+| [TrainyApp.swift](TrainyApp.swift) | Entry point, the SwiftData container and the background refresh task |
+| [ContentView.swift](ContentView.swift) | The map, the floating tab bar (My Trains, Rail History), the journey page and sharing |
+| [HomeView.swift](HomeView.swift) | My Trains cards and `MapBottomSheet`, the custom draggable sheet with four snap points |
+| [AddTrainView.swift](AddTrainView.swift) | Search form, station picker, results and the button that saves a train |
+| [JourneyViews.swift](JourneyViews.swift) | Journeys with a change: connections, results, legs and missed-connection options |
+| [AlternativeTrains.swift](AlternativeTrains.swift) | Other Trains, for when a followed train is cancelled or late |
+| [CommuteMode.swift](CommuteMode.swift) | Commute Mode and its editor |
+| [RailHistoryView.swift](RailHistoryView.swift) | Rail History and Delay Repay claims |
+| [RailStatsView.swift](RailStatsView.swift) | Travel stats and the monthly chart |
+| [ProfileView.swift](ProfileView.swift) | Profile, notification settings, privacy and about |
+| [Theme.swift](Theme.swift) | Colours for light and dark mode, cards, labels and button styles |
+| [OperatorBranding.swift](OperatorBranding.swift) | Logos, brand colours and Delay Repay links for each operator |
+
+### Data and services
+
+| File | What it holds |
+|---|---|
+| [DarwinAPI.swift](DarwinAPI.swift) | Darwin client and models, plus `DarwinServiceAdapter`, the train model the whole app uses |
+| [RTTService.swift](RTTService.swift) | Realtime Trains client |
+| [RTTModels.swift](RTTModels.swift) | Realtime Trains models, `TrainStatus` and the UK station list |
+| [TrainSearch.swift](TrainSearch.swift) | One search over both feeds, merged |
+| [TrainSync.swift](TrainSync.swift) | Refreshes saved trains, hands them between feeds, archives finished ones, feeds the widget and schedules background refresh |
+| [JourneyPlanner.swift](JourneyPlanner.swift) | Transitous route planning, journey search options and Tube status |
+| [RouteLine.swift](RouteLine.swift) | The track shape of a journey, stored as an encoded polyline |
+| [SavedTrain.swift](SavedTrain.swift) | SwiftData models for saved trains and saved routes, and Delay Repay eligibility |
+| [TrainAlerts.swift](TrainAlerts.swift) | Local notifications and reminders |
+| [LiveActivityManager.swift](LiveActivityManager.swift) | Starts, updates and ends Live Activities |
+| [CloudSync.swift](CloudSync.swift) | Optional iCloud store, merging duplicates made on two devices, synced preferences |
+| [TrainyServer.swift](TrainyServer.swift) | Optional server: push registration and reading the feeds through it |
+| [TrainyWidgetData.swift](TrainyWidgetData.swift), [TrainyActivityAttributes.swift](TrainyActivityAttributes.swift) | Shared with the widget extension through the App Group `group.com.dylangadsby.Trainy` |
+
+### Widget extension
+
+[Trainy RTT API Live Activities/](Trainy%20RTT%20API%20Live%20Activities/) contains the Live Activity and Dynamic Island layouts and [NextTrainWidget.swift](Trainy%20RTT%20API%20Live%20Activities/NextTrainWidget.swift).
+
+### Server
+
+[server/](server/) is a Cloudflare Worker with no dependencies. A cron trigger checks every followed train against Darwin once a minute and sends APNs pushes; device records live in Workers KV. Tests run with `npm test` on Node 20+.
+
+### Other files in the repo
+
+The Python and Ruby scripts at the root (`test_*.py`, `fetch_stations*.py`, `scratch*.py`, `add_*.rb`), `rtt_openapi.yml`, `rtt_response.json`, the `ukStations_*generated.swift` files and the Swift files inside `Trainy.xcodeproj/` are leftovers from early API exploration. None of them are part of the build.
+
+---
+
+## Design notes
+
+- **SwiftUI and SwiftData throughout**, with async/await for every network call.
+- **Every stored property is optional or has a default, and none is unique.** CloudKit sync needs both, so keep it that way when adding fields to `SavedTrain` or `SavedRoute`.
+- **Few requests per search.** Darwin boards are requested with calling points included, and a Realtime Trains search takes two requests however many trains it returns, which keeps it under the 10-a-minute limit.
+- **No server required.** The app works fully on its own; the server only improves alerts while the app is closed.
 
 ---
 
 ## Roadmap
 
-- [ ] Live push notifications for delays and cancellations
-- [ ] Apple Watch companion app
-- [x] Widget support (Home Screen / Lock Screen)
-- [ ] Social journey sharing with friends
+- [x] Home Screen and Lock Screen widgets
+- [x] iCloud sync
+- [x] Push alerts while the app is closed (needs the optional server)
+- [ ] Apple Watch app
 - [ ] Ticket wallet integration
-- [x] iCloud sync across devices
-
----
-
-## Contributing
-
-Contributions are welcome! Please open an issue to discuss changes before submitting a pull request.
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Commit your changes (`git commit -m 'Add my feature'`)
-4. Push the branch (`git push origin feature/my-feature`)
-5. Open a Pull Request
-
----
-
-## License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+- [ ] App Attest or similar on the server before any public release
 
 ---
 
 ## Acknowledgements
 
-- Live train data provided by [National Rail](https://www.nationalrail.co.uk/) via the Rail Data Marketplace
-- Timetable data provided by [Realtime Trains](https://www.realtimetrains.co.uk/)
-- Operator logos are trademarks of their respective owners
-- Built with ❤️ using SwiftUI, MapKit, and SwiftData
+- Live data from [National Rail](https://www.nationalrail.co.uk/) via the Rail Data Marketplace
+- Timetable data from [Realtime Trains](https://www.realtimetrains.co.uk/)
+- Journey planning by [Transitous](https://transitous.org/), built on [open timetable data](https://transitous.org/sources/)
+- Tube status from [Transport for London](https://tfl.gov.uk/)
+- Operator logos are trademarks of their owners
