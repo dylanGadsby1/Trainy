@@ -1047,10 +1047,10 @@ struct ContentView: View {
         }
     }
 
-    /// The selected station, when it is not part of one of the user's journeys: it gets a
-    /// callout offering its departures board.
+    /// The selected station, one of the user's journeys or any other: it gets a callout
+    /// offering its departures board.
     private var calloutStation: UKStation? {
-        guard let selected = selectedStationCRS, !highlightedStations.contains(selected) else { return nil }
+        guard let selected = selectedStationCRS else { return nil }
         return ukStations.first { $0.crs == selected }
     }
 
