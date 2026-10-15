@@ -988,17 +988,12 @@ struct ContentView: View {
     /// Past trains too: on a journey of several trains, the ones already done stay on the map
     @Query private var allSavedTrains: [SavedTrain]
 
-    /// The trains drawn on the map: each one still to run, and the trains already done on
-    /// a journey that is not over yet.
-    private var mapServices: [DarwinServiceAdapter] {
-        allSavedTrains.travelItems(past: false).flatMap(\.legs).compactMap(\.service)
-    }
-
-    /// A journey's line goes on the map from this long before its first train is expected to leave
+    /// A journey goes on the map from this long before its first train is expected to leave
     private static let routeLead: TimeInterval = 60 * 60
 
-    /// The trains whose line is drawn: every train of each journey whose first train leaves
-    /// within the hour, or has left. Their stations are marked whenever they are saved.
+    /// The trains on the map, with their line and stations: every train of each journey
+    /// whose first train leaves within the hour or has left, the trains already done on a
+    /// journey that is not over yet included.
     private var routedServices: [DarwinServiceAdapter] {
         allSavedTrains.travelItems(past: false)
             .filter { item in
@@ -1026,9 +1021,10 @@ struct ContentView: View {
     private let stationVisibilityDistance: Double = 20_000
 
     /// The stations of the user's journeys: where each train is boarded and where it is
-    /// left, so a journey's start, its changes and its end.
+    /// left, so a journey's start, its changes and its end. Marked along with the line,
+    /// from an hour before the journey's first train leaves.
     private var highlightedStations: Set<String> {
-        Set(mapServices.flatMap { [
+        Set(routedServices.flatMap { [
             $0.userSearchOriginCRS ?? $0.originCRS,
             $0.userSearchDestinationCRS ?? $0.destinationCRS
         ] })
