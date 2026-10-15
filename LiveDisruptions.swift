@@ -202,11 +202,12 @@ struct DisruptionsCard: View {
             .sorted { ($0.isOnRoute ? 0 : 1) < ($1.isOnRoute ? 0 : 1) }
 
         if !items.isEmpty {
+            let color = items.contains(where: \.isOnRoute) ? Color.statusCancelled : Color.statusDelayed
             VStack(alignment: .leading, spacing: 12) {
                 Label(items.contains(where: \.isOnRoute) ? "Disruption on your route" : "Disruption that may affect your train",
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(items.contains(where: \.isOnRoute) ? Color.statusCancelled : Color.statusDelayed)
+                    .foregroundStyle(color)
 
                 ForEach(items) { item in
                     VStack(alignment: .leading, spacing: 4) {
@@ -233,7 +234,7 @@ struct DisruptionsCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .cardSurface()
+            .noticeSurface(color)
         }
     }
 }

@@ -40,7 +40,7 @@ extension Color {
     /// Text and icons drawn on a `brandFill`
     static let onBrand = Color.white
     /// A wash of the brand colour behind a `brand` icon
-    static let brandTint = brand.opacity(0.13)
+    static let brandTint = brand.tint
 
     // Surfaces
     /// The background of a sheet or page
@@ -67,6 +67,15 @@ extension Color {
 enum Theme {
     /// Every card, tile and grouped block uses this corner radius
     static let cardRadius: CGFloat = 20
+    /// Everything smaller that sits inside or beside a card: rows, buttons, callouts
+    static let rowRadius: CGFloat = 14
+    /// How strong a colour's pale background is: status pills, icon circles and notices alike
+    static let tintOpacity: Double = 0.14
+}
+
+extension Color {
+    /// This colour as a pale background, the same strength everywhere
+    var tint: Color { opacity(Theme.tintOpacity) }
 }
 
 extension View {
@@ -74,6 +83,15 @@ extension View {
     func cardSurface() -> some View {
         let shape = RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
         return background(Color.card, in: shape)
+            .contentShape(.contextMenuPreview, shape)
+    }
+
+    /// A card that carries a warning: tinted with its colour rather than grey, so the heading
+    /// can say what is wrong in that colour and the words below it stay in ink.
+    func noticeSurface(_ color: Color) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+        return background(color.opacity(Theme.tintOpacity * 0.6), in: shape)
+            .overlay(shape.strokeBorder(color.opacity(0.18), lineWidth: 1))
             .contentShape(.contextMenuPreview, shape)
     }
 
@@ -192,7 +210,7 @@ struct StatusPill: View {
             .lineLimit(1)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(color.opacity(0.14), in: Capsule())
+            .background(color.tint, in: Capsule())
     }
 }
 
@@ -208,7 +226,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(Color.onBrand)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Color.brandFill.opacity(isEnabled ? 1 : 0.35), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.brandFill.opacity(isEnabled ? 1 : 0.35), in: RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous))
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
@@ -221,7 +239,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .foregroundStyle(Color.ink)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous))
             .opacity(configuration.isPressed ? 0.6 : 1)
     }
 }

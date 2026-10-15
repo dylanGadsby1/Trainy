@@ -24,6 +24,11 @@ struct MyTrainCard: View {
         var note: (Date) -> CardNote?
         var platform: String
         var spokenSummary: String
+
+        /// Changes whenever something shown on the card does, so the change can be animated
+        var animationKey: String {
+            [status.label, scheduledDeparture, expectedDeparture ?? "", scheduledArrival, expectedArrival ?? "", platform].joined(separator: "|")
+        }
     }
 
     private let content: Content
@@ -104,59 +109,23 @@ struct MyTrainCard: View {
                 OperatorSummary(operators: content.operators)
                 Spacer()
                 StatusPill(content.status.label, color: content.status.color)
+                    .contentTransition(.interpolate)
             }
             // One height whichever logo it is, so the cards in a row line up
             .frame(height: 30)
             .padding(.bottom, 8)
 
-            // Route
-            HStack(alignment: .center, spacing: 0) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(content.originCRS)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(Color.ink)
-                    HStack(alignment: .lastTextBaseline, spacing: 6) {
-                        Text(content.scheduledDeparture)
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(Color.inkSecondary)
-                            .strikethrough(content.expectedDeparture != nil)
-
-                        if let expected = content.expectedDeparture {
-                            Text(expected)
-                                .font(.footnote.weight(.bold))
-                                .foregroundStyle(Color.statusDelayed)
-                        }
-                    }
-                    // Two times each side only just fit a narrow card: never break one across lines
-                    .lineLimit(1)
-                    .fixedSize()
-                }
+            // Route: the times are what is glanced at, so they lead; the stations sit small above
+            HStack(alignment: .bottom, spacing: 0) {
+                end(code: content.originCRS, scheduled: content.scheduledDeparture, expected: content.expectedDeparture, alignment: .leading)
                 Spacer(minLength: 2)
                 Image(systemName: "arrow.right")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.inkTertiary)
+                    .padding(.bottom, 4)
                 Spacer(minLength: 2)
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(content.destinationCRS)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(Color.ink)
-                    HStack(alignment: .lastTextBaseline, spacing: 6) {
-                        if let expected = content.expectedArrival {
-                            Text(expected)
-                                .font(.footnote.weight(.bold))
-                                .foregroundStyle(Color.statusDelayed)
-                        }
-
-                        Text(content.scheduledArrival)
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(Color.inkSecondary)
-                            .strikethrough(content.expectedArrival != nil)
-                    }
-                    .lineLimit(1)
-                    .fixedSize()
-                }
+                end(code: content.destinationCRS, scheduled: content.scheduledArrival, expected: content.expectedArrival, alignment: .trailing)
             }
-            .monospacedDigit()
             .padding(.bottom, 12)
 
             // Progress bar — how far between departure and arrival the train is right now
@@ -204,9 +173,37 @@ struct MyTrainCard: View {
         }
         .padding(16)
         .cardSurface()
+        // A new delay or status settles in rather than snapping: the times roll over
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: content.animationKey)
         // Codes and struck-through times make little sense read one by one
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(content.spokenSummary)
+    }
+
+    /// One end of the route: the station's code with the timetabled time struck out beside it
+    /// when the train is not keeping to it, and the time to go by underneath, large.
+    private func end(code: String, scheduled: String, expected: String?, alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 0) {
+            HStack(spacing: 5) {
+                Text(code)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.inkSecondary)
+                if expected != nil {
+                    Text(scheduled)
+                        .font(.caption)
+                        .foregroundStyle(Color.inkTertiary)
+                        .strikethrough()
+                }
+            }
+            Text(expected ?? scheduled)
+                .font(.title2.weight(.bold))
+                .foregroundStyle(expected == nil ? Color.ink : Color.statusDelayed)
+                .contentTransition(.numericText())
+        }
+        .monospacedDigit()
+        // A narrow card only just fits both ends: never break one across lines
+        .lineLimit(1)
+        .fixedSize()
     }
 }
 
@@ -721,6 +718,7 @@ struct HomeSheetView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(items) { item in
+                        Group {
                         switch item {
                         case .train(let savedTrain):
                             if let train = savedTrain.service {
@@ -779,8 +777,12 @@ struct HomeSheetView: View {
                                 }
                             }
                         }
+                        }
+                        // A card added or taken away grows in or shrinks out, rather than jumping
+                        .transition(.scale(scale: 0.9).combined(with: .opacity))
                     }
                 }
+                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: items.map(\.id))
                 .padding(.horizontal, 20)
             }
         }

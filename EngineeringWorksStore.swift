@@ -257,7 +257,7 @@ struct EngineeringWorksCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .cardSurface()
+            .noticeSurface(Color.statusDelayed)
         }
     }
 }

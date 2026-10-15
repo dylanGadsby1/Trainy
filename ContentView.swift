@@ -117,7 +117,7 @@ struct StatusHeaderCard: View {
                     Spacer()
                     ZStack {
                         Circle()
-                            .fill(headlineColor.opacity(0.13))
+                            .fill(headlineColor.tint)
                             .frame(width: 52, height: 52)
                         Image(systemName: stateSymbol)
                             .font(.system(size: 22, weight: .semibold))
@@ -161,6 +161,7 @@ struct StationTimeView: View {
                     .strikethrough()
             }
             Text(station.actual)
+                .contentTransition(.numericText())
                 .font(.footnote.weight(.bold))
                 .foregroundStyle(isRetimed ? Color.statusDelayed : Color.statusOnTime)
         }
@@ -416,7 +417,7 @@ struct ArrivalContextCard: View {
                         Spacer(minLength: 0)
                     }
                     .padding(12)
-                    .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous))
                     .accessibilityElement(children: .combine)
                 }
             }
@@ -914,7 +915,7 @@ struct StationCallout: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous))
 
                 // The bubble's tail, pointing down at the station
                 Path { path in
@@ -997,7 +998,7 @@ struct ProfileToggleButton: View {
 
 struct ContentView: View {
     @AppStorage("isSatelliteMap") private var isSatelliteMap: Bool = true
-    
+
     @State private var selectedTab: Int = 0
     @State private var globalSheetDetent: SheetDetent = .compact
     @State private var myTrainsPeekHeight: CGFloat = 0

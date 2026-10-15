@@ -877,7 +877,7 @@ struct PlannedJourneyDetailView: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 
@@ -932,7 +932,7 @@ struct ConnectionRow: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous))
         .accessibilityElement(children: .combine)
         .task(id: connection.tubeLines) {
             // Only for a change coming up soon: how a line is running now says little about tomorrow
@@ -1173,7 +1173,7 @@ struct JourneyNoteRow: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.subtleFill, in: RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous))
     }
 }
 
@@ -1326,7 +1326,7 @@ private struct AddNextTrainRow: View {
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
                     .strokeBorder(Color.brand.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
             )
             .contentShape(Rectangle())

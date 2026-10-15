@@ -721,7 +721,7 @@ struct DepartureRow: View {
                 HStack(spacing: 6) {
                     // A logo stands apart by itself; a name needs a dot before what follows
                     if OperatorBrand.from(code: train.atocCode) != nil {
-                        OperatorLogoBadge(atocCode: train.atocCode, compact: true)
+                        OperatorLogoBadge(atocCode: train.atocCode, compact: true, inSlot: true)
                     } else {
                         Text(train.atocName ?? "Unknown operator")
                         if !facts.isEmpty {

@@ -70,6 +70,9 @@ struct OperatorLogoBadge: View {
     let atocCode: String?
     /// compact = sized for list rows; non-compact = sized for train cards
     var compact: Bool = false
+    /// Sits in a box of one fixed size, logo to the left, so whatever follows it starts in the
+    /// same place on every row however wide the logo is
+    var inSlot: Bool = false
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -87,7 +90,19 @@ struct OperatorLogoBadge: View {
         return CGSize(width: height * aspect, height: height)
     }
 
+    /// The box a slotted logo sits in: as wide and tall as the widest and tallest logo may be
+    private var slot: CGSize { compact ? CGSize(width: 80, height: 21) : CGSize(width: 96, height: 26) }
+
     var body: some View {
+        if inSlot {
+            badge.frame(width: slot.width, height: slot.height, alignment: .leading)
+        } else {
+            badge
+        }
+    }
+
+    @ViewBuilder
+    private var badge: some View {
         if let brand = brand, let image = UIImage(named: brand.assetName), image.size.width > 0, image.size.height > 0 {
             let art = brand.artwork
             let size = Self.artworkSize(aspect: (image.size.width * art.width) / (image.size.height * art.height), compact: compact)
