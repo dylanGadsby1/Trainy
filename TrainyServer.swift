@@ -90,11 +90,17 @@ final class TrainyServer {
         }
 
         let upcoming = FetchDescriptor<SavedTrain>(predicate: #Predicate { !$0.isPast })
-        let trains = ((try? context.fetch(upcoming)) ?? []).compactMap(\.service)
+        let trains = (try? context.fetch(upcoming)) ?? []
         let registration = Registration(
             environment: Self.environment,
-            alerts: .init(delays: TrainAlerts.Kind.delays.isOn, platforms: TrainAlerts.Kind.platforms.isOn),
-            trains: trains.compactMap { Registration.Train($0, liveActivity: liveActivity) }
+            alerts: .init(
+                delays: TrainAlerts.Kind.delays.isOn,
+                platforms: TrainAlerts.Kind.platforms.isOn,
+                departures: TrainAlerts.Kind.departures.isOn
+            ),
+            trains: trains.compactMap { saved in
+                saved.service.flatMap { Registration.Train($0, remind: saved.remindsBeforeDeparture, liveActivity: liveActivity) }
+            }
         )
 
         // The server keeps its own record of each train's times, so only a change to
@@ -145,6 +151,7 @@ private struct Registration: Encodable {
     struct Alerts: Encodable {
         var delays: Bool
         var platforms: Bool
+        var departures: Bool
     }
 
     struct Train: Encodable {
@@ -160,19 +167,22 @@ private struct Registration: Encodable {
         var scheduledArrival: String?
         var operatorCode: String?
         var liveActivityToken: String?
+        /// Gets the reminders an hour and five minutes before it leaves
+        var remind: Bool
         var state: State?
 
         struct State: Encodable {
             var expectedDeparture: String
             var expectedArrival: String?
             var platform: String
+            var platformConfirmed: Bool
             var delayMinutes: Int
             var isCancelled: Bool
             var hasUnknownDelay: Bool
             var hasArrived: Bool
         }
 
-        init?(_ train: DarwinServiceAdapter, liveActivity: (journeyKey: String, token: String)?) {
+        init?(_ train: DarwinServiceAdapter, remind: Bool, liveActivity: (journeyKey: String, token: String)?) {
             guard let departureDate = train.scheduleMetadata?.departureDate else { return nil }
             let origin = train.userSearchOriginCRS ?? train.originCRS
             let destination = train.userSearchDestinationCRS ?? train.destinationCRS
@@ -188,10 +198,12 @@ private struct Registration: Encodable {
             self.scheduledArrival = train.userSearchDestinationScheduledArrivalTime
             self.operatorCode = train.atocCode
             self.liveActivityToken = liveActivity?.journeyKey == train.journeyKey ? liveActivity?.token : nil
+            self.remind = remind
             self.state = State(
                 expectedDeparture: train.realtimeDeparture,
                 expectedArrival: train.userSearchDestinationArrivalTime,
                 platform: train.platform,
+                platformConfirmed: train.hasConfirmedPlatform,
                 delayMinutes: train.delayMinutes,
                 isCancelled: train.isCancelledService,
                 hasUnknownDelay: train.hasUnknownDelay == true,

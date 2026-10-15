@@ -84,7 +84,7 @@ test("a device registers its trains", async () => {
 
   const saved = await env.TRAINY.get(`device:${token}`, "json");
   assert.equal(saved.environment, "development");
-  assert.deepEqual(saved.alerts, { delays: true, platforms: true });
+  assert.deepEqual(saved.alerts, { delays: true, platforms: true, departures: true });
   assert.equal(saved.trains[0].state.platform, "TBC");
 });
 
@@ -113,7 +113,7 @@ test("a platform change is pushed as an alert and to the Live Activity", async (
   assert.equal(alert.headers["apns-topic"], "com.dylangadsby.Trainy");
   assert.equal(alert.headers["apns-collapse-id"], "2026-10-13-15:30-MKC-EUS.platform");
   assert.deepEqual(alert.body.aps.alert, {
-    title: "15:30 Milton Keynes Central to London Euston", body: "Leaves from platform 5.",
+    title: "15:30 Milton Keynes Central to London Euston", body: "Platform 5 confirmed.",
   });
 
   assert.equal(activity.url, `https://api.sandbox.push.apple.com/3/device/${activityToken}`);
@@ -220,4 +220,38 @@ test("the provider token is a valid ES256 signature and is reused", async () => 
 
   assert.equal(await providerToken(env, new Date(now.getTime() + 10 * 60000)), jwt);
   assert.notEqual(await providerToken(env, new Date(now.getTime() + 55 * 60000)), jwt);
+});
+
+test("reminders are sent once, and even when the board is not read", async () => {
+  await register({ trains: [train({ remind: true, state: { platform: "5", platformConfirmed: true } })] });
+  // 14:30 UK, an hour before; nothing has changed on the board
+  const hourBefore = new Date("2026-10-13T13:30:00Z");
+  const { fetcher, pushes } = network(board());
+  await checkTrains(env, hourBefore, fetcher);
+  assert.equal(pushes.length, 1);
+  assert.equal(pushes[0].headers["apns-collapse-id"], "2026-10-13-15:30-MKC-EUS.departure.hour");
+  assert.equal(pushes[0].body.aps.alert.body, "Leaves in 1 hour, at 15:30, from platform 5.");
+
+  const again = network({ trainServices: [] });
+  await checkTrains(env, new Date(hourBefore.getTime() + 60000), again.fetcher);
+  assert.equal(again.pushes.length, 0);
+
+  // The app registering again does not forget what was sent
+  await register({ trains: [train({ remind: true })] });
+  const soon = network({ trainServices: [] });
+  await checkTrains(env, new Date("2026-10-13T14:25:00Z"), soon.fetcher);
+  assert.deepEqual(soon.pushes.map((p) => p.body.aps.alert.body), ["Leaves in 5 minutes, at 15:30, from platform 5."]);
+  assert.deepEqual((await env.TRAINY.get(`device:${token}`, "json")).trains[0].reminded, ["hour", "soon"]);
+});
+
+test("no reminders when they are switched off or the app did not ask", async () => {
+  await register({ alerts: { departures: false }, trains: [train({ remind: true })] });
+  const off = network({ trainServices: [] });
+  await checkTrains(env, new Date("2026-10-13T13:30:00Z"), off.fetcher);
+  assert.equal(off.pushes.length, 0);
+
+  await register({ trains: [train()] });
+  const unasked = network({ trainServices: [] });
+  await checkTrains(env, new Date("2026-10-13T13:30:00Z"), unasked.fetcher);
+  assert.equal(unasked.pushes.length, 0);
 });

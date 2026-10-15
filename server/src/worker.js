@@ -6,9 +6,10 @@
 //   GET    /rtt/…               Realtime Trains, with the token added here
 //
 // Once a minute it re-reads every watched train from Darwin and pushes what changed:
-// an alert to the device, and an update to the train's Live Activity if it has one.
+// an alert to the device, and an update to the train's Live Activity if it has one. It also
+// sends the reminders an hour and five minutes before each train leaves.
 
-import { changes, contentState, journeyName } from "./alerts.js";
+import { changes, contentState, departureReminder, journeyName } from "./alerts.js";
 import { alertPayload, liveActivityPayload, send } from "./apns.js";
 import { DARWIN_BASE, boardOffset, boardURL, departureAt, findService, stateFrom } from "./darwin.js";
 
@@ -139,10 +140,13 @@ function cleanTrain(input) {
     scheduledArrival: text(input?.scheduledArrival, 5),
     operatorCode: text(input?.operatorCode, 4),
     liveActivityToken: text(input?.liveActivityToken, 400),
+    remind: flag(input?.remind),
     state: {
       expectedDeparture: text(input?.state?.expectedDeparture, 5) ?? text(input?.scheduledDeparture, 5),
       expectedArrival: text(input?.state?.expectedArrival, 5),
       platform: text(input?.state?.platform, 8) ?? "TBC",
+      // Null from an app too old to say, which counts a known platform as confirmed
+      platformConfirmed: typeof input?.state?.platformConfirmed === "boolean" ? input.state.platformConfirmed : null,
       delayMinutes: Number.isInteger(input?.state?.delayMinutes) ? input.state.delayMinutes : 0,
       isCancelled: flag(input?.state?.isCancelled),
       hasUnknownDelay: flag(input?.state?.hasUnknownDelay),
@@ -164,13 +168,17 @@ async function registerDevice(env, token, body) {
     // What this server has already seen and said about a train outranks the app's copy,
     // so a change the app noticed first is still pushed
     const before = known.get(train.key);
-    return before ? { ...train, state: before.state, alertedDelay: before.alertedDelay } : train;
+    return before ? { ...train, state: before.state, alertedDelay: before.alertedDelay, reminded: before.reminded } : train;
   });
 
   const record = {
     token,
     environment: body.environment === "development" ? "development" : "production",
-    alerts: { delays: body.alerts?.delays !== false, platforms: body.alerts?.platforms !== false },
+    alerts: {
+      delays: body.alerts?.delays !== false,
+      platforms: body.alerts?.platforms !== false,
+      departures: body.alerts?.departures !== false,
+    },
     trains,
   };
   await env.TRAINY.put(`device:${token}`, JSON.stringify(record), { expirationTtl: DEVICE_TTL });
@@ -225,51 +233,63 @@ export async function checkTrains(env, now = new Date(), fetcher = fetch) {
       }
       kept.push(train);
 
-      const offset = boardOffset(train, now);
-      const service = offset === null ? null : findService(await board(train, offset), train);
-      if (!service) continue;
-
-      const old = train.state;
-      const next = stateFrom(service, train, old);
-      if (JSON.stringify(next) === JSON.stringify(old)) continue;
-
-      const { alerts, alertedDelay } = changes(train, old, next, now);
-      train.state = next;
-      train.alertedDelay = alertedDelay;
-      changed = true;
-
-      for (const alert of alerts) {
-        if (alert.kind === "delay" ? !device.alerts.delays : !device.alerts.platforms) continue;
+      const alert = async (kind, body) => {
         const result = await send(env, fetcher, {
           token: device.token,
           environment: device.environment,
           type: "alert",
-          payload: alertPayload(journeyName(train), alert.body, train.key),
-          collapseId: `${train.key}.${alert.kind}`,
+          payload: alertPayload(journeyName(train), body, train.key),
+          collapseId: `${train.key}.${kind}`,
           now,
         });
         done.alerts += 1;
         gone ||= result.gone;
+      };
+
+      const offset = boardOffset(train, now);
+      const service = offset === null ? null : findService(await board(train, offset), train);
+      const old = train.state;
+      const next = service ? stateFrom(service, train, old) : old;
+
+      if (JSON.stringify(next) !== JSON.stringify(old)) {
+        const { alerts, alertedDelay } = changes(train, old, next, now);
+        train.state = next;
+        train.alertedDelay = alertedDelay;
+        changed = true;
+
+        for (const { kind, body } of alerts) {
+          if (kind === "delay" ? !device.alerts.delays : !device.alerts.platforms) continue;
+          await alert(kind, body);
+        }
+
+        const shown = contentState(train, next);
+        if (train.liveActivityToken && (next.hasArrived || JSON.stringify(shown) !== JSON.stringify(contentState(train, old)))) {
+          const result = await send(env, fetcher, {
+            token: train.liveActivityToken,
+            environment: device.environment,
+            type: "liveactivity",
+            payload: liveActivityPayload(shown, next.hasArrived ? "end" : "update", now),
+            now,
+          });
+          done.liveActivities += 1;
+          // The activity has ended, or the user dismissed it
+          if (next.hasArrived || result.gone) train.liveActivityToken = null;
+        }
+
+        // Nothing more to say about a train that has arrived
+        if (next.hasArrived) {
+          kept.pop();
+          done.dropped += 1;
+          continue;
+        }
       }
 
-      const shown = contentState(train, next);
-      if (train.liveActivityToken && (next.hasArrived || JSON.stringify(shown) !== JSON.stringify(contentState(train, old)))) {
-        const result = await send(env, fetcher, {
-          token: train.liveActivityToken,
-          environment: device.environment,
-          type: "liveactivity",
-          payload: liveActivityPayload(shown, next.hasArrived ? "end" : "update", now),
-          now,
-        });
-        done.liveActivities += 1;
-        // The activity has ended, or the user dismissed it
-        if (next.hasArrived || result.gone) train.liveActivityToken = null;
-      }
-
-      // Nothing more to say about a train that has arrived
-      if (next.hasArrived) {
-        kept.pop();
-        done.dropped += 1;
+      // From the stored times when Darwin's board was not read this run
+      const reminder = device.alerts.departures === false ? null : departureReminder(train, now);
+      if (reminder) {
+        train.reminded = [...(train.reminded ?? []), reminder.kind];
+        changed = true;
+        await alert(`departure.${reminder.kind}`, reminder.body);
       }
     }
 

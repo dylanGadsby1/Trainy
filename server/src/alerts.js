@@ -7,7 +7,16 @@ import { departureAt } from "./darwin.js";
 /** A delay is reported again once it has moved this many minutes from the last report. */
 const DELAY_STEP = 5;
 
-const isKnown = (platform) => Boolean(platform) && platform !== "TBC";
+const isKnown = (platform) => Boolean(platform) && platform !== "TBC" && platform !== "–";
+
+/** The platform came from a live feed, not only the timetable. A state saved before this was recorded counts as live. */
+const isConfirmed = (state) => isKnown(state.platform) && (state.platformConfirmed ?? true);
+
+/** The reminders before a train leaves: due this many minutes before, and not sent once it is `until` or less. */
+const REMINDERS = [
+  { kind: "hour", minutes: 60, until: 55 },
+  { kind: "soon", minutes: 5, until: 2 },
+];
 
 /** "20:05 Milton Keynes Central to London Euston" */
 export function journeyName(train) {
@@ -51,17 +60,50 @@ export function changes(train, old, next, now) {
     result.alerts.push({ kind: "delay", body });
   }
 
-  // A platform is only worth an alert while the train can still be caught
-  if (next.platform !== old.platform && isKnown(next.platform) && !hasLeft) {
-    result.alerts.push({
-      kind: "platform",
-      body: isKnown(old.platform)
-        ? `Platform changed to ${next.platform} (was ${old.platform}).`
-        : `Leaves from platform ${next.platform}.`,
-    });
+  // When a live feed first gives the platform, and whenever it changes after that. A platform
+  // is only worth an alert while the train can still be caught.
+  if (isConfirmed(next) && !hasLeft) {
+    let body = null;
+    if (isConfirmed(old)) {
+      if (next.platform !== old.platform) body = `Platform changed to ${next.platform} (was ${old.platform}).`;
+    } else if (isKnown(old.platform) && old.platform !== next.platform) {
+      body = `Platform ${next.platform} confirmed. The timetable said ${old.platform}.`;
+    } else {
+      body = `Platform ${next.platform} confirmed.`;
+    }
+    if (body) result.alerts.push({ kind: "platform", body });
   }
 
   return result;
+}
+
+/**
+ * The reminder due now before `train` leaves, from its latest state, or null.
+ * The app schedules the same ones ahead when there is no server.
+ */
+export function departureReminder(train, now) {
+  const state = train.state;
+  if (!train.remind || state.isCancelled || state.hasArrived) return null;
+
+  const left = Math.round((expectedDepartureAt(train, state) - now) / 60000);
+  const sent = train.reminded ?? [];
+  // The latest one whose time has come. Once a later one is sent, those before it are passed over.
+  const index = REMINDERS.findLastIndex((reminder) => left <= reminder.minutes);
+  const due = REMINDERS[index];
+  if (!due || left <= due.until || REMINDERS.slice(index).some((reminder) => sent.includes(reminder.kind))) return null;
+
+  return { kind: due.kind, body: departureBody(train, state, left) };
+}
+
+/** "Leaves in 1 hour, at 17:52 (10 min late), from platform 4." The app's words too. */
+function departureBody(train, state, minutes) {
+  const when = minutes >= 60 ? "1 hour" : `${minutes} minutes`;
+  if (state.hasUnknownDelay) return `Due to leave in ${when}, but delayed with no new time yet.`;
+
+  let body = `Leaves in ${when}, at ${state.expectedDeparture}`;
+  const late = delay(train.scheduledDeparture, state.expectedDeparture);
+  if (late > 0) body += ` (${late} min late)`;
+  return body + (isConfirmed(state) ? `, from platform ${state.platform}.` : ". Platform not confirmed yet.");
 }
 
 /** What the Live Activity shows: TrainyActivityAttributes.ContentState in the app. */

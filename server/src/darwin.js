@@ -68,6 +68,8 @@ export function stateFrom(service, train, previous = {}) {
     expectedArrival,
     // Darwin withdraws the platform once a train has left, so keep the last one seen
     platform: service.platform ?? previous.platform ?? "TBC",
+    // A platform on the board is live; one the app sent can be the timetable's plan
+    platformConfirmed: service.platform != null || (previous.platformConfirmed ?? false),
     delayMinutes: hasArrived ? arrivalDelay : Math.max(departureDelay, arrivalDelay),
     isCancelled: service.isCancelled === true || service.filterLocationCancelled === true || stop?.isCancelled === true,
     hasUnknownDelay: isDelayedWithoutEstimate(service.etd) || isDelayedWithoutEstimate(stop?.et),

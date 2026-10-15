@@ -5,7 +5,8 @@ import UserNotifications
 // MARK: - Train Alerts
 // Notifications about saved trains. Trainy has no server, so an alert is raised when the app
 // itself sees a change: while it is open, or when iOS wakes it for a background refresh.
-// Delay Repay reminders are scheduled ahead, so they arrive whether or not the app is running.
+// Reminders (before a train leaves, before a change, and for Delay Repay) are scheduled ahead,
+// so they arrive whether or not the app is running.
 
 @MainActor
 @Observable
@@ -20,6 +21,8 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
         case platforms = "alerts.platforms"
         /// A change of trains: a warning when one is in doubt, and a reminder on the way into it
         case connections = "alerts.connections"
+        /// Reminders an hour and five minutes before a train leaves
+        case departures = "alerts.departures"
         case delayRepay = "alerts.delayRepay"
 
         /// On until the user turns it off. Nothing is sent without notification permission.
@@ -111,15 +114,22 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
         return late
     }
 
+    /// An alert when a live feed first gives the platform, and whenever it changes after that.
+    /// A platform that is only the timetable's plan is not alerted: it can still change.
     private func platformChange(from old: DarwinServiceAdapter, to new: DarwinServiceAdapter) -> String? {
-        guard new.platform != old.platform, Self.isKnown(new.platform) else { return nil }
+        guard new.hasConfirmedPlatform else { return nil }
 
         // A platform is only worth an alert while the train can still be caught
         if let departure = new.expectedDepartureDate, departure < Date() { return nil }
 
-        return Self.isKnown(old.platform)
-            ? "Platform changed to \(new.platform) (was \(old.platform))."
-            : "Leaves from platform \(new.platform)."
+        if old.hasConfirmedPlatform {
+            guard new.platform != old.platform else { return nil }
+            return "Platform changed to \(new.platform) (was \(old.platform))."
+        }
+        if Self.isKnown(old.platform), old.platform != new.platform {
+            return "Platform \(new.platform) confirmed. The timetable said \(old.platform)."
+        }
+        return "Platform \(new.platform) confirmed."
     }
 
     /// Tells the user that a delay has put a change of trains in doubt. Raised by the app
@@ -150,7 +160,7 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private static func isKnown(_ platform: String) -> Bool {
-        !platform.isEmpty && platform != "TBC"
+        DarwinServiceAdapter.isKnownPlatform(platform)
     }
 
     private func send(_ kind: Kind, id: String, title: String, body: String) {
@@ -291,6 +301,65 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
         if let minutes = connection.minutes {
             body += " You have \(minutes) min to change."
         }
+        return body
+    }
+
+    // MARK: - Before Departure
+
+    private static let departurePrefix = "departure."
+
+    /// How long before the train leaves each reminder arrives, in minutes
+    private static let departureLeads = [60, 5]
+
+    /// Leaves room under iOS's 64 for the Delay Repay and change reminders
+    private static let departureLimit = 16
+
+    /// Schedules a reminder an hour, and another five minutes, before each saved train leaves:
+    /// its time and platform as they stood at the last sync. Set ahead, so they arrive whether or
+    /// not the app is running, and set again on every sync, so a delay moves them. A Trainy
+    /// server that is following the trains sends these itself from live times, so none are set then.
+    func refreshDepartureReminders(in context: ModelContext) async {
+        let upcoming = FetchDescriptor<SavedTrain>(predicate: #Predicate { !$0.isPast })
+        let trains = (try? context.fetch(upcoming)) ?? []
+
+        var reminders: [(id: String, date: Date, content: UNMutableNotificationContent)] = []
+        if !TrainyServer.shared.isWatching, await canSend(.departures) {
+            let now = Date()
+            for saved in trains where saved.remindsBeforeDeparture {
+                guard let train = saved.service, !train.isCancelledService, train.hasArrived != true,
+                      let departure = train.expectedDepartureDate else { continue }
+
+                for lead in Self.departureLeads {
+                    let date = departure.addingTimeInterval(-TimeInterval(lead * 60))
+                    guard date > now else { continue }
+                    reminders.append((
+                        "\(Self.departurePrefix)\(train.journeyKey).\(lead)",
+                        date,
+                        Self.content(title: Self.journeyName(train), body: Self.departureBody(train, minutes: lead))
+                    ))
+                }
+            }
+        }
+
+        var wanted: [String: (date: Date, content: UNMutableNotificationContent)] = [:]
+        for reminder in reminders.sorted(by: { $0.date < $1.date }).prefix(Self.departureLimit) {
+            wanted[reminder.id] = (reminder.date, reminder.content)
+        }
+        await schedule(wanted, prefix: Self.departurePrefix)
+    }
+
+    /// "Leaves in 1 hour, at 17:52 (10 min late), from platform 4." Worded the same by the server.
+    private static func departureBody(_ train: DarwinServiceAdapter, minutes: Int) -> String {
+        let when = minutes >= 60 ? "1 hour" : "\(minutes) minutes"
+        if train.hasUnknownDelay == true {
+            return "Due to leave in \(when), but delayed with no new time yet."
+        }
+
+        var body = "Leaves in \(when), at \(train.realtimeDeparture)"
+        if train.departureDelayMinutes > 0 {
+            body += " (\(train.departureDelayMinutes) min late)"
+        }
+        body += train.hasConfirmedPlatform ? ", from platform \(train.platform)." : ". Platform not confirmed yet."
         return body
     }
 

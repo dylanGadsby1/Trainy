@@ -20,9 +20,10 @@ struct ProfileView: View {
     @AppStorage(TrainAlerts.Kind.platforms.rawValue) private var platformAlerts = true
     @AppStorage(TrainAlerts.Kind.delayRepay.rawValue) private var delayRepayReminders = true
     @AppStorage(TrainAlerts.Kind.connections.rawValue) private var connectionAlerts = true
+    @AppStorage(TrainAlerts.Kind.departures.rawValue) private var departureReminders = true
 
     private var notificationsAreOn: Bool {
-        TrainAlerts.shared.isAllowed && (delayAlerts || platformAlerts || connectionAlerts || delayRepayReminders)
+        TrainAlerts.shared.isAllowed && (delayAlerts || platformAlerts || connectionAlerts || departureReminders || delayRepayReminders)
     }
 
     private var commuteValue: String {
@@ -223,6 +224,7 @@ struct NotificationSettingsView: View {
     @AppStorage(TrainAlerts.Kind.platforms.rawValue) private var platformAlerts = true
     @AppStorage(TrainAlerts.Kind.delayRepay.rawValue) private var delayRepayReminders = true
     @AppStorage(TrainAlerts.Kind.connections.rawValue) private var connectionAlerts = true
+    @AppStorage(TrainAlerts.Kind.departures.rawValue) private var departureReminders = true
 
     private var alerts: TrainAlerts { .shared }
 
@@ -232,13 +234,25 @@ struct NotificationSettingsView: View {
 
             Section {
                 Toggle("Delays and Cancellations", isOn: $delayAlerts)
-                Toggle("Platform Changes", isOn: $platformAlerts)
+                Toggle("Platforms", isOn: $platformAlerts)
             } header: {
                 Text("Your Trains")
             } footer: {
-                Text(TrainyServer.baseURL == nil
-                     ? "Sent when Trainy sees a change, while it is open or when iOS refreshes it in the background. Alerts can arrive a few minutes after the change."
-                     : "Sent by Trainy's server within about a minute of a change, whether or not the app is open.")
+                Text("A platform alert comes when the platform is confirmed and whenever it changes. "
+                     + (TrainyServer.baseURL == nil
+                        ? "Sent when Trainy sees a change, while it is open or when iOS refreshes it in the background. Alerts can arrive a few minutes after the change."
+                        : "Sent by Trainy's server within about a minute of a change, whether or not the app is open."))
+            }
+            .disabled(!alerts.isAllowed)
+            .listRowBackground(Color.card)
+
+            Section {
+                Toggle("An Hour and 5 Minutes Before", isOn: $departureReminders)
+            } header: {
+                Text("Before You Leave")
+            } footer: {
+                Text("A reminder an hour before your train leaves and another five minutes before, with its time and platform. On a journey with a change, only for the first train."
+                     + (TrainyServer.baseURL == nil ? " They go by the times Trainy last saw." : ""))
             }
             .disabled(!alerts.isAllowed)
             .listRowBackground(Color.card)
@@ -278,6 +292,9 @@ struct NotificationSettingsView: View {
         .onChange(of: connectionAlerts) {
             Task { await alerts.refreshApproachReminders(in: modelContext) }
         }
+        .onChange(of: departureReminders) {
+            Task { await alerts.refreshDepartureReminders(in: modelContext) }
+        }
     }
 
     @ViewBuilder
@@ -289,6 +306,7 @@ struct NotificationSettingsView: View {
                     Task {
                         await alerts.requestPermission()
                         await alerts.refreshDelayRepayReminders(in: modelContext)
+                        await alerts.refreshDepartureReminders(in: modelContext)
                     }
                 }
             } footer: {

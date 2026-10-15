@@ -1140,6 +1140,12 @@ struct ContentView: View {
         .onChange(of: mySavedTrains.count) { old, new in
             if new > old {
                 Task { await TrainSync.shared.sync(in: modelContext) }
+            } else {
+                // A removed train's reminders go now, not at the next sync, in case the app is closed first
+                Task {
+                    await TrainAlerts.shared.refreshDepartureReminders(in: modelContext)
+                    await TrainAlerts.shared.refreshApproachReminders(in: modelContext)
+                }
             }
         }
         .onReceive(positionTimer) { now in

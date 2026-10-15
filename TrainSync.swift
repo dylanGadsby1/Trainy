@@ -77,6 +77,8 @@ final class TrainSync {
         await TrainAlerts.shared.refreshApproachReminders(in: context)
         await TrainAlerts.shared.refreshDelayRepayReminders(in: context)
         await TrainyServer.shared.sync(in: context)
+        // After the server, which sends these itself once it is following the trains
+        await TrainAlerts.shared.refreshDepartureReminders(in: context)
     }
 
     /// Gets the path along the tracks for trains still to run that have none, a few at a

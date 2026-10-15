@@ -75,8 +75,9 @@ npx wrangler deploy
    `TrainyServerKey` to your `APP_KEY` if you set one.
 
 That is all. The app then registers for push, tells the server which trains it is
-following, and stops raising its own delay and platform alerts. Delay Repay reminders are
-still scheduled on the phone.
+following, and stops raising its own delay and platform alerts and its reminders an hour and
+five minutes before each train leaves: the server sends those from live times. Delay Repay
+reminders are still scheduled on the phone.
 
 ## How it works
 

@@ -65,6 +65,12 @@ final class SavedTrain {
     }
 }
 
+extension SavedTrain {
+    /// Gets the reminders an hour and five minutes before it leaves. Only the first train of a
+    /// journey with a change does: the reminder on the way into each change covers the rest.
+    var remindsBeforeDeparture: Bool { legIndex == 0 }
+}
+
 // MARK: - Delay Repay
 
 /// The Delay Repay claim a past journey qualifies for: who to claim from and how long is left.

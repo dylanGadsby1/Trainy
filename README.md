@@ -38,7 +38,7 @@ Data comes from two feeds. National Rail's **Darwin Live Departure Boards** API,
 | 🚂 **Operator Branding** | Logos and brand colours for 26 UK rail operators |
 | 💸 **Delay Repay** | Deep links to every operator's Delay Repay compensation page, with a journey of several trains claimed for by how late it ended |
 | 📍 **Live Activities** | Follow a train, or a whole journey from train to train, from the Lock Screen and Dynamic Island |
-| 🔔 **Notifications** | Delay, cancellation and platform alerts for saved trains, and reminders to claim Delay Repay |
+| 🔔 **Notifications** | Delay and cancellation alerts, an alert when the platform is confirmed and whenever it changes, reminders an hour and five minutes before the train leaves, and reminders to claim Delay Repay |
 | 🚏 **Calling Points** | Every stop on the journey with live times, the route on the map and the train's estimated position |
 | ⭐ **Saved Routes** | Star a route to search it in one tap, with a shortcut for the return journey |
 | 🔁 **Journeys with a Change** | Search finds routes that need a change, follows every train on them as one journey, and warns when a delay puts a change at risk |

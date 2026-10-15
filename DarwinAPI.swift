@@ -426,6 +426,9 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
 
     // Service info
     var platform: String
+    /// The platform came from a live feed. False while it is only the timetable's planned
+    /// platform, from Realtime Trains, which can still change. Nil on trains saved before this was recorded.
+    var isPlatformConfirmed: Bool?
     var atocName: String?
     var atocCode: String?
     /// Minutes late: at the destination once the train has arrived, and until then
@@ -499,6 +502,17 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
         } else {
             return .onTime
         }
+    }
+
+    /// A platform has been given and it came from a live feed, not only the timetable.
+    /// Trains saved before this was recorded count as confirmed when Darwin was following them.
+    var hasConfirmedPlatform: Bool {
+        Self.isKnownPlatform(platform) && (isPlatformConfirmed ?? (dataSource != .rtt))
+    }
+
+    /// False for the placeholders shown before a platform is given
+    static func isKnownPlatform(_ platform: String) -> Bool {
+        !platform.isEmpty && platform != "TBC" && platform != "–"
     }
 
     var departureDelayMinutes: Int {
@@ -624,6 +638,7 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
         // Darwin withdraws the platform once a train has left, so keep the last one seen
         if let platform = service.platform {
             self.platform = platform
+            isPlatformConfirmed = true
         }
 
         isCancelledService = service.isCancelled == true || service.filterLocationCancelled == true
@@ -705,8 +720,13 @@ struct DarwinServiceAdapter: Codable, Identifiable, Equatable {
             realtimeDeparture = departure.expectedClock ?? scheduledDeparture
         }
 
-        if let platform = platform?.actual ?? platform?.forecast ?? platform?.planned {
-            self.platform = platform
+        if let actual = platform?.actual {
+            self.platform = actual
+            isPlatformConfirmed = true
+        } else if isPlatformConfirmed != true, let planned = platform?.forecast ?? platform?.planned {
+            // Not over a platform Darwin has already given: this one is only the plan
+            self.platform = planned
+            isPlatformConfirmed = false
         }
 
         isCancelledService = departure?.isCancelled == true || arrival?.isCancelled == true

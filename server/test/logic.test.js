@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { clock, delay, londonDate } from "../src/time.js";
 import { boardOffset, findService, stateFrom } from "../src/darwin.js";
-import { changes, contentState } from "../src/alerts.js";
+import { changes, contentState, departureReminder } from "../src/alerts.js";
 
 const train = {
   key: "2026-10-13-15:30-MKC-EUS",
@@ -65,7 +65,7 @@ test("a train is found by its id, or by its timetable when the id has changed", 
 });
 
 test("state follows the board", () => {
-  assert.deepEqual(stateFrom(service(), train, onTime), { ...onTime, platform: "5" });
+  assert.deepEqual(stateFrom(service(), train, onTime), { ...onTime, platform: "5", platformConfirmed: true });
 
   const late = stateFrom(service({ etd: "15:42", subsequentCallingPoints: [{ callingPoint: [
     { crs: "EUS", st: "16:05", et: "16:20" },
@@ -89,7 +89,7 @@ test("state follows the board", () => {
 test("alerts match the app's wording", () => {
   const bodies = (old, next, extra = {}) => changes({ ...train, ...extra }, old, next, before).alerts.map((a) => a.body);
 
-  assert.deepEqual(bodies(onTime, { ...onTime, platform: "5" }), ["Leaves from platform 5."]);
+  assert.deepEqual(bodies(onTime, { ...onTime, platform: "5" }), ["Platform 5 confirmed."]);
   assert.deepEqual(bodies({ ...onTime, platform: "5" }, { ...onTime, platform: "7" }), ["Platform changed to 7 (was 5)."]);
   assert.deepEqual(bodies(onTime, { ...onTime, expectedDeparture: "15:42", delayMinutes: 12 }),
     ["Running 12 min late. Now expected to leave at 15:42."]);
@@ -125,4 +125,47 @@ test("the Live Activity's content state", () => {
   assert.deepEqual(contentState(train, { ...onTime, platform: "5", delayMinutes: 3, expectedDeparture: "15:33" }), {
     scheduledDeparture: "15:30", expectedDeparture: "15:33", delayMinutes: 3, platform: "5", isCancelled: false,
   });
+});
+
+test("a planned platform is confirmed once Darwin gives it", () => {
+  const bodies = (old, next) => changes(train, old, next, before).alerts.map((a) => a.body);
+  const planned = { ...onTime, platform: "5", platformConfirmed: false };
+
+  assert.deepEqual(bodies(planned, { ...planned, platformConfirmed: true }), ["Platform 5 confirmed."]);
+  assert.deepEqual(bodies(planned, { ...planned, platform: "7", platformConfirmed: true }),
+    ["Platform 7 confirmed. The timetable said 5."]);
+  // A change to the plan itself is not worth an alert
+  assert.deepEqual(bodies(planned, { ...planned, platform: "7" }), []);
+  // The board only ever gives live platforms
+  assert.equal(stateFrom(service(), train, planned).platformConfirmed, true);
+  assert.equal(stateFrom(service({ platform: undefined }), train, planned).platformConfirmed, false);
+});
+
+test("reminders an hour and five minutes before the train leaves", () => {
+  const at = (minutesBefore) => new Date(Date.parse("2026-10-13T14:30:00Z") - minutesBefore * 60000);
+  const remind = (minutesBefore, extra = {}, state = {}) =>
+    departureReminder({ ...train, remind: true, ...extra, state: { ...onTime, ...state } }, at(minutesBefore));
+
+  assert.equal(remind(61), null);
+  assert.deepEqual(remind(60), { kind: "hour", body: "Leaves in 1 hour, at 15:30. Platform not confirmed yet." });
+  // A run that was missed still sends it a little late, but not long after
+  assert.equal(remind(57).body, "Leaves in 57 minutes, at 15:30. Platform not confirmed yet.");
+  assert.equal(remind(54), null);
+  assert.equal(remind(60, { reminded: ["hour"] }), null);
+
+  assert.deepEqual(remind(5, {}, { platform: "5", platformConfirmed: true }),
+    { kind: "soon", body: "Leaves in 5 minutes, at 15:30, from platform 5." });
+  assert.equal(remind(2), null);
+
+  // By the expected time, not the timetabled one
+  assert.equal(remind(70, {}, { expectedDeparture: "15:40", delayMinutes: 10 }), null);
+  assert.equal(remind(50, {}, { expectedDeparture: "15:40", delayMinutes: 10 }).body,
+    "Leaves in 1 hour, at 15:40 (10 min late). Platform not confirmed yet.");
+  // Once the five-minute one is sent, a delay does not bring back the hour one
+  assert.equal(remind(60, { reminded: ["soon"] }), null);
+
+  assert.equal(remind(5, { remind: false }), null);
+  assert.equal(remind(5, {}, { isCancelled: true }), null);
+  assert.equal(remind(60, {}, { hasUnknownDelay: true, expectedDeparture: "15:30" }).body,
+    "Due to leave in 1 hour, but delayed with no new time yet.");
 });
