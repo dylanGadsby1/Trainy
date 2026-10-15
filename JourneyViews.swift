@@ -133,6 +133,86 @@ struct JourneyConnection {
     }
 }
 
+// MARK: - Adding the Next Train
+
+/// Where and when a journey can carry on from a saved train: its arrival station, from the
+/// earliest a change there can be made.
+struct NextTrainStart {
+    let station: UKStation
+    let earliest: Date
+}
+
+extension SavedTrain {
+    /// Nil once the train has run, or when where it arrives is not known.
+    var nextTrainStart: NextTrainStart? {
+        guard !isPast, let service, !service.isCancelledService,
+              let station = ukStations.first(where: { $0.crs == (service.userSearchDestinationCRS ?? service.destinationCRS) }),
+              let arrival = service.expectedArrivalDate ?? service.scheduledArrivalDate else { return nil }
+        return NextTrainStart(station: station, earliest: arrival.addingTimeInterval(TimeInterval(JourneyConnection.minimumMinutes * 60)))
+    }
+
+    /// Follows `train` as the next train of this one's journey: the way to build a journey
+    /// the planner does not offer, one train at a time. This train becomes the start of a
+    /// journey if it was followed on its own. A train already in My Trains joins rather
+    /// than appearing twice.
+    @MainActor
+    func addNext(_ train: DarwinServiceAdapter, in context: ModelContext) {
+        guard let previous = service else { return }
+        let all = (try? context.fetch(FetchDescriptor<SavedTrain>())) ?? []
+
+        let journeyID = self.journeyID ?? UUID().uuidString
+        if self.journeyID == nil {
+            self.journeyID = journeyID
+            legIndex = 0
+        }
+
+        let record: SavedTrain
+        if let existing = all.first(where: { !$0.isPast && !$0.isDeleted && $0.service?.isSameJourney(as: train) == true }) {
+            record = existing
+        } else if let data = try? JSONEncoder().encode(train) {
+            record = SavedTrain(id: train.id, serviceData: data)
+            context.insert(record)
+        } else {
+            return
+        }
+        record.journeyID = journeyID
+        record.legIndex = legIndex + 1
+
+        // A change at the same station needs only the usual minimum. Between two stations,
+        // allow a walk: about twelve minutes a kilometre, and five more to find the platform.
+        let arrivalCRS = previous.userSearchDestinationCRS ?? previous.destinationCRS
+        let departureCRS = train.userSearchOriginCRS ?? train.originCRS
+        if arrivalCRS == departureCRS {
+            record.transferNote = nil
+            record.transferMinutes = nil
+        } else {
+            record.transferNote = "Make your own way from \(UKStation.name(for: arrivalCRS)) to \(UKStation.name(for: departureCRS))"
+            if let from = knownStationCoordinates[arrivalCRS], let to = knownStationCoordinates[departureCRS] {
+                record.transferMinutes = Int(RouteLine.metres(from: from, to: to) / 1000 * 12) + 5
+            }
+        }
+        record.transferLines = nil
+        record.arrivalPlatform = nil
+
+        // The journey as a whole: named from its first station to its new last one, and
+        // planned to end when this train is due, which Delay Repay measures against
+        var legs = all.filter { $0.journeyID == journeyID && !$0.isDeleted }
+        if !legs.contains(where: { $0 === record }) { legs.append(record) }
+        legs.sort { $0.legIndex < $1.legIndex }
+
+        let firstCRS = legs.first?.service.map { $0.userSearchOriginCRS ?? $0.originCRS } ?? (previous.userSearchOriginCRS ?? previous.originCRS)
+        let lastCRS = train.userSearchDestinationCRS ?? train.destinationCRS
+        let title = "\(UKStation.name(for: firstCRS)) to \(UKStation.name(for: lastCRS))"
+        for leg in legs {
+            leg.journeyTitle = title
+            leg.journeyPlannedArrival = train.scheduledArrivalDate
+            leg.onwardNote = nil
+        }
+
+        try? context.save()
+    }
+}
+
 // MARK: - Saved Journeys
 
 /// The trains of one journey, in the order they are taken.
@@ -1155,6 +1235,8 @@ struct JourneyDetailView: View {
     let journeyID: String
     /// True when pushed from Rail History
     var isHistory = false
+    /// Set from My Trains: called with the journey's last train to add the one after it
+    var onAddNext: ((SavedTrain) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -1227,6 +1309,16 @@ struct JourneyDetailView: View {
                 if isHistory, let claim = journey.delayRepay {
                     DelayRepaySection(train: claim.train, claim: claim.claim)
                         .padding(.top, 4)
+                }
+
+                if !isHistory, let onAddNext, let last = journey.legs.last, last.nextTrainStart != nil {
+                    Button {
+                        onAddNext(last)
+                    } label: {
+                        Label("Add Next Train", systemImage: "arrow.triangle.branch")
+                    }
+                    .buttonStyle(.secondary)
+                    .padding(.top, 4)
                 }
 
                 if !isHistory {

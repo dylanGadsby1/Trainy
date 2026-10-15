@@ -416,10 +416,15 @@ struct JourneyDashboardView: View {
     var rawService: DarwinServiceAdapter? = nil
     /// Set when the train is a search result: the screen then offers to add it to My Trains
     var onAdd: (() -> Void)? = nil
+    /// The words on the button that adds a search result
+    var addTitle = "Add to My Trains"
     /// Where the user already has the search result ("In My Trains"), if they do
     var savedNote: String? = nil
     /// Set when the train is in My Trains: the screen then offers to remove it
     var onRemove: (() -> Void)? = nil
+    /// Set when the train is in My Trains and a journey can carry on from it: the screen then
+    /// offers to add the next train
+    var onAddNext: (() -> Void)? = nil
     /// Pushed onto a navigation stack with a bar above it, not shown as a sheet of its own
     var isPushed = false
     /// False when the screen was opened from the journey's own page, which already sets it out
@@ -468,6 +473,14 @@ struct JourneyDashboardView: View {
 
                     ArrivalContextCard(journey: journey)
 
+                    if let onAddNext {
+                        Button(action: onAddNext) {
+                            Label("Add Next Train", systemImage: "arrow.triangle.branch")
+                        }
+                        .buttonStyle(.secondary)
+                        .padding(.top, 4)
+                    }
+
                     if let onRemove {
                         Button("Remove from My Trains", role: .destructive) {
                             confirmingRemoval = true
@@ -487,7 +500,7 @@ struct JourneyDashboardView: View {
         .safeAreaInset(edge: .bottom) {
             if let onAdd {
                 Button(action: onAdd) {
-                    Label(savedNote ?? "Add to My Trains", systemImage: savedNote == nil ? "plus" : "checkmark")
+                    Label(savedNote ?? addTitle, systemImage: savedNote == nil ? "plus" : "checkmark")
                 }
                 .buttonStyle(.primary)
                 .disabled(savedNote != nil)
@@ -971,6 +984,10 @@ struct ContentView: View {
     @State private var showingAddTrain: Bool = false
     /// The search being filled in, kept here so closing Add Train does not lose it
     @State private var searchDraft = TrainSearchDraft()
+    /// The saved train whose journey Add Train is picking the next train for
+    @State private var continuingFrom: SavedTrain?
+    /// That search: its own, so the one being filled in above is not lost
+    @State private var nextTrainDraft = TrainSearchDraft()
     /// What is pushed from Rail History, if anything: a journey, or the stats
     @State private var historyPath = NavigationPath()
 
@@ -1134,7 +1151,14 @@ struct ContentView: View {
                     MapToggleButton()
                     ProfileToggleButton(showingProfile: $showingProfile)
 
-                    tabSheet(0) { HomeSheetView(currentDetent: $globalSheetDetent, peekHeight: $myTrainsPeekHeight) { showingAddTrain = true } }
+                    tabSheet(0) {
+                        HomeSheetView(
+                            currentDetent: $globalSheetDetent,
+                            peekHeight: $myTrainsPeekHeight,
+                            onAddTrain: { showingAddTrain = true },
+                            onAddNextTrain: addNextTrain(after:)
+                        )
+                    }
                     tabSheet(1) { PastTrainsSheetView(currentDetent: $globalSheetDetent, myTrainsPeekHeight: myTrainsPeekHeight) }
                 }
                 .toolbar(.hidden, for: .navigationBar)
@@ -1179,6 +1203,9 @@ struct ContentView: View {
         .sheet(isPresented: $showingAddTrain) {
             AddTrainView(draft: $searchDraft)
         }
+        .sheet(item: $continuingFrom) { train in
+            AddTrainView(draft: $nextTrainDraft, continuing: train)
+        }
         .onChange(of: scenePhase) { _, phase in
             // Catch up as soon as the app comes back: a train may have come into Darwin's reach meanwhile
             if phase == .active {
@@ -1202,6 +1229,13 @@ struct ContentView: View {
         // Text follows the user's size setting. The largest sizes are held back, because
         // the train cards set times side by side and stop fitting beyond this.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+    }
+
+    /// Opens Add Train to pick the train after `train`, searching from where it gets in.
+    private func addNextTrain(after train: SavedTrain) {
+        guard let start = train.nextTrainStart else { return }
+        nextTrainDraft = TrainSearchDraft(origin: start.station, destination: nil, date: start.earliest)
+        continuingFrom = train
     }
 
     /// Every tab's sheet stays mounted, so what it holds (a half-filled search, a scroll

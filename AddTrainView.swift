@@ -22,6 +22,8 @@ struct TrainSearchQuery: Hashable {
 /// details with the button that adds it.
 struct AddTrainView: View {
     @Binding var draft: TrainSearchDraft
+    /// Set when the train picked is to be the next one of this saved train's journey
+    var continuing: SavedTrain? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -38,6 +40,10 @@ struct AddTrainView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    if let previous = continuing?.service {
+                        ContinuingCard(previous: previous)
+                    }
+
                     routeCard
 
                     Button {
@@ -59,7 +65,7 @@ struct AddTrainView: View {
                 .padding(.bottom, 24)
             }
             .background(Color.surface)
-            .navigationTitle("Add Train")
+            .navigationTitle(continuing == nil ? "Add Train" : "Add Next Train")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -72,7 +78,7 @@ struct AddTrainView: View {
                 }
             }
             .navigationDestination(item: $search) { query in
-                TrainResultsView(query: query) {
+                TrainResultsView(query: query, continuing: continuing) {
                     dismiss()
                 }
             }
@@ -455,6 +461,8 @@ struct StationPickerView: View {
 
 struct TrainResultsView: View {
     let query: TrainSearchQuery
+    /// Set when the train picked is to be the next one of this saved train's journey
+    var continuing: SavedTrain? = nil
     /// Called once a train has been added to My Trains
     var onAdded: () -> Void
 
@@ -523,8 +531,9 @@ struct TrainResultsView: View {
                     }
                 }
 
-                // Once the direct trains are known: with none, the routes with a change are the answer
-                if !isLoading, errorMessage == nil {
+                // Once the direct trains are known: with none, the routes with a change are the answer.
+                // Not while a journey is being built a train at a time: each change is its own search.
+                if !isLoading, errorMessage == nil, continuing == nil {
                     JourneyOptionsSection(query: query, loadsAtOnce: services.isEmpty, onAdded: onAdded)
                 }
             }
@@ -548,6 +557,7 @@ struct TrainResultsView: View {
                     journey: train.toTrainJourney(),
                     rawService: train,
                     onAdd: { add(train) },
+                    addTitle: continuing == nil ? "Add to My Trains" : "Add as Next Train",
                     savedNote: savedNote(for: train)
                 )
             }
@@ -570,11 +580,21 @@ struct TrainResultsView: View {
     /// Where the user already has this train, if they do.
     private func savedNote(for train: DarwinServiceAdapter) -> String? {
         guard let saved = savedTrains.first(where: { $0.service?.isSameJourney(as: train) == true }) else { return nil }
-        return saved.isPast ? "In Rail History" : "In My Trains"
+        if saved.isPast { return "In Rail History" }
+        // A train followed on its own can still become the next one of this journey
+        guard let continuing else { return "In My Trains" }
+        return saved === continuing || (saved.journeyID != nil && saved.journeyID == continuing.journeyID) ? "In This Journey" : nil
     }
 
     private func add(_ train: DarwinServiceAdapter) {
-        guard savedNote(for: train) == nil, let data = try? JSONEncoder().encode(train) else { return }
+        guard savedNote(for: train) == nil else { return }
+        if let continuing {
+            continuing.addNext(train, in: modelContext)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            onAdded()
+            return
+        }
+        guard let data = try? JSONEncoder().encode(train) else { return }
         modelContext.insert(SavedTrain(id: train.id, serviceData: data))
         try? modelContext.save()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -613,6 +633,41 @@ struct TrainResultsView: View {
 #Preview {
     AddTrainView(draft: .constant(TrainSearchDraft()))
         .modelContainer(for: [SavedTrain.self, SavedRoute.self], inMemory: true)
+}
+
+// MARK: - Continuing a Journey
+
+/// Above the search when the train picked will be the next one of a journey: which train
+/// it follows, and when that gets in.
+struct ContinuingCard: View {
+    let previous: DarwinServiceAdapter
+
+    var body: some View {
+        let arrivalCRS = previous.userSearchDestinationCRS ?? previous.destinationCRS
+        let arrival = previous.userSearchDestinationArrivalTime ?? previous.userSearchDestinationScheduledArrivalTime
+
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Color.brand)
+                .frame(width: 36, height: 36)
+                .background(Color.brandTint, in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("After the \(previous.scheduledDeparture) to \(UKStation.name(for: arrivalCRS))")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.ink)
+                Text("Due in at \(arrival ?? "--:--"). Choose where the next train goes, or change From if you'll walk to another station.")
+                    .font(.footnote)
+                    .foregroundStyle(Color.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .cardSurface()
+        .accessibilityElement(children: .combine)
+    }
 }
 
 // MARK: - Departure Row

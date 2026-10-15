@@ -504,6 +504,8 @@ struct HomeSheetView: View {
     @Binding var peekHeight: CGFloat
     /// Opens Add Train
     var onAddTrain: () -> Void
+    /// Opens Add Train for the train after this one, as the next of its journey
+    var onAddNextTrain: (SavedTrain) -> Void = { _ in }
 
     var body: some View {
         MapBottomSheet(detent: $currentDetent, publishing: $peekHeight) {
@@ -515,18 +517,25 @@ struct HomeSheetView: View {
         .sheet(item: $selectedTrain) { train in
             // Show the saved train as it is now, not as it was when the sheet opened
             let current = liveServices.first { $0.isSameJourney(as: train) } ?? train
+            let saved = mySavedTrains.first { $0.service?.isSameJourney(as: train) == true }
             JourneyDashboardView(journey: current.toTrainJourney(), rawService: current, onRemove: {
                 selectedTrain = nil
-                if let saved = mySavedTrains.first(where: { $0.service?.isSameJourney(as: train) == true }) {
+                if let saved {
                     remove(saved)
                 }
+            }, onAddNext: saved?.nextTrainStart == nil ? nil : {
+                selectedTrain = nil
+                if let saved { addNextTrain(after: saved) }
             })
             .presentationDragIndicator(.visible)
         }
         .sheet(item: $selectedJourney) { journey in
             // Each train of the journey opens from here, on its own screen
             NavigationStack {
-                JourneyDetailView(journeyID: journey.id)
+                JourneyDetailView(journeyID: journey.id, onAddNext: { last in
+                    selectedJourney = nil
+                    addNextTrain(after: last)
+                })
             }
             .presentationDragIndicator(.visible)
         }
@@ -546,6 +555,15 @@ struct HomeSheetView: View {
             Text(trainsToDelete.count > 1
                  ? "Are you sure you want to remove this journey from My Trains?"
                  : "Are you sure you want to remove this train from My Trains?")
+        }
+    }
+
+    /// Add Train opens from the main screen, so a train's or journey's own sheet has to finish
+    /// closing first.
+    private func addNextTrain(after train: SavedTrain) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            onAddNextTrain(train)
         }
     }
 
@@ -627,6 +645,11 @@ struct HomeSheetView: View {
                                     ShareLink(item: train.shareMessage()) {
                                         Label("Share Journey", systemImage: "square.and.arrow.up")
                                     }
+                                    if savedTrain.nextTrainStart != nil {
+                                        Button("Add Next Train", systemImage: "arrow.triangle.branch") {
+                                            onAddNextTrain(savedTrain)
+                                        }
+                                    }
                                     Button("Remove Train", systemImage: "trash", role: .destructive) {
                                         trainsToDelete = [savedTrain]
                                         showingDeleteConfirmation = true
@@ -649,6 +672,11 @@ struct HomeSheetView: View {
                             .contextMenu {
                                 ShareLink(item: journey.shareMessage()) {
                                     Label("Share Journey", systemImage: "square.and.arrow.up")
+                                }
+                                if let last = journey.legs.last, last.nextTrainStart != nil {
+                                    Button("Add Next Train", systemImage: "arrow.triangle.branch") {
+                                        onAddNextTrain(last)
+                                    }
                                 }
                                 Button("Remove Journey", systemImage: "trash", role: .destructive) {
                                     // A train that has already run stays, in Rail History
