@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BA9450D3307C6000009275DA /* CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450D4307C6000009275DA /* CloudSync.swift */; };
 		BA9450D0307C6000009275DA /* TrainyWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450D2307C6000009275DA /* TrainyWidgetData.swift */; };
 		BA9450D1307C6000009275DA /* TrainyWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9450D2307C6000009275DA /* TrainyWidgetData.swift */; };
 		25710509EF4B771F59234B07 /* TrainyActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8037732A6F0FCB0BFC8C27E /* TrainyActivityAttributes.swift */; };
@@ -71,6 +72,7 @@
 		26E699D0F6C02761F6095F21 /* SavedTrain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SavedTrain.swift; sourceTree = "<group>"; };
 		7A6A68B6167601AF1BB45F01 /* OperatorBranding.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OperatorBranding.swift; sourceTree = "<group>"; };
 		A22892EF3392043EF2D7B04D /* LiveActivityManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
+		BA9450D4307C6000009275DA /* CloudSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSync.swift; sourceTree = "<group>"; };
 		BA9450D2307C6000009275DA /* TrainyWidgetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainyWidgetData.swift; sourceTree = "<group>"; };
 		A8037732A6F0FCB0BFC8C27E /* TrainyActivityAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrainyActivityAttributes.swift; sourceTree = "<group>"; };
 		AA000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -184,6 +186,7 @@
 				A22892EF3392043EF2D7B04D /* LiveActivityManager.swift */,
 				A8037732A6F0FCB0BFC8C27E /* TrainyActivityAttributes.swift */,
 				BA9450D2307C6000009275DA /* TrainyWidgetData.swift */,
+				BA9450D4307C6000009275DA /* CloudSync.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -325,6 +328,7 @@
 				C2C48C0F0173FB4AECC60545 /* LiveActivityManager.swift in Sources */,
 				74A3E29BC9C077A497724E09 /* TrainyActivityAttributes.swift in Sources */,
 				BA9450D0307C6000009275DA /* TrainyWidgetData.swift in Sources */,
+				BA9450D3307C6000009275DA /* CloudSync.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

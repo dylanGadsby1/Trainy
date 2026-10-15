@@ -50,6 +50,7 @@ Data comes from two feeds. National Rail's **Darwin Live Departure Boards** API,
 | 📤 **Share Journey** | Send someone your train, when it is now due in, and a link to follow it live |
 | ☁️ **Optional Server** | A Cloudflare Worker that pushes changes while the app is closed and keeps the feed keys out of the app ([server/](server/README.md)) |
 | 📱 **SwiftData Persistence** | Saved trains and history survive app restarts |
+| 🔄 **iCloud Sync** | Optional: saved trains, Rail History, stats, saved routes, your name and journey options on every device signed in to the same Apple ID, with no sign-up ([set up](#4-optional-icloud-sync)) |
 
 ---
 
@@ -85,6 +86,7 @@ Trainy/
 ├── TrainyServer.swift       # Optional: push registration and the feeds through server/
 ├── LiveActivityManager.swift # Starts and updates the Live Activity
 ├── TrainyWidgetData.swift   # What the widgets show, shared with the extension through an App Group
+├── CloudSync.swift          # Optional iCloud sync: the store, merging copies made on two devices, synced preferences
 ├── RTTService.swift         # Realtime Trains API client (timetable search and fallback updates)
 ├── RTTModels.swift          # Train status, UK station list & legacy RTT models
 ├── OperatorBranding.swift   # ATOC operator logos & brand colours
@@ -151,6 +153,16 @@ open Trainy.xcodeproj
 
 Select your target device or simulator and press **Run** (⌘R).
 
+### 4. Optional: iCloud sync
+
+Trainy keeps everything on the device until the app has the iCloud capability. Turning it on needs a paid Apple Developer Program membership.
+
+1. In Xcode, select the **Trainy** target → **Signing & Capabilities** → **+ Capability** → **iCloud**
+2. Tick **CloudKit** and add a container, such as `iCloud.com.dylangadsby.Trainy`
+3. Run the app. It finds the container by itself; Profile → Privacy shows **iCloud Sync**
+
+The `remote-notification` background mode CloudKit needs is already in `Info.plist`. Before releasing, deploy the CloudKit schema to production in the CloudKit Console, after the app has run once with the container.
+
 ---
 
 ## Supported Rail Operators
@@ -182,7 +194,7 @@ Trainy ships with branding for the following operators:
 - [x] Widget support (Home Screen / Lock Screen)
 - [ ] Social journey sharing with friends
 - [ ] Ticket wallet integration
-- [ ] iCloud sync across devices
+- [x] iCloud sync across devices
 
 ---
 

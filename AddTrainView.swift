@@ -348,7 +348,8 @@ struct SaveRouteButton: View {
 // MARK: - Recent Station Searches Manager
 
 class RecentStationSearches {
-    private static let key = "recentStationCRSCodes"
+    /// Also synced through iCloud (CloudSync)
+    static let key = "recentStationCRSCodes"
     private static let maxCount = 15
 
     static func load() -> [UKStation] {

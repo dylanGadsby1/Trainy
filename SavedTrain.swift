@@ -1,12 +1,16 @@
 import Foundation
 import SwiftData
 
+// Every stored property has a default or is optional, and none is unique: iCloud sync
+// (CloudSync.swift) needs both.
+
 @Model
 final class SavedTrain {
-    var id: String
-    var isPast: Bool
-    var addedAt: Date
-    var serviceData: Data
+    var id: String = ""
+    var isPast: Bool = false
+    /// Also decides which copy is kept when two devices saved the same train (CloudSync)
+    var addedAt: Date = Date()
+    var serviceData: Data = Data()
     /// Set to the real (with-delay) arrival time when the train is moved to Rail History.
     var movedToPastAt: Date?
     /// When the user marked this journey's Delay Repay as claimed
@@ -131,9 +135,9 @@ extension SavedTrain {
 /// A journey the user makes often, kept so it can be searched in one tap.
 @Model
 final class SavedRoute {
-    var originCRS: String
-    var destinationCRS: String
-    var addedAt: Date
+    var originCRS: String = ""
+    var destinationCRS: String = ""
+    var addedAt: Date = Date()
 
     // Commute (see CommuteMode.swift). The defaults let routes saved before this was added load.
     /// The days the route is commuted on, one bit each: Sunday is 1, Monday 2, up to Saturday 64.

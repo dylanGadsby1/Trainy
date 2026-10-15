@@ -37,6 +37,10 @@ final class TrainSync {
         isSyncing = true
         defer { isSyncing = false }
 
+        // Before anything else reads them: another device may have saved the same trains
+        CloudSync.mergeDuplicates(in: context)
+        CloudSync.applyPreferences(in: context)
+
         // First, so a commute train added now is refreshed with the rest
         await CommuteMode.shared.followDueTrains(in: context)
 

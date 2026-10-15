@@ -4,7 +4,8 @@ import StoreKit
 import ActivityKit
 import UserNotifications
 
-private let profileNameKey = "profile.name"
+/// Also synced through iCloud (CloudSync)
+let profileNameKey = "profile.name"
 
 // MARK: - Profile View
 
@@ -342,6 +343,12 @@ struct PrivacyView: View {
 
     @State private var confirmingErase = false
     @State private var liveActivitiesAreOn = ActivityAuthorizationInfo().areActivitiesEnabled
+    @State private var iCloudStatus: String?
+
+    /// Where the data is kept, for the wording below
+    private var whereKept: String {
+        CloudSync.isOn ? "this iPhone and your iCloud account" : "this iPhone"
+    }
 
     private var notificationStatus: String {
         switch TrainAlerts.shared.status {
@@ -354,7 +361,11 @@ struct PrivacyView: View {
     var body: some View {
         List {
             Section {
-                Label("Your trains, Rail History, saved routes and name are kept on this iPhone. Trainy has no accounts, analytics or adverts.", systemImage: "iphone")
+                if CloudSync.isOn {
+                    Label("Your trains, Rail History, saved routes and name are kept on this iPhone and in your own iCloud account, so every device signed in to it has them. Only you can see them. Trainy has no accounts, analytics or adverts.", systemImage: "icloud")
+                } else {
+                    Label("Your trains, Rail History, saved routes and name are kept on this iPhone. Trainy has no accounts, analytics or adverts.", systemImage: "iphone")
+                }
                 Label("To find and follow trains, Trainy sends the stations and times you look up to National Rail and Realtime Trains. It does not send your name or your history.", systemImage: "network")
                 if TrainyServer.baseURL != nil {
                     Label("While notifications are on, Trainy's server holds this iPhone's notification address and the trains you are following, so it can tell you when they change. A train is removed once it has run.", systemImage: "bell.badge")
@@ -367,6 +378,9 @@ struct PrivacyView: View {
             Section {
                 LabeledContent("Notifications", value: notificationStatus)
                 LabeledContent("Live Activities", value: liveActivitiesAreOn ? "On" : "Off")
+                if let iCloudStatus {
+                    LabeledContent("iCloud Sync", value: iCloudStatus)
+                }
                 LabeledContent("Location", value: "Not Used")
                 Button("Open Trainy Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -386,10 +400,12 @@ struct PrivacyView: View {
                 .confirmationDialog("Erase all Trainy data?", isPresented: $confirmingErase, titleVisibility: .visible) {
                     Button("Erase Everything", role: .destructive, action: erase)
                 } message: {
-                    Text("Your saved trains, Rail History, saved routes and name will be removed from this iPhone. This cannot be undone.")
+                    Text(CloudSync.isOn
+                         ? "Your saved trains, Rail History, saved routes and name will be removed from this iPhone, your iCloud account and your other devices. This cannot be undone."
+                         : "Your saved trains, Rail History, saved routes and name will be removed from this iPhone. This cannot be undone.")
                 }
             } footer: {
-                Text("Removes your saved trains, Rail History, saved routes and name from this iPhone.")
+                Text("Removes your saved trains, Rail History, saved routes and name from \(whereKept)\(CloudSync.isOn ? ", and so from your other devices" : "").")
             }
             .listRowBackground(Color.card)
         }
@@ -400,6 +416,7 @@ struct PrivacyView: View {
         .task(id: scenePhase) {
             await TrainAlerts.shared.refreshStatus()
             liveActivitiesAreOn = ActivityAuthorizationInfo().areActivitiesEnabled
+            iCloudStatus = await CloudSync.status()
         }
     }
 

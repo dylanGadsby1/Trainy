@@ -8,21 +8,15 @@ struct TrainyApp: App {
 
     init() {
         UNUserNotificationCenter.current().delegate = TrainAlerts.shared
+        // After the store has opened, which decides whether iCloud is in use
+        CloudSync.startSyncingPreferences(in: sharedModelContainer)
     }
 
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            SavedTrain.self,
-            SavedRoute.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    var sharedModelContainer: ModelContainer = CloudSync.makeContainer(for: Schema([
+        SavedTrain.self,
+        SavedRoute.self,
+        SyncedSetting.self,
+    ]))
     
     var body: some Scene {
         WindowGroup {
