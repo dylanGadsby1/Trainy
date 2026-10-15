@@ -30,6 +30,9 @@ struct TrainJourney {
     var coaches: Int? = nil
     /// The platform at the destination, once the train is nearly due there
     var arrivalPlatform: String? = nil
+    /// Minutes late the operator pays Delay Repay from (15 or 30). Nil when the operator has no
+    /// Delay Repay scheme the app knows.
+    var delayRepayThreshold: Int? = nil
 }
 
 let mockJourney = TrainJourney(
@@ -67,10 +70,18 @@ struct StatusHeaderCard: View {
         return ("On time", .statusOnTime)
     }
 
+    /// The "Live" tag beside it says where it comes from
     private var boardLine: String {
         journey.isScheduledOnly && !journey.isCancelled
             ? "Timetable only (not live yet)"
-            : "\(boardStatus.text) (per departure board)"
+            : boardStatus.text
+    }
+
+    /// A tick when all is well; the warning sign is kept for when it is not
+    private var stateSymbol: String {
+        if journey.isCancelled { return "xmark.octagon.fill" }
+        if journey.delayMinutes > 0 { return "exclamationmark.triangle.fill" }
+        return journey.isScheduledOnly ? "calendar" : "checkmark.circle.fill"
     }
 
     private var boardLineColor: Color {
@@ -106,11 +117,11 @@ struct StatusHeaderCard: View {
                     Spacer()
                     ZStack {
                         Circle()
-                            .fill(Color.subtleFill)
+                            .fill(headlineColor.opacity(0.13))
                             .frame(width: 52, height: 52)
-                        Image(systemName: "exclamationmark.triangle.fill")
+                        Image(systemName: stateSymbol)
                             .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(Color.ink)
+                            .foregroundStyle(headlineColor)
                     }
                     .accessibilityHidden(true)
                 }
@@ -142,10 +153,13 @@ struct StationTimeView: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            Text(station.scheduled)
-                .font(.caption)
-                .foregroundStyle(Color.inkSecondary)
-                .strikethrough(isRetimed)
+            // The timetabled time only when the train is not keeping to it
+            if isRetimed {
+                Text(station.scheduled)
+                    .font(.caption)
+                    .foregroundStyle(Color.inkSecondary)
+                    .strikethrough()
+            }
             Text(station.actual)
                 .font(.footnote.weight(.bold))
                 .foregroundStyle(isRetimed ? Color.statusDelayed : Color.statusOnTime)
@@ -382,7 +396,8 @@ struct ArrivalContextCard: View {
                         .foregroundStyle(Color.ink)
                 }
 
-                if journey.delayMinutes >= 15 {
+                // From the operator's own threshold: some pay from 15 minutes, some from 30
+                if let threshold = journey.delayRepayThreshold, journey.delayMinutes >= threshold {
                     Divider()
 
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -472,7 +487,7 @@ struct JourneyDashboardView: View {
                         CallingPointsCard(train: service)
                     }
 
-                    SectionLabel("Arrival context")
+                    SectionLabel("At \(UKStation.name(for: journey.destination.code))")
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 4)
 
@@ -586,7 +601,8 @@ extension DarwinServiceAdapter {
             isScheduledOnly: isAwaitingLiveData == true,
             reason: disruptionReason,
             coaches: coaches,
-            arrivalPlatform: arrivalPlatform
+            arrivalPlatform: arrivalPlatform,
+            delayRepayThreshold: OperatorBrand.from(code: atocCode).flatMap { $0.delayRepayURL == nil ? nil : $0.delayRepayThreshold }
         )
     }
 }

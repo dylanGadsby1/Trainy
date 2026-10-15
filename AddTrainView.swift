@@ -381,13 +381,25 @@ struct StationPickerView: View {
     @State private var searchText = ""
     @State private var recentStations: [UKStation] = []
 
+    /// Best first: the station whose code was typed, then names that start with the text,
+    /// then names with a word that does ("Cross" finds "London Kings Cross"), then the rest.
     var filteredStations: [UKStation] {
-        guard !searchText.isEmpty else { return [] }
         let query = searchText.trimmingCharacters(in: .whitespaces)
-        return ukStations.filter {
-            $0.name.localizedCaseInsensitiveContains(query) ||
-            $0.crs.localizedCaseInsensitiveContains(query)
+        guard !query.isEmpty else { return [] }
+
+        func rank(_ station: UKStation) -> Int? {
+            if station.crs.caseInsensitiveCompare(query) == .orderedSame { return 0 }
+            let name = station.name.lowercased(), text = query.lowercased()
+            if name.hasPrefix(text) { return 1 }
+            if name.split(separator: " ").contains(where: { $0.hasPrefix(text) }) { return 2 }
+            if name.contains(text) { return 3 }
+            return nil
         }
+
+        return ukStations
+            .compactMap { station in rank(station).map { (station, $0) } }
+            .sorted { ($0.1, $0.0.name) < ($1.1, $1.0.name) }
+            .map(\.0)
     }
 
     var body: some View {
@@ -679,8 +691,9 @@ struct DepartureRow: View {
     /// Where the user already has this train ("In My Trains"), if they do
     var savedNote: String? = nil
 
+    /// The platform only once there is one: "Platform TBC" on every row says nothing
     private var facts: String {
-        [train.durationText, train.platform == "TBC" ? "Platform TBC" : "Platform \(train.platform)"]
+        [train.durationText, DarwinServiceAdapter.isKnownPlatform(train.platform) ? "Platform \(train.platform)" : nil]
             .compactMap { $0 }
             .joined(separator: " · ")
     }
@@ -706,12 +719,15 @@ struct DepartureRow: View {
                 .monospacedDigit()
 
                 HStack(spacing: 6) {
+                    // A logo stands apart by itself; a name needs a dot before what follows
                     if OperatorBrand.from(code: train.atocCode) != nil {
                         OperatorLogoBadge(atocCode: train.atocCode, compact: true)
                     } else {
                         Text(train.atocName ?? "Unknown operator")
+                        if !facts.isEmpty {
+                            Text("·")
+                        }
                     }
-                    Text("·")
                     // A long operator name gives way before the duration and platform do
                     Text(facts)
                         .layoutPriority(1)
