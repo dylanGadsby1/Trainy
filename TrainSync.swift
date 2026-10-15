@@ -74,6 +74,8 @@ final class TrainSync {
         }
 
         await fetchRouteLines(for: savedTrains)
+        // After the refresh, so a train's path and stops are as current as they can be
+        await LiveDisruptions.shared.refresh(savedTrains)
 
         archiveFinishedTrains(savedTrains)
         try? context.save()

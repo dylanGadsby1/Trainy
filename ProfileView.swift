@@ -227,6 +227,7 @@ struct NotificationSettingsView: View {
     @AppStorage(TrainAlerts.Kind.connections.rawValue) private var connectionAlerts = true
     @AppStorage(TrainAlerts.Kind.departures.rawValue) private var departureReminders = true
     @AppStorage(TrainAlerts.Kind.engineeringWorks.rawValue) private var engineeringWorksAlerts = true
+    @AppStorage(TrainAlerts.Kind.disruptions.rawValue) private var disruptionAlerts = true
 
     private var alerts: TrainAlerts { .shared }
 
@@ -237,10 +238,11 @@ struct NotificationSettingsView: View {
             Section {
                 Toggle("Delays and Cancellations", isOn: $delayAlerts)
                 Toggle("Platforms", isOn: $platformAlerts)
+                Toggle("Disruptions", isOn: $disruptionAlerts)
             } header: {
                 Text("Your Trains")
             } footer: {
-                Text("A platform alert comes when the platform is confirmed and whenever it changes. "
+                Text("A platform alert comes when the platform is confirmed and whenever it changes. A disruption alert comes once, when National Rail reports trouble on your train's route. "
                      + (TrainyServer.baseURL == nil
                         ? "Sent when Trainy sees a change, while it is open or when iOS refreshes it in the background. Alerts can arrive a few minutes after the change."
                         : "Sent by Trainy's server within about a minute of a change, whether or not the app is open."))

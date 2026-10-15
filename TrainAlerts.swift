@@ -26,6 +26,8 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
         case delayRepay = "alerts.delayRepay"
         /// Planned works on a saved route in the coming week
         case engineeringWorks = "alerts.engineeringWorks"
+        /// Live disruption on the route of a followed train
+        case disruptions = "alerts.disruptions"
 
         /// On until the user turns it off. Nothing is sent without notification permission.
         var isOn: Bool {
@@ -363,6 +365,27 @@ final class TrainAlerts: NSObject, UNUserNotificationCenterDelegate {
         }
         body += train.hasConfirmedPlatform ? ", from platform \(train.platform)." : ". Platform not confirmed yet."
         return body
+    }
+
+    // MARK: - Live Disruptions
+
+    private static let disruptionsNotifiedKey = "disruptions.notified"
+
+    /// Tells the user once about a disruption on their train's route, the first time it is
+    /// seen for that train.
+    func disruptionFound(_ disruption: LiveDisruption, on train: DarwinServiceAdapter) {
+        let key = "\(disruption.id)|\(train.journeyKey)"
+        let now = Date().timeIntervalSince1970
+        let defaults = UserDefaults.standard
+        // A day is longer than any one train is followed for
+        var notified = (defaults.dictionary(forKey: Self.disruptionsNotifiedKey) as? [String: Double] ?? [:])
+            .filter { now - $0.value < 24 * 3600 }
+        guard notified[key] == nil else { return }
+        notified[key] = now
+        defaults.set(notified, forKey: Self.disruptionsNotifiedKey)
+
+        send(.disruptions, id: "disruption.\(disruption.id).\(train.id)",
+             title: "Disruption · \(Self.journeyName(train))", body: disruption.summary)
     }
 
     // MARK: - Engineering Works

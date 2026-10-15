@@ -448,6 +448,11 @@ struct JourneyDashboardView: View {
 
                     StatusHeaderCard(journey: journey)
 
+                    // What is going wrong on the railway, for a train the user is following
+                    if onRemove != nil, let service = rawService {
+                        DisruptionsCard(trains: [service])
+                    }
+
                     // Straight under the bad news, for a train the user is following
                     if onRemove != nil, let service = rawService, AlternativeTrains.areWorthOffering(for: service) {
                         AlternativeTrainsCard(train: service) {

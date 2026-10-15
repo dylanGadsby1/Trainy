@@ -1282,6 +1282,10 @@ struct JourneyDetailView: View {
 
                 summaryCard(journey)
 
+                if !isHistory {
+                    DisruptionsCard(trains: journey.services)
+                }
+
                 SectionLabel(journey.legs.count == 1 ? "Your train" : "Your trains")
                     .padding(.top, 4)
 
