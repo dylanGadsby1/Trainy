@@ -37,6 +37,7 @@ Data comes from two feeds. National Rail's **Darwin Live Departure Boards** API,
 | 📈 **Travel Stats** | Journeys, punctuality, minutes delayed, miles, most-used routes, operators and Delay Repay, with journeys by month |
 | 🚂 **Operator Branding** | Logos and brand colours for 26 UK rail operators |
 | 💸 **Delay Repay** | Deep links to every operator's Delay Repay compensation page, with a journey of several trains claimed for by how late it ended |
+| 📲 **Widgets** | Your next saved train on the Home Screen (small and medium) and Lock Screen: when it leaves, a countdown, its platform and whether it is on time, moving on to the next train once one leaves |
 | 📍 **Live Activities** | Follow a train, or a whole journey from train to train, from the Lock Screen and Dynamic Island |
 | 🔔 **Notifications** | Delay and cancellation alerts, an alert when the platform is confirmed and whenever it changes, reminders an hour and five minutes before the train leaves, and reminders to claim Delay Repay |
 | 🚏 **Calling Points** | Every stop on the journey with live times, the route on the map and the train's estimated position |
@@ -83,6 +84,7 @@ Trainy/
 ├── TrainAlerts.swift        # Delay, platform and Delay Repay notifications
 ├── TrainyServer.swift       # Optional: push registration and the feeds through server/
 ├── LiveActivityManager.swift # Starts and updates the Live Activity
+├── TrainyWidgetData.swift   # What the widgets show, shared with the extension through an App Group
 ├── RTTService.swift         # Realtime Trains API client (timetable search and fallback updates)
 ├── RTTModels.swift          # Train status, UK station list & legacy RTT models
 ├── OperatorBranding.swift   # ATOC operator logos & brand colours
@@ -177,7 +179,7 @@ Trainy ships with branding for the following operators:
 
 - [ ] Live push notifications for delays and cancellations
 - [ ] Apple Watch companion app
-- [ ] Widget support (Today view / Lock Screen)
+- [x] Widget support (Home Screen / Lock Screen)
 - [ ] Social journey sharing with friends
 - [ ] Ticket wallet integration
 - [ ] iCloud sync across devices

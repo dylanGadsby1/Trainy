@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import BackgroundTasks
+import WidgetKit
 
 // MARK: - Train Sync
 // Keeps every saved train up to date and decides which feed it is read from:
@@ -79,6 +80,7 @@ final class TrainSync {
         await TrainyServer.shared.sync(in: context)
         // After the server, which sends these itself once it is following the trains
         await TrainAlerts.shared.refreshDepartureReminders(in: context)
+        WidgetSync.update(in: context)
     }
 
     /// Gets the path along the tracks for trains still to run that have none, a few at a
@@ -167,6 +169,66 @@ final class TrainSync {
                 LiveActivityManager.shared.endTracking(for: train)
             }
         }
+    }
+}
+
+// MARK: - Widgets
+
+/// Gives the Home Screen and Lock Screen widgets the saved trains still to come, and asks
+/// them to redraw when something they show has changed.
+enum WidgetSync {
+
+    /// More than a medium widget shows, so it has the next ones ready as each train leaves
+    private static let limit = 8
+
+    @MainActor
+    static func update(in context: ModelContext) {
+        let upcoming = FetchDescriptor<SavedTrain>(predicate: #Predicate { !$0.isPast })
+        let saved = (try? context.fetch(upcoming)) ?? []
+
+        // The last train of each journey with a change: every train before it ends at a change
+        var lastLeg: [String: Int] = [:]
+        for item in saved {
+            if let journey = item.journeyID { lastLeg[journey] = max(lastLeg[journey] ?? 0, item.legIndex) }
+        }
+
+        let trains = saved.compactMap { item -> TrainyWidgetData.Train? in
+            guard let train = item.service,
+                  let departs = train.expectedDepartureDate ?? train.scheduledDepartureDate else { return nil }
+            let origin = train.userSearchOriginCRS ?? train.originCRS
+            let destination = train.userSearchDestinationCRS ?? train.destinationCRS
+            let changes = item.journeyID.map { item.legIndex < (lastLeg[$0] ?? 0) } ?? false
+
+            return TrainyWidgetData.Train(
+                id: train.journeyKey,
+                originCRS: origin,
+                originName: stationName(origin),
+                destinationCRS: destination,
+                destinationName: stationName(destination),
+                scheduledDeparture: train.scheduledDeparture,
+                expectedDeparture: train.realtimeDeparture,
+                departs: departs,
+                arrives: train.expectedArrivalDate,
+                expectedArrival: train.userSearchDestinationArrivalTime,
+                platform: DarwinServiceAdapter.isKnownPlatform(train.platform) ? train.platform : nil,
+                platformConfirmed: train.hasConfirmedPlatform,
+                delayMinutes: train.delayMinutes,
+                isCancelled: train.isCancelledService,
+                hasUnknownDelay: train.hasUnknownDelay == true,
+                isScheduled: train.isAwaitingLiveData == true,
+                operatorName: OperatorBrand.from(code: train.atocCode)?.shortName ?? train.atocName,
+                changeAt: changes ? stationName(destination) : nil
+            )
+        }
+
+        let soonest = Array(trains.sorted { $0.departs < $1.departs }.prefix(limit))
+        if TrainyWidgetData.save(soonest) {
+            WidgetCenter.shared.reloadTimelines(ofKind: TrainyWidgetData.kind)
+        }
+    }
+
+    private static func stationName(_ crs: String) -> String {
+        ukStations.first { $0.crs == crs }?.name ?? crs
     }
 }
 

@@ -1141,7 +1141,8 @@ struct ContentView: View {
             if new > old {
                 Task { await TrainSync.shared.sync(in: modelContext) }
             } else {
-                // A removed train's reminders go now, not at the next sync, in case the app is closed first
+                // A removed train's reminders and widget go now, not at the next sync, in case the app is closed first
+                WidgetSync.update(in: modelContext)
                 Task {
                     await TrainAlerts.shared.refreshDepartureReminders(in: modelContext)
                     await TrainAlerts.shared.refreshApproachReminders(in: modelContext)
