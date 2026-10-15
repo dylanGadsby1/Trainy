@@ -994,6 +994,22 @@ struct ContentView: View {
         allSavedTrains.travelItems(past: false).flatMap(\.legs).compactMap(\.service)
     }
 
+    /// A journey's line goes on the map from this long before its first train is expected to leave
+    private static let routeLead: TimeInterval = 60 * 60
+
+    /// The trains whose line is drawn: every train of each journey whose first train leaves
+    /// within the hour, or has left. Their stations are marked whenever they are saved.
+    private var routedServices: [DarwinServiceAdapter] {
+        allSavedTrains.travelItems(past: false)
+            .filter { item in
+                let first = item.legs.first?.service
+                let departure = first?.expectedDepartureDate ?? first?.scheduledDepartureDate ?? item.departure
+                return departure.timeIntervalSince(positionClock) <= Self.routeLead
+            }
+            .flatMap(\.legs)
+            .compactMap(\.service)
+    }
+
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var cameraDistance: Double = 500000
@@ -1069,7 +1085,7 @@ struct ContentView: View {
         }
 
         // Each journey's line: grey where the train has still to go, dark where it has been
-        ForEach(mapServices) { train in
+        ForEach(routedServices) { train in
             let route = train.routeProgress(at: positionClock)
             if route.ahead.count > 1 {
                 MapPolyline(coordinates: route.ahead)
@@ -1082,7 +1098,7 @@ struct ContentView: View {
         }
 
         // Where each train is now, where the dark line ends
-        ForEach(mapServices) { train in
+        ForEach(routedServices) { train in
             if let coordinate = train.routeProgress(at: positionClock).train {
                 Annotation("", coordinate: coordinate, anchor: .center) {
                     TrainPositionMarker(color: train.trainStatus.color)
