@@ -102,7 +102,8 @@ struct JourneyConnection {
             guard arriving.hasUnknownDelay != true, let minutes else { return "Your train is delayed, with no new time yet" }
             return "Only \(minutes) min between trains"
         case .comfortable:
-            return minutes.map { "\($0) min between trains" } ?? "Times to be confirmed"
+            // "310 min" is hard to read: from an hour, hours and minutes
+            return minutes.map { "\($0 < 60 ? "\($0) min" : TravelStats.duration(minutes: $0)) between trains" } ?? "Times to be confirmed"
         }
     }
 
@@ -1227,6 +1228,114 @@ private struct JourneyLegCard: View {
     }
 }
 
+// MARK: - Journey Timeline
+
+/// One step of a journey on its page, with its place on the line down the left.
+private struct JourneyTimelineItem<Content: View>: View {
+    enum Marker {
+        case train(Color)
+        case change(Color)
+        case walk
+        case add
+    }
+
+    let marker: Marker
+    /// No line above the marker
+    let isFirst: Bool
+    /// No line below it
+    let isLast: Bool
+    @ViewBuilder let content: Content
+
+    /// Where the marker sits, level with the first line of the step
+    private static var markerTop: CGFloat { 18 }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(isFirst ? Color.clear : Color.track)
+                    .frame(width: 2, height: Self.markerTop)
+                markerView
+                Rectangle()
+                    .fill(isLast ? Color.clear : Color.track)
+                    .frame(width: 2)
+                    .frame(maxHeight: .infinity)
+            }
+            .frame(width: 22)
+            .accessibilityHidden(true)
+
+            content
+                .padding(.bottom, isLast ? 0 : 12)
+        }
+        // The line runs the full height of the step, its gap below included
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private var markerView: some View {
+        switch marker {
+        case .train(let color):
+            Image(systemName: "tram.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(color, in: Circle())
+        case .change(let color):
+            Circle()
+                .strokeBorder(color, lineWidth: 2.5)
+                .background(Circle().fill(Color.surface))
+                .frame(width: 14, height: 14)
+                .padding(.vertical, 4)
+        case .walk:
+            Image(systemName: "figure.walk")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color.brand)
+                .frame(width: 22, height: 22)
+                .background(Color.brandTint, in: Circle())
+        case .add:
+            Image(systemName: "plus")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color.brand)
+                .frame(width: 22, height: 22)
+                .background(Circle().strokeBorder(Color.brand, style: StrokeStyle(lineWidth: 1.5, dash: [3, 2])))
+        }
+    }
+}
+
+/// At the end of a journey's line: carry on with another train from where it ends.
+private struct AddNextTrainRow: View {
+    let station: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Add next train")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.brand)
+                    Text("Carry on from \(station)")
+                        .font(.footnote)
+                        .foregroundStyle(Color.inkSecondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color.inkTertiary)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.brand.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add next train, carrying on from \(station)")
+    }
+}
+
 // MARK: - A Journey of Several Trains
 
 /// A journey train by train: what its one card on My Trains, or its one row in Rail
@@ -1289,40 +1398,11 @@ struct JourneyDetailView: View {
                 SectionLabel(journey.legs.count == 1 ? "Your train" : "Your trains")
                     .padding(.top, 4)
 
-                // Getting to the first train, when that takes more than turning up
-                if let opening = journey.legs.first?.transferNote {
-                    JourneyNoteRow(text: opening)
-                }
-
-                ForEach(Array(journey.legs.enumerated()), id: \.element.persistentModelID) { index, leg in
-                    if let connection = journey.connection(before: index) {
-                        ConnectionRow(connection: connection)
-
-                        // A change in doubt comes with the ways to carry on without it
-                        if !isHistory, !leg.isPast, needsAnotherWay(connection) {
-                            OnwardOptionsCard(journey: journey, index: index)
-                        }
-                    }
-                    legLink(leg)
-                }
-
-                if let onward = journey.legs.last?.onwardNote {
-                    JourneyNoteRow(text: onward)
-                }
+                timeline(journey)
 
                 if isHistory, let claim = journey.delayRepay {
                     DelayRepaySection(train: claim.train, claim: claim.claim)
                         .padding(.top, 4)
-                }
-
-                if !isHistory, let onAddNext, let last = journey.legs.last, last.nextTrainStart != nil {
-                    Button {
-                        onAddNext(last)
-                    } label: {
-                        Label("Add Next Train", systemImage: "arrow.triangle.branch")
-                    }
-                    .buttonStyle(.secondary)
-                    .padding(.top, 4)
                 }
 
                 if !isHistory {
@@ -1369,6 +1449,66 @@ struct JourneyDetailView: View {
     }
 
     // MARK: Pieces
+
+    /// The journey from top to bottom on one line: the walk to the first train, each train,
+    /// each change between them, the walk at the end, and the way to add a train after the last.
+    @ViewBuilder
+    private func timeline(_ journey: SavedJourney) -> some View {
+        let legs = journey.legs
+        let opening = legs.first?.transferNote
+        let onward = legs.last?.onwardNote
+        let addAfter = !isHistory && onAddNext != nil ? legs.last.flatMap { $0.nextTrainStart == nil ? nil : $0 } : nil
+
+        VStack(alignment: .leading, spacing: 0) {
+            if let opening {
+                JourneyTimelineItem(marker: .walk, isFirst: true, isLast: false) {
+                    JourneyNoteRow(text: opening)
+                }
+            }
+
+            ForEach(Array(legs.enumerated()), id: \.element.persistentModelID) { index, leg in
+                if let connection = journey.connection(before: index) {
+                    JourneyTimelineItem(marker: .change(connection.state == .comfortable ? .brand : connection.color), isFirst: false, isLast: false) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ConnectionRow(connection: connection)
+                            // A change in doubt comes with the ways to carry on without it
+                            if !isHistory, !leg.isPast, needsAnotherWay(connection) {
+                                OnwardOptionsCard(journey: journey, index: index)
+                            }
+                        }
+                    }
+                }
+                JourneyTimelineItem(
+                    marker: .train(trainColor(leg)),
+                    isFirst: index == 0 && opening == nil,
+                    isLast: index == legs.count - 1 && onward == nil && addAfter == nil
+                ) {
+                    legLink(leg)
+                }
+            }
+
+            if let onward {
+                JourneyTimelineItem(marker: .walk, isFirst: false, isLast: addAfter == nil) {
+                    JourneyNoteRow(text: onward)
+                }
+            }
+
+            if let addAfter, let start = addAfter.nextTrainStart {
+                JourneyTimelineItem(marker: .add, isFirst: false, isLast: true) {
+                    AddNextTrainRow(station: start.station.name) {
+                        onAddNext?(addAfter)
+                    }
+                }
+            }
+        }
+    }
+
+    /// A train's dot on the line: grey once it has run, otherwise how it is running
+    private func trainColor(_ leg: SavedTrain) -> Color {
+        guard let service = leg.service else { return .inkTertiary }
+        if leg.isPast && !service.isCancelledService { return .inkTertiary }
+        return service.trainStatus.color
+    }
 
     /// True when the change may not be made, or cannot be: a tight one while it is still to
     /// come, and a missed or cancelled one for as long as its train is being followed.

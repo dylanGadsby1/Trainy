@@ -20,8 +20,8 @@ struct MyTrainCard: View {
         var expectedArrival: String?
         /// 0 before departure, 1 on arrival
         var progress: (Date) -> Double
-        /// Under the line on the left: the day, the changes, or a change that is in doubt
-        var note: (text: String, systemImage: String, color: Color)?
+        /// Under the line on the left: the one thing most worth knowing at that moment (see `CardNote`)
+        var note: (Date) -> CardNote?
         var platform: String
         var spokenSummary: String
     }
@@ -39,7 +39,7 @@ struct MyTrainCard: View {
             scheduledArrival: train.userSearchDestinationScheduledArrivalTime ?? train.userSearchDestinationArrivalTime ?? "--:--",
             expectedArrival: train.arrivalDelayMinutes > 0 ? train.userSearchDestinationArrivalTime : nil,
             progress: { train.progress(at: $0) },
-            note: train.dayLabel().map { ($0, "calendar", Color.inkSecondary) },
+            note: { CardNote.forTrain(train, at: $0) },
             platform: "Platform \(train.platform)",
             spokenSummary: train.spokenSummary
         )
@@ -62,10 +62,7 @@ struct MyTrainCard: View {
         }
         let status = journey.status
 
-        var note = ([first?.dayLabel(), journey.changesText].compactMap { $0 }.joined(separator: " · "), "arrow.triangle.swap", Color.inkSecondary)
-        if let risk = journey.connectionAtRisk(), let warning = risk.warning {
-            note = (warning, risk.systemImage, risk.color)
-        }
+        let note = CardNote.forJourney(journey, at: Date())
 
         // After the first train the platform is at another station, so say which
         var platform = "Platform TBC"
@@ -82,7 +79,7 @@ struct MyTrainCard: View {
         }
         spoken.append("arrives \(expectedArrival ?? scheduledArrival)")
         spoken.append(journey.changesText)
-        spoken.append(note.0 == spoken.last ? status.label : "\(status.label), \(note.0)")
+        spoken.append(note.text == spoken.last ? status.label : "\(status.label), \(note.text)")
 
         content = Content(
             operators: services.operators,
@@ -94,7 +91,7 @@ struct MyTrainCard: View {
             scheduledArrival: scheduledArrival,
             expectedArrival: expectedArrival,
             progress: { journey.progress(at: $0) },
-            note: note,
+            note: { CardNote.forJourney(journey, at: $0) },
             platform: platform,
             spokenSummary: spoken.joined(separator: ", ")
         )
@@ -186,14 +183,16 @@ struct MyTrainCard: View {
             }
             .frame(height: 28)
 
-            // The day or the changes, and the platform
+            // What is happening, kept up to date by the minute, and the platform
             HStack {
-                if let note = content.note {
-                    Label(note.text, systemImage: note.systemImage)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(note.color)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                TimelineView(.everyMinute) { timeline in
+                    if let note = content.note(timeline.date) {
+                        Label(note.text, systemImage: note.systemImage)
+                            .font(.caption.weight(note.isUrgent ? .semibold : .medium))
+                            .foregroundStyle(note.color)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
                 }
                 Spacer()
                 Label(content.platform, systemImage: "signpost.right.fill")
@@ -208,6 +207,101 @@ struct MyTrainCard: View {
         // Codes and struck-through times make little sense read one by one
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(content.spokenSummary)
+    }
+}
+
+// MARK: - What Is Happening
+
+/// The line under a My Trains card: of everything the app knows about a train or journey,
+/// the one thing most worth knowing now. In order: it is cancelled, a change is in doubt,
+/// there is disruption on the route, why it is late, when it leaves or gets in, and
+/// otherwise the day and the changes.
+@MainActor
+struct CardNote {
+    var text: String
+    var systemImage: String
+    var color: Color
+    /// Something has gone wrong: set a little heavier
+    var isUrgent = false
+
+    /// Within this many minutes, "Leaves in …" beats the day and the changes
+    private static let soon = 60
+
+    static func forTrain(_ train: DarwinServiceAdapter, at now: Date) -> CardNote? {
+        if let problem = problem(with: train) { return problem }
+        return timing(of: train, at: now) ?? train.dayLabel(at: now).map { CardNote(text: $0, systemImage: "calendar", color: .inkSecondary) }
+    }
+
+    static func forJourney(_ journey: SavedJourney, at now: Date) -> CardNote {
+        let services = journey.services
+        if services.contains(where: \.isCancelledService) {
+            return CardNote(text: "A train is cancelled · other ways", systemImage: "xmark.octagon.fill", color: .statusCancelled, isUrgent: true)
+        }
+        if let risk = journey.connectionAtRisk(at: now), let warning = risk.warning {
+            return CardNote(text: warning, systemImage: risk.systemImage, color: risk.color, isUrgent: true)
+        }
+        // The train being caught next, or the one being travelled on
+        let current = journey.currentLeg(at: now) ?? journey.boardingLeg(at: now)
+        if services.contains(where: { LiveDisruptions.shared.disruptions(for: $0).contains(where: \.isOnRoute) }) {
+            return CardNote(text: "Disruption on your route", systemImage: "exclamationmark.triangle.fill", color: .statusCancelled, isUrgent: true)
+        }
+        if let current, let reason = shortReason(current), current.trainStatus == .delayed {
+            return CardNote(text: reason, systemImage: "clock.fill", color: .statusDelayed, isUrgent: true)
+        }
+        if let current, let timing = timing(of: current, at: now, isFirst: current.journeyKey == services.first?.journeyKey) {
+            return timing
+        }
+        let plain = [services.first?.dayLabel(at: now), journey.changesText].compactMap { $0 }.joined(separator: " · ")
+        return CardNote(text: plain, systemImage: "arrow.triangle.swap", color: .inkSecondary)
+    }
+
+    /// Cancelled, disruption on the route, or why it is late
+    private static func problem(with train: DarwinServiceAdapter) -> CardNote? {
+        if train.isCancelledService {
+            return CardNote(text: shortReason(train).map { "Cancelled · \($0)" } ?? "Cancelled · see other trains",
+                            systemImage: "xmark.octagon.fill", color: .statusCancelled, isUrgent: true)
+        }
+        if LiveDisruptions.shared.disruptions(for: train).contains(where: \.isOnRoute) {
+            return CardNote(text: "Disruption on your route", systemImage: "exclamationmark.triangle.fill", color: .statusCancelled, isUrgent: true)
+        }
+        if train.trainStatus == .delayed, let reason = shortReason(train) {
+            return CardNote(text: reason, systemImage: "clock.fill", color: .statusDelayed, isUrgent: true)
+        }
+        return nil
+    }
+
+    /// "Leaves in 12 min" within the hour, then "Arrives in 7 min" once it is on its way
+    private static func timing(of train: DarwinServiceAdapter, at now: Date, isFirst: Bool = true) -> CardNote? {
+        guard !train.isCancelledService, train.hasArrived != true else { return nil }
+        if let departure = train.expectedDepartureDate, departure > now {
+            let minutes = Int((departure.timeIntervalSince(now) / 60).rounded(.up))
+            guard minutes <= soon else { return nil }
+            let what = isFirst ? "Leaves" : "Next train leaves"
+            return CardNote(text: minutes <= 1 ? "\(what) now" : "\(what) in \(minutes) min", systemImage: "figure.walk", color: .brand)
+        }
+        if let arrival = train.expectedArrivalDate, arrival > now {
+            let minutes = Int((arrival.timeIntervalSince(now) / 60).rounded(.up))
+            return CardNote(text: minutes <= 1 ? "Arriving now" : "Arrives in \(minutes) min", systemImage: "clock", color: .inkSecondary)
+        }
+        return nil
+    }
+
+    /// Darwin's sentence cut to the cause: "This train has been delayed by a signalling
+    /// fault" becomes "Signalling fault".
+    private static func shortReason(_ train: DarwinServiceAdapter) -> String? {
+        guard var reason = train.disruptionReason?.trimmingCharacters(in: .whitespacesAndNewlines), !reason.isEmpty else { return nil }
+        for prefix in ["This train has been delayed by", "This train has been cancelled because of", "This train has been cancelled due to",
+                       "This train is being delayed by", "This train has been delayed due to", "This is due to", "Due to", "because of", "by"] {
+            if reason.lowercased().hasPrefix(prefix.lowercased()) {
+                reason = String(reason.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        for article in ["a ", "an ", "the "] where reason.lowercased().hasPrefix(article) {
+            reason = String(reason.dropFirst(article.count))
+        }
+        if reason.hasSuffix(".") { reason.removeLast() }
+        guard let first = reason.first else { return nil }
+        return first.uppercased() + reason.dropFirst()
     }
 }
 
