@@ -361,8 +361,12 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
     /// Height of the peek content, once it has been laid out
     @State private var peekHeight: CGFloat = 0
 
+    /// The gap between the sheet and the sides of the screen, and the bottom too
     private let sideMargin: CGFloat = 10
     private let cornerRadius: CGFloat = 38
+    /// The bottom corners follow the screen's own rounded corners, the margin in from them,
+    /// so the gap looks the same all the way round
+    private let bottomCornerRadius: CGFloat = 46
 
     /// The drag handle with its padding
     private let handleHeight: CGFloat = 22
@@ -419,6 +423,7 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
             let expansion = min(max((sheetH - midH) / (fullH - midH), 0), 1)
             let margin = sideMargin * (1 - expansion)
             let radius = cornerRadius * (1 - expansion)
+            let bottomRadius = bottomCornerRadius * (1 - expansion)
             let topInset = insets.top * expansion
 
             // At its smallest the sheet is the peek alone. The rest fades in as the sheet
@@ -531,11 +536,13 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
                 .frame(height: max(compactH * 0.4, sheetH))
                 .frame(maxWidth: .infinity)
                 .background(
-                    UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: radius, style: .continuous)
+                    UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: bottomRadius, bottomTrailingRadius: bottomRadius, topTrailingRadius: radius, style: .continuous)
                         .fill(Color.surface)
                 )
-                .clipShape(UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: radius, style: .continuous))
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: bottomRadius, bottomTrailingRadius: bottomRadius, topTrailingRadius: radius, style: .continuous))
                 .padding(.horizontal, margin)
+                // Floats clear of the bottom edge by the same gap as the sides, until it fills the screen
+                .padding(.bottom, margin)
                 .gesture(handleDragGesture, including: currentDetent == .full ? .subviews : .all)
             }
         }
