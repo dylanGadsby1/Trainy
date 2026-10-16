@@ -1002,6 +1002,14 @@ struct ContentView: View {
     @State private var selectedTab: Int = 0
     @State private var globalSheetDetent: SheetDetent = .compact
     @State private var myTrainsPeekHeight: CGFloat = 0
+
+    /// How far up the screen the sheet reaches at its smallest, with the gap below it. The map
+    /// keeps its content above this line: Apple's "Maps" label, which has to stay in view, and
+    /// the journeys it frames.
+    private var collapsedSheetTop: CGFloat {
+        guard myTrainsPeekHeight > 0 else { return 0 }
+        return SheetMetrics.compactHeight(peekHeight: myTrainsPeekHeight, bottomInset: SheetMetrics.windowInsets.bottom) + SheetMetrics.margin
+    }
     @State private var showingProfile: Bool = false
     @State private var showingAddTrain: Bool = false
     /// The search being filled in, kept here so closing Add Train does not lose it
@@ -1164,6 +1172,7 @@ struct ContentView: View {
                         stationsMapContent
                     }
                     .mapStyle(isSatelliteMap ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
+                    .safeAreaPadding(.bottom, collapsedSheetTop)
                     .ignoresSafeArea()
                     .onMapCameraChange(frequency: .onEnd) { context in
                         cameraDistance = context.camera.distance

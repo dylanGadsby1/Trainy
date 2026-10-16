@@ -327,6 +327,29 @@ struct ScrollOffsetKey: PreferenceKey {
 }
 
 /// A generic draggable bottom sheet that floats above the map with side margins.
+/// Sizes the bottom sheet shares with what sits behind it.
+enum SheetMetrics {
+    /// The gap between the sheet and the sides and bottom of the screen
+    static let margin: CGFloat = 10
+    /// The drag handle with its padding
+    static let handleHeight: CGFloat = 22
+    /// UIKit's tab bar, which floats over the bottom of the sheet
+    static let tabBarHeight: CGFloat = 49
+
+    /// The sheet's height at its smallest, for a peek of `peekHeight`, without the gap below it
+    static func compactHeight(peekHeight: CGFloat, bottomInset: CGFloat) -> CGFloat {
+        handleHeight + peekHeight + 12 + tabBarHeight + bottomInset
+    }
+
+    /// The window's safe-area insets: views laid out edge to edge read their own as zero.
+    @MainActor
+    static var windowInsets: UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.keyWindow?.safeAreaInsets ?? .zero
+    }
+}
+
 struct MapBottomSheet<Peek: View, Content: View>: View {
     let peek: Peek
     let content: Content
@@ -362,16 +385,14 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
     @State private var peekHeight: CGFloat = 0
 
     /// The gap between the sheet and the sides of the screen, and the bottom too
-    private let sideMargin: CGFloat = 10
+    private let sideMargin = SheetMetrics.margin
     private let cornerRadius: CGFloat = 38
     /// The bottom corners follow the screen's own rounded corners, the margin in from them,
     /// so the gap looks the same all the way round
     private let bottomCornerRadius: CGFloat = 46
 
-    /// The drag handle with its padding
-    private let handleHeight: CGFloat = 22
-    /// UIKit's tab bar, which floats over the bottom of the sheet
-    private let tabBarHeight: CGFloat = 49
+    private let handleHeight = SheetMetrics.handleHeight
+    private let tabBarHeight = SheetMetrics.tabBarHeight
 
     // Rubber-band resistance factor — smaller = more resistance at extremes
     private let rubberBandFactor: CGFloat = 0.35
@@ -379,11 +400,7 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
     private let snapAnimation: Animation = .spring(response: 0.38, dampingFraction: 0.86)
 
     /// The sheet is laid out edge to edge, so its own safe-area insets read as zero; ask the window instead.
-    private var windowInsets: UIEdgeInsets {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-        return scene?.keyWindow?.safeAreaInsets ?? .zero
-    }
+    private var windowInsets: UIEdgeInsets { SheetMetrics.windowInsets }
 
     var body: some View {
         GeometryReader { geo in
@@ -397,7 +414,7 @@ struct MapBottomSheet<Peek: View, Content: View>: View {
             let borrowed = borrowedPeekHeight ?? 0
             let fittedPeekH = borrowed > 0 ? borrowed : peekHeight
             let compactH: CGFloat = fittedPeekH > 0
-                ? min(handleHeight + fittedPeekH + 12 + coveredH, screenH * 0.5)
+                ? min(SheetMetrics.compactHeight(peekHeight: fittedPeekH, bottomInset: insets.bottom), screenH * 0.5)
                 : screenH * 0.22
             let midH:     CGFloat = screenH * 0.62
             let fullH:    CGFloat = screenH
